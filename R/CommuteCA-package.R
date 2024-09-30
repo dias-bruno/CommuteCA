@@ -1,10 +1,3 @@
-#' @keywords internal
-"_PACKAGE"
-
-## usethis namespace: start
-## usethis namespace: end
-NULL
-
 #' CommuteCA: an R package to develop standardized methods for transport analysis in research
 #'
 #' The main objective of the *CommuteCA* package is to develop standardized methods for
