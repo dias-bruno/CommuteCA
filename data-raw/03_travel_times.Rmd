@@ -1,0 +1,287 @@
+---
+title: "Travel time calculations"
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+options(htmltools.dir.version = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
+This package was created in conjunction with the office of the
+[*Research Data Center* at *McMaster
+University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
+Scholarship*](https://scds.ca/) and the [*Mobilizing
+Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The main objective of the *CommuteCA* package is to develop
+standardized methods for transport analysis in research, especially for
+studies using Statistics Canada surveys. Among the available surveys, we
+focused our efforts on the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+which contain valuable variables for transportation research.
+
+After learning the basics of `R`, the concepts of data and performing some exploratory data analysis, we moved on to the next steps to perform accessibility analysis. This R markdown aims to calculate a travel time matrix for multimodal transport networks (walk, bike, public transport and car), for a selection of dissemination areas (DA), using the [{r5r}](https://ipeagit.github.io/r5r/) R package [@Pereira2021]. In this Rmarkdown, we'll demonstrate how to calculate the travel time matrix for the city of Toronto (Census Division = 3520).
+
+## Suggested Readings
+
+-   Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., & Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks with R5 in R. Findings, 21262. https://doi.org/10.32866/001c.21262.
+
+## Data
+
+To create the travel time matrix, we'll need the following data files:
+
+- The dissemination areas, the spatial unit used as a reference to aggregate Census data and used as places of origin and destination. We obtained the dissemination areas in `.shp` format from [Statistics Canada](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21).
+-   A road network data set from OpenStreetMap in `.pbf` format. We obtained the road network in Toronto from [BBBike](https://download.bbbike.org/osm/bbbike/Toronto/).
+-   A public transport feed in `GTFS.zip` format. We obtained the GTFS files from [transitland](https://www.transit.land/feeds/f-dpz8-ttc) and from [Metrolinx](https://www.metrolinx.com/en/about-us/open-data). 
+-   A raster file of Digital Elevation Model data in .tif (optional). We obtained the `.tif` files from [Canadian Digital Surface Model Project](https://open.canada.ca/data/en/dataset/768570f8-5761-498a-bd6a-315eb6cc023d), which provide elevation raster files with around 20 meters of spatial resolution for all Canada.
+
+# Let's code!
+
+Load the packages:
+
+```{r load-packages}
+library('data.table') # fast aggregation of large data 
+library('dplyr') # a grammar of Data Manipulation
+library('here') # enable easy file referencing in project-oriented workflows
+library('rJava') # allows creation of objects, calling methods and accessing fields.
+library('r5r') # rapid realistic routing with R5 in R
+library('sf') # support for simple features, a standardized way to encode spatial vector data
+```
+
+The {r5r} requires the [Java SE Development Kit 21](https://www.oracle.com/java/technologies/downloads/#java21). Also, it's necessary to set the environmental variable to use Java^[Check: https://confluence.atlassian.com/doc/setting-the-java_home-variable-in-windows-8895.html . Additionally, you may have to set the maximum memory allocation for Java, in this case: run the following code your R console windows: *options(java.parameters = "-Xmx8g")*. 
+
+The number *8* in the code above indicates the total size of RAM you're allocating for java (8 gigabytes). More RAM indicates more fast processing, but it'll depends on your computer operational system. You can allocate more or less memory to Java changing the number *8* for other number, as "-Xmx4g" for 4 gigabytes, or "-Xmx10g" for 10 gigabytes. 
+
+| ⚠️**NOTE:**  allocate memory before loading {r5r}. The memory needs to be consistent with the system where this is run. In BS's laptop this is set to 10 Gigabytes
+```{r java-ram}
+# Allocate memory for routing
+options(java.parameters = "-Xmx12G")
+```
+
+```{r load-data}
+load(paste0(here::here(),"/data/dissemination_areas_ca21.rda" ))
+```
+
+It's possible to filter the data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations). As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009). The chunk below shows how to make this procedure:
+
+```{r filter-boundaries}
+code <- 3520
+
+# # Filtering by province
+# dissemination_areas_ca21 <- dissemination_areas_ca21 %>%
+#                   filter(PR == code) # Only select dissemination areas with province = code 
+# 
+# # Filtering by census metropolitan areas and census agglomerations
+# dissemination_areas_ca21 <- dissemination_areas_ca21 %>%
+#                   filter(CMAUID == code) # Only select dissemination areas with cma = code 
+
+# # Filtering by census division
+dissemination_areas_ca21 <- dissemination_areas_ca21 %>%
+                    filter(PCD == code) # Only select dissemination areas from Toronto
+```
+
+Converting the dissemination areas to simple features and taking the centroids from each DA:
+```{r centroid}
+da_centroids <-  data.frame(id = st_centroid(dissemination_areas_ca21)$DAUID, 
+                           st_centroid(dissemination_areas_ca21) %>%
+                             st_transform(crs = 4326) %>%
+                             st_coordinates())
+colnames(da_centroids) <- c("id", "lon", "lat")
+```
+
+Indicate the path where OSM and GTFS data are stored and build the graph:
+```{r r5r-core}
+directory <- "\\data-raw\\travel_times\\PCD3520"
+r5r_core <- setup_r5(data_path = paste0(here::here(), directory), verbose = FALSE)
+```
+We'll use the `travel_time_matrix()` function from the {r5r} `R` package to estimate the travel time for each origin-destination pair on a set departure date. 
+
+The function uses some travel parameters that can be viewed on the [package's documents page](https://ipeagit.github.io/r5r/), but in our case we'll use the following parameters and inputs:
+
+- Origin: the centroids of the dissemination areas.
+- Destination: the centroids of the dissemination areas.
+- Mode of transport: walking, cycling, public transport and car.
+- Departure date: we chose the second Monday in April 2024 at 8am (peak time).
+- Maximum travel time: maximum value of travel time identified for the transportation mode. The {max_travel_times_pcd.rda} and {max_travel_times_cma.rda} tables contain the maximum travel time for each census division and census metropolitan area, respectively, taken from the 2021 Census.^[You can verify the maximum travel time for your census division or census metropolitan area by running: _load(paste0(here::here(),"/data/max_travel_times_pcd.rda" ))_ or _load(paste0(here::here(),"/data/max_travel_times_cma.rda" ))_ . To verify the PDC or CMA code of your study area, see: https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo027 .]
+- Walking time: The maximum walking time (in minutes) to access and exit the transit network, to make transfers within the network, or to complete walking-only trips.
+
+Setting the departure time:
+ 
+```{r departure-time}
+departure_datetime <- as.POSIXct("08-04-2024 8:00:00", format = "%d-%m-%Y %H:%M:%S")
+```
+
+## Travel time matrix for walking mode
+
+Considering the walking mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes.
+
+```{r duration-wak}
+max_trip_duration_walk <- 240
+```
+
+Generating the travel time:
+
+```{r ttm-wak}
+ttm_walk <- travel_time_matrix(r5r_core = r5r_core,
+                          origins = da_centroids,
+                          destinations = da_centroids,
+                          mode = "WALK",
+                          departure_datetime = departure_datetime,
+                          max_trip_duration = max_trip_duration_walk)
+
+ttm_walk <- ttm_walk %>%
+            mutate(mode = "Walk")
+```
+
+## Travel time matrix for car/motor mode
+
+Considering the car/motor mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes.
+
+```{r duration-car}
+max_trip_duration_car <- 240
+```
+
+Generating the travel time:
+
+```{r ttm-car}
+ttm_car <- travel_time_matrix(r5r_core = r5r_core,
+                               origins = da_centroids,
+                               destinations = da_centroids,
+                               mode = "CAR",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_car,
+                               max_walk_time = 5)
+
+ttm_car <- ttm_car %>%
+  mutate(mode = "Car/motor")
+```
+
+## Travel time matrix for transit mode
+
+Considering the transit mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes.
+
+```{r duration-transit}
+max_trip_duration_transit <- 240
+```
+
+Generating the travel time:
+
+```{r ttm-transit}
+ttm_transit <- travel_time_matrix(r5r_core = r5r_core,
+                               origins = da_centroids,
+                               destinations = da_centroids,
+                               mode = "TRANSIT",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_transit,
+                               max_walk_time = 10)
+
+ttm_transit <- ttm_transit %>%
+  mutate(mode = "Transit")
+```
+
+## Travel time matrix for cycling mode
+
+Considering the cycling mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes.
+
+```{r duration-cycling}
+max_trip_duration_bike <- 240
+```
+
+Generating the travel time:
+
+```{r ttm-cycling}
+ttm_bike <- travel_time_matrix(r5r_core = r5r_core,
+                               origins = da_centroids,
+                               destinations = da_centroids,
+                               mode = "BICYCLE",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_bike,
+                               max_walk_time = 5)
+
+ttm_bike <- ttm_bike %>%
+  mutate(mode = "Bike")
+```
+
+## Travel time matrix for all modes
+
+Combine the travel times for each mode in a unique data frame:
+
+```{r ttm}
+ttm <- rbind(ttm_bike,
+             ttm_car,
+             ttm_transit,
+             ttm_walk) %>%
+  mutate(mode=factor(mode, levels = c("Bike","Car/motor","Transit","Walk"))) %>%
+  rename(PRCDDA = from_id,
+         PWDA = to_id,
+         travel_time = travel_time_p50,
+         PwMode = mode)
+```
+
+Bring the Census Metropolitan Area information:
+
+```{r ttm-cma}
+ttm <- ttm %>%
+  mutate(PRCDDA = as.factor(PRCDDA),
+         PWDA = as.factor(PWDA),
+         PwMode = as.factor(PwMode)) %>%
+  left_join(as.data.frame(dissemination_areas_ca21[,c("DAUID","CMAUID")][,c("DAUID","CMAUID")]), 
+            by= c("PRCDDA"= "DAUID")) %>%
+  rename(CMA = CMAUID)
+```
+
+
+# Data export
+
+To finalize the methodology of this R markdown, we will export the processed data. Export the travel time table:
+
+```{r export-ttm}
+write.csv(ttm[,c("PRCDDA","PWDA","travel_time","PwMode","CMA")], paste0(here::here(), directory, "/ttm.csv"), row.names=FALSE)
+```
+

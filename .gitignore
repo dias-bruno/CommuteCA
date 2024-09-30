@@ -3,6 +3,11 @@
 .RData
 .Ruserdata
 .Rdata
+.RDataTmp
 .httr-oauth
 .DS_Store
 .quarto
+/data-raw/output/PCD3520/
+/data-raw/output/PCD3520/
+/data-raw/travel_times/PCD3520/
+docs

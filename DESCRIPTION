@@ -1,13 +1,15 @@
 Package: CommuteCA
-Title: What the Package Does (One Line, Title Case)
+Title: an R package to develop standardized methods for job accessibility analysis in research
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+    c(person("Bruno", "Dos Santos", , "dossanb@mcmaster.ca", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-6748-2038")),
+           person("Antonio", "Paez", , "paezha@mcmaster.ca", role = c("aut"),
+           comment = c(ORCID = "0000-0001-6912-9919")))
+Description: The main objective of the *CommuteCA* package is to develop standardized methods for accessibility analysis in research, especially for studies using Statistics Canada surveys. Among the available surveys, we focused our efforts on the 2021 Census of Population.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.0
+RoxygenNote: 7.3.2
 URL: https://github.com/dias-bruno/CommuteCA
 BugReports: https://github.com/dias-bruno/CommuteCA/issues
