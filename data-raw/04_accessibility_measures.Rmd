@@ -1250,7 +1250,7 @@ Confidentiality vetting is the process of reviewing the results to be released b
 The following rules apply to our results:
 
 - Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$).
-- Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable.
+- Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable. In addition, counts must be rounded up to multiples of 5. 
 
 The block above checks the total population of each DA and the number of respondents:
 
@@ -1271,7 +1271,7 @@ Creating new files with the total DA population and the number of respondents:
 
 ```{r creating-release}
 # Land Use Tables
-land_use_mode_release <- land_use %>% 
+land_use_mode_support <- land_use %>% 
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, PwMode, labour_force, jobs, Respondents_mode, Population_DA)
@@ -1281,45 +1281,56 @@ land_use_general <- land_use %>%
     summarize(labour_force = sum(labour_force),
               jobs = first(jobs))
 
-land_use_general_release <- land_use_general %>%
+land_use_general_support <- land_use_general %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, labour_force, jobs, Population_DA, Respondents_DA)
 
 # Hansen-type Accessibility
-HT_mode_release <- HT_mode %>% 
+HT_mode_support <- HT_mode %>% 
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, PwMode, HT_im, Respondents_mode, Population_DA)
 
-HT_release <- HT %>% 
+HT_support <- HT %>% 
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, HT_i, Population_DA, Respondents_DA)
 
 # Spatial Availability 
-SA_mode_release <- SA_mode %>% 
+SA_mode_support <- SA_mode %>% 
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, PwMode, SA_im, Respondents_mode, Population_DA)
 
-SA_release <- SA %>% 
+SA_support <- SA %>% 
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
   dplyr::select(PRCDDA, SA_i, Population_DA, Respondents_DA)
 ```
 
-Apply the rules to avoid confidentiality risks: 
+Apply the rules to avoid confidentiality risks for the land use table: 
 
-```{r filter-release}
-land_use_mode_release <- land_use_mode_release[land_use_mode_release$Population_DA >= 40 & !is.na(land_use_mode_release$Respondents_mode) & land_use_mode_release$Respondents_mode >= 5, ]
+```{r}
+land_use_general_support <- land_use_general_support %>% 
+  filter(labour_force > 10, Population_DA >= 40, jobs >= 40, Respondents_DA >= 5) %>%
+  mutate(jobs_rounded = round(jobs / 5) * 5,
+         labour_force_rounded = round(labour_force / 5) * 5)
 
-land_use_general_release <- land_use_general_release[land_use_general_release$Population_DA >= 40 & !is.na(land_use_general_release$Respondents_DA) & land_use_general_release$Respondents_DA >= 5, ]
 
-HT_mode_release <- HT_mode_release[HT_mode_release$Population_DA >= 40 & !is.na(HT_mode_release$Respondents_mode) & HT_mode_release$Respondents_mode >= 5, ]
+land_use_mode_support <- land_use_mode_support %>% 
+  filter(labour_force > 10, Population_DA >= 40, jobs >= 40, Respondents_mode >= 5) %>%
+  mutate(jobs_rounded = round(jobs / 5) * 5,
+         labour_force_rounded = round(labour_force / 5) * 5)
+```
 
-HT_release <- HT_release[HT_release$Population_DA >= 40 & !is.na(HT_release$Respondents_DA) & HT_release$Respondents_DA >= 5, ]
+Apply the rules to avoid confidentiality risks for the accessibility tables: 
 
-SA_mode_release <- SA_mode_release[SA_mode_release$Population_DA >= 40 & !is.na(SA_mode_release$Respondents_mode) & SA_mode_release$Respondents_mode >= 5, ]
+```{r filter-support}
+HT_mode_support <- HT_mode_support[HT_mode_support$Population_DA >= 40 & !is.na(HT_mode_support$Respondents_mode) & HT_mode_support$Respondents_mode >= 5, ]
 
-SA_release <- SA_release[SA_release$Population_DA >= 40 & !is.na(SA_release$Respondents_DA) & SA_release$Respondents_DA >= 5, ]
+HT_support <- HT_support[HT_support$Population_DA >= 40 & !is.na(HT_support$Respondents_DA) & HT_support$Respondents_DA >= 5, ]
+
+SA_mode_support <- SA_mode_support[SA_mode_support$Population_DA >= 40 & !is.na(SA_mode_support$Respondents_mode) & SA_mode_support$Respondents_mode >= 5, ]
+
+SA_support <- SA_support[SA_support$Population_DA >= 40 & !is.na(SA_support$Respondents_DA) & SA_support$Respondents_DA >= 5, ]
 ```
 
 # Data export
@@ -1346,42 +1357,58 @@ dir.create(diretorio_export)
 
 Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.
 
-Export of land use table:
-```{r export-land-use}
-# land use table without distinction by mode
-write.csv(land_use_general_release[,c("PRCDDA","labour_force","jobs")], paste0(diretorio_export, "land_use_general.csv"), row.names=FALSE)
+Export the original files for future consultations (this data can not be released by RDC):
+```{r export-original-files}
+# land use tables
+write.csv(land_use %>% 
+    group_by(PRCDDA) %>%
+    summarize(labour_force = sum(labour_force),
+              jobs = first(jobs)), paste0(diretorio_export, "land_use_general_original_DA.csv"), row.names=FALSE)
+write.csv(land_use, paste0(diretorio_export, "land_use_mode_original_DA.csv"), row.names=FALSE)
 
-write.csv(land_use_general_release, paste0(diretorio_export, "land_use_general_release.csv"), row.names=FALSE)
+# HT tables
+write.csv(HT, paste0(diretorio_export, "HT_general_original.csv"), row.names=FALSE)
+write.csv(HT_mode, paste0(diretorio_export, "HT_mode_original.csv"), row.names=FALSE)
 
-# land use with distinction by mode
-write.csv(land_use_mode_release[,c("PRCDDA","PwMode","labour_force","jobs")], paste0(diretorio_export, "land_use_mode.csv"), row.names=FALSE)
+# SA tables
+write.csv(SA, paste0(diretorio_export, "SA_general_original.csv"), row.names=FALSE)
+write.csv(SA_mode, paste0(diretorio_export, "SA_mode_original.csv"), row.names=FALSE)
+```
 
-write.csv(land_use_mode_release[,c("PRCDDA","PwMode","labour_force","jobs")], paste0(diretorio_export, "land_use_mode_release.csv"), row.names=FALSE)
+Export of land use tables:
 
+```{r export-land-use-release}
+write.csv(land_use_general_support[,c("PRCDDA","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_general_DA_release.csv"), row.names=FALSE)
+
+write.csv(land_use_general_support, paste0(diretorio_export, "land_use_general_DA_support.csv"), row.names=FALSE)
+
+write.csv(land_use_mode_support[,c("PRCDDA","PwMode","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_mode_DA_release.csv"), row.names=FALSE)
+
+write.csv(land_use_mode_support, paste0(diretorio_export, "land_use_mode_DA_support.csv"), row.names=FALSE)
 ```
 
 Export of Hansen tables:
 
 ```{r export-HT_mode}
-write.csv(HT_mode_release[,c("PRCDDA","PwMode","HT_im")], paste0(diretorio_export, "HT_mode.csv"), row.names=FALSE)
-write.csv(HT_mode_release, paste0(diretorio_export, "HT_mode_release.csv"), row.names=FALSE)
+write.csv(HT_mode_support[,c("PRCDDA","PwMode","HT_im")], paste0(diretorio_export, "HT_mode_release.csv"), row.names=FALSE)
+write.csv(HT_mode_support, paste0(diretorio_export, "HT_mode_support.csv"), row.names=FALSE)
 ```
 
 ```{r export-HT}
-write.csv(HT_release[,c("PRCDDA","HT_i")], paste0(diretorio_export, "HT.csv"), row.names=FALSE)
-write.csv(HT_release, paste0(diretorio_export, "HT_release.csv"), row.names=FALSE)
+write.csv(HT_support[,c("PRCDDA","HT_i")], paste0(diretorio_export, "HT_general_release.csv"), row.names=FALSE)
+write.csv(HT_support, paste0(diretorio_export, "HT_general_support.csv"), row.names=FALSE)
 ```
 
 Export of spatial availability tables:
 
 ```{r export-SA}
-write.csv(SA_release[,c("PRCDDA","SA_i")], paste0(diretorio_export, "SA.csv"), row.names=FALSE)
-write.csv(SA_release, paste0(diretorio_export, "SA_release.csv"), row.names=FALSE)
+write.csv(SA_support[,c("PRCDDA","SA_i")], paste0(diretorio_export, "SA_general_release.csv"), row.names=FALSE)
+write.csv(SA_support, paste0(diretorio_export, "SA_general_support.csv"), row.names=FALSE)
 ```
 
 ```{r export-SA_mode}
-write.csv(SA_mode_release[,c("PRCDDA","PwMode","SA_im")], paste0(diretorio_export, "SA_mode.csv"), row.names=FALSE)
-write.csv(SA_mode_release, paste0(diretorio_export, "SA_mode_release.csv"), row.names=FALSE)
+write.csv(SA_mode_support[,c("PRCDDA","PwMode","SA_im")], paste0(diretorio_export, "SA_mode_release.csv"), row.names=FALSE)
+write.csv(SA_mode_support, paste0(diretorio_export, "SA_mode_support.csv"), row.names=FALSE)
 ```
 
 ```{r export-SA_ij_mode}
