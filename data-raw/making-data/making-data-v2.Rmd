@@ -247,6 +247,7 @@ Creating the jobs table at DA level:
 jobs <- as.data.frame(census_employed) |> 
   group_by(PWDA) |> 
   summarize(jobs = sum(CompW1),
+            jobs_unweighted = n(), 
             .groups = "drop")
 
 grid_exp_jobs <- 
@@ -271,9 +272,11 @@ land_use_DA <- land_use_DA %>%
 Now, let's transform this table to an CT level table. First, we'll add the data `dissemination_areas_ca21.rda`, which the CT information for each DA: 
 
 ```{r}
-#load(paste0(here::here(),"/data/dissemination_areas_ca21.rmd"))
+load(paste0(here::here(),"/data/dissemination_areas_ca21.rda"))
 
-dissemination_areas_ca21 <- read.csv(paste0(here::here(),"/data/dissemination_areas_ca21.csv"), header = TRUE)
+#dissemination_areas_ca21 <- read.csv(paste0(here::here(),"/data/dissemination_areas_ca21.csv"), header = TRUE)
+
+dissemination_areas_ca21 <- as.data.frame(dissemination_areas_ca21)
 
 dissemination_areas_ca21$DAUID <- as.factor(dissemination_areas_ca21$DAUID)
 ```
@@ -298,6 +301,7 @@ value to lines with NA values in number of jobs/labour force.
 ```{r fixing-OD}
 land_use_CT[is.na(land_use_CT$labour_force),]$labour_force <- 0
 land_use_CT[is.na(land_use_CT$jobs),]$jobs <- 0
+land_use_CT[is.na(land_use_CT$jobs_unweighted),]$jobs_unweighted <- 0
 ```
 
 Aggregating the data at CT level. To do so, we'll sum all the jobs opportunities and labour force in each DA from the same CT:
@@ -310,9 +314,12 @@ land_use_CT_lf <- land_use_CT %>%
 land_use_CT_jobs <- land_use_CT %>%
   group_by(CTUID, PRCDDA) %>%
   summarise(jobs = first(jobs), 
-            jobs = sum(jobs)) %>% 
+            jobs = sum(jobs), 
+            jobs_unweighted = first(jobs_unweighted),
+            jobs_unweighted = sum(jobs_unweighted)) %>% 
   group_by(CTUID) %>%
-  summarise(jobs = sum(jobs))
+  summarise(jobs = sum(jobs), 
+            jobs_unweighted = sum(jobs_unweighted))
 
 land_use_CT <- land_use_CT_lf %>%
   left_join(land_use_CT_jobs, by = "CTUID")
@@ -368,14 +375,6 @@ The block above checks the total population of each DA and the number of respond
 da_cts <- as.data.frame(dissemination_areas_ca21)[,c("DAUID","CTUID")]
 da_cts <- da_cts[!is.na(da_cts$CTUID),]
 
-vetting_ct_mode <- census %>%
-  left_join(da_cts, by = c("PRCDDA" = "DAUID")) %>% 
-  filter(!is.na(CTUID)) %>%
-  group_by(CTUID, PwMode) %>%
-  summarize(Respondents_mode = n()) %>%
-  filter(!is.na(PwMode)) %>% 
-  dplyr::select(CTUID, PwMode, Respondents_mode)
-
 vetting_ct <- census  %>%
   left_join(da_cts, by = c("PRCDDA" = "DAUID")) %>% 
   filter(!is.na(CTUID)) %>%
@@ -383,6 +382,15 @@ vetting_ct <- census  %>%
   summarize(Population_CT = sum(CompW1),
             Respondents_CT = n()) %>% 
          dplyr::select(CTUID, Population_CT, Respondents_CT)
+
+clf <- census_labour_force  %>%
+  left_join(da_cts, by = c("PRCDDA" = "DAUID")) %>% 
+  filter(!is.na(CTUID)) %>%
+  group_by(CTUID) %>%
+  summarise(lf_unweighted = n())
+
+vetting_ct <- vetting_ct  %>% 
+  left_join(clf, by = "CTUID")
 ```
 
 Creating new files with the total DA population and the number of respondents:
@@ -390,34 +398,36 @@ Creating new files with the total DA population and the number of respondents:
 ```{r creating-release}
 # Land Use Tables
 land_use_mode_CT_support <- land_use_CT %>% 
-  left_join(vetting_ct_mode, by = c('CTUID' = 'CTUID','PwMode' = 'PwMode')) %>%
   left_join(vetting_ct, by = c('CTUID' = 'CTUID')) %>% 
-  dplyr::select(CTUID, PwMode, labour_force, jobs, PRUID, PCD, CMAUID, CMANAME, Respondents_mode, Population_CT)
+  dplyr::select(CTUID, PwMode, labour_force, lf_unweighted, jobs, jobs_unweighted, PRUID, PCD, CMAUID, CMANAME, Population_CT, Respondents_CT)
 
 land_use_general_CT <- land_use_CT %>% 
     group_by(CTUID) %>%
     summarize(labour_force = sum(labour_force),
               jobs = first(jobs),
+              jobs_unweighted = first(jobs_unweighted),
               PRUID = first(PRUID), PCD = first(PCD), CMAUID = first(CMAUID), CMANAME = first(CMANAME))
 
 land_use_general_CT_support <- land_use_general_CT %>%
   left_join(vetting_ct, by = c('CTUID' = 'CTUID')) %>% 
-  dplyr::select(CTUID, labour_force, jobs, PRUID, PCD, CMAUID, CMANAME, Population_CT, Respondents_CT)
+  dplyr::select(CTUID, labour_force, lf_unweighted, jobs, jobs_unweighted, PRUID, PCD, CMAUID, CMANAME, Population_CT, Respondents_CT)
 ```
 
 Apply the rules to avoid confidentiality risks for the land use table: 
 
 ```{r}
 land_use_general_CT_support <- land_use_general_CT_support %>% 
-  filter(labour_force > 10, Population_CT >= 40, jobs >= 40, Respondents_CT >= 5) %>%
+  filter(Population_CT >= 40, ,labour_force >= 10, jobs >= 10, lf_unweighted >= 5, jobs_unweighted >= 5) %>%
   mutate(jobs_rounded = round(jobs / 5) * 5,
-         labour_force_rounded = round(labour_force / 5) * 5)
+         labour_force_rounded = round(labour_force / 5) * 5) %>% 
+  dplyr::select(CTUID,PCD,CMAUID,CMANAME,PRUID,labour_force,labour_force_rounded,lf_unweighted,jobs,jobs_rounded, jobs_unweighted,Population_CT,Respondents_CT)
 
 
 land_use_mode_CT_support <- land_use_mode_CT_support %>% 
-  filter(labour_force > 10, Population_CT >= 40, jobs >= 40, Respondents_mode >= 5) %>%
+  filter(Population_CT >= 40, Respondents_CT >= 5, jobs >= 10, jobs_unweighted >= 5) %>%
   mutate(jobs_rounded = round(jobs / 5) * 5,
-         labour_force_rounded = round(labour_force / 5) * 5)
+         labour_force_rounded = round(labour_force / 5) * 5) %>% 
+  dplyr::select(CTUID,PCD,CMAUID, CMANAME, PRUID,PwMode, labour_force, labour_force_rounded, jobs, jobs_rounded, jobs_unweighted)
 ```
 
 
@@ -475,7 +485,7 @@ Creating the directory:
 
 ```{r directory-export}
 diretorio_export <- paste0(here::here(),"/data-raw/output/CT/") #Update the address to export the data, if necessary
-dir.create(diretorio_export)
+dir.create(diretorio_export, recursive = TRUE)
 ```
 
 Export of land use tables:
@@ -483,12 +493,12 @@ Export of land use tables:
 ```{r export-land-use-release}
 write.csv(land_use_general_CT_support[,c("CTUID","PCD","CMAUID", "CMANAME", "PRUID","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_general_CT_release.csv"), row.names=FALSE)
 
-write.csv(land_use_general_CT_support[,c("CTUID","PCD","CMAUID","CMANAME","PRUID","labour_force","labour_force_rounded","jobs","jobs_rounded", "Population_CT", "Respondents_CT")],
+write.csv(land_use_general_CT_support,
           paste0(diretorio_export, "land_use_general_CT_support.csv"), row.names=FALSE)
 
 write.csv(land_use_mode_CT_support[,c("CTUID","PCD","CMAUID", "CMANAME", "PRUID","PwMode","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_mode_CT_release.csv"), row.names=FALSE)
 
-write.csv(land_use_mode_CT_support[,c("CTUID","PCD","CMAUID","CMANAME","PRUID","PwMode","labour_force","labour_force_rounded","jobs","jobs_rounded", "Population_CT", "Respondents_mode")], paste0(diretorio_export, "land_use_mode_CT_support.csv"), row.names=FALSE)
+write.csv(land_use_mode_CT_support, paste0(diretorio_export, "land_use_mode_CT_support.csv"), row.names=FALSE)
 ```
 
 Export of maximum travel times tables:
