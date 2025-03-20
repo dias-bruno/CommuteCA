@@ -13,7 +13,7 @@ A data frame containing 675 rows and 12 variables; each row represents a unique 
 \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be "exponential", "norm", “lnorm”, “gamma” or “unif”)}.
 \item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
 \item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-\item{loglik}{Log-Likelihood obtained for the function 'distribution.'}
+\item{loglike}{Log-Likelihood obtained for the function 'distribution.'}
 \item{AIC}{Akaike information criterion obtained for function 'distribution.'}
 \item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
 }
