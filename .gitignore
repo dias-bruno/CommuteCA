@@ -7,8 +7,8 @@
 .httr-oauth
 .DS_Store
 .quarto
-/data-raw/output/PCD3520/
-/data-raw/output/PCD3520/
-/data-raw/travel_times/PCD3520/
-/data-raw/output/CT/
+/data-raw/DA/output/
+/data-raw/DA/travel_times/PCD3520/
+/data-raw/CT/output/
+/data-raw/CT/travel_times/PCD3520/
 docs

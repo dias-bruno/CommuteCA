@@ -48,12 +48,11 @@ Justice*](https://mobilizingjustice.ca/)[^1].
     alliance of academics from various Canadian provinces and
     institutions, transportation firms, and nonprofit organizations
 
-The main objective of the *CommuteCA* package is to develop
-standardized methods for transport analysis in research, especially for
-studies using Statistics Canada surveys. Among the available surveys, we
-focused our efforts on the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
-which contain valuable variables for transportation research.
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
 
 This R markdown aims to provide a brief introduction to exploratory data
 analysis (EDA). This notebook is an updated and reduced version of the
@@ -94,12 +93,12 @@ library(here) # enable easy file referencing in project-oriented workflows
 ```
 
 We will also load the following data frames for this session. The
-dataset used in this demonstration is synthetic data produced to
+dataset used in this demonstration is test data produced to
 replicate the variables available in the original Census of Population.
-The synthetic data contains 200,000 rows and 17 columns. As in the
+The test data contains 200,000 rows and 17 columns. As in the
 original census data, each row refers to a respondent and each column
 refers to a variable[^2].\
-The creation of synthetic data was necessary because the surveys
+The creation of test data was necessary because the surveys
 provided by Statistics Canada are confidential and cannot be accessed
 outside of a Research Data Center.
 
@@ -107,7 +106,7 @@ outside of a Research Data Center.
     [Dictionary
     website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
 
-If you want to work with the original Census dataset, the process for performing exploratory data analysis will be the same as for the synthetic data, except that you will have to update the address of the file in the chunk[^3] called *load-census-data*.
+If you want to work with the original Census dataset, the process for performing exploratory data analysis will be the same as for the test data, except that you will have to update the address of the file in the chunk[^3] called *load-census-data*.
 
 [^3]: A code chunk is an executable part of the R code.
 
@@ -137,7 +136,7 @@ For this R markdown, we'll use the following variables[^4]:
 | PWDist             | Distance (straight-line) from home to work.                                                                                     |
 | PwMode             | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
 
-We will use the function `read.csv()`to read the sheets in the format
+We will use the function `read_csv()`to read the sheets in the format
 .csv . This is one of the format used by Research Data Centres to store
 their surveys.[^5]
 
@@ -148,19 +147,23 @@ their surveys.[^5]
 
 The next chunk assigns the file address of the survey to the
 `census_address` variable. As mentioned before, for this demonstration we
-will use the synthetic version of the survey. If you want to use the
+will use the test version of the survey. If you want to use the
 original survey, please remember to ***update*** the address in the
 chunk below. You may also need to update the file address if you opened
-this R markdown in another project or if the synthetic data is stored in
+this R markdown in another project or if the test data is stored in
 a different folder that does not follow the pattern of the `COMMUCECA21`
 package.
 
 ```{r census-file-address}
-census_address <- paste0(here::here(), "/data-raw/input/synthetic/census_synthetic_v3.csv") 
+census_address <- paste0(here::here(), "/data-raw/DA/input/test/census_test_v3.csv") 
+census <- read_csv(census_address)
 ```
 
+Or if you have installed *CommuteCA*, you can access the test data by running:
+
 ```{r reading-census}
-census <- read_csv(census_address)
+#data(census_test_data)
+#census <- census_test_data
 ```
 
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -290,7 +293,7 @@ summary(census$PwMode)
 
 A not applicable situation for this variable is when the respondent is
 not commuting to go to work (unemployed or a person out of the labour
-force, or a person who works from home and therefore does not need to
+force, a person who works from home and therefore does not need to
 commute).
 
 According to the census documentation, the `LBR_FORC` can have the
@@ -425,7 +428,7 @@ census |>
 ```
 
 The output shows that the `Employed` category is the mode of the
-`LBR_FORC` variable (considering the synthetic data), representing
+`LBR_FORC` variable (considering the test data), representing
 around 75% of the cases.
 
 You can obtain the mode of a variable through the `R` built-in function:
@@ -547,18 +550,26 @@ it is not an appropriate statistic for categorical variables.
 ### Variance and standard deviation
 
 The variance is another widely used measure of the spread of a
-distribution. It is defined as: $$
+distribution. It is defined as: 
+
+$$
 \sigma^2 = \frac{1}{n}\sum_{i=1}^n(x_i - \bar{x})^2
 $$
 
 In this formula, $\bar{x}$ is the mean of $x$ and $n$ is the number of
 observations in the sample. Accordingly, $x_i-\bar{x}$ is the deviation
-of $x_i$ from the mean of $x$. If we rewrite this as follows: $$
+of $x_i$ from the mean of $x$. If we rewrite this as follows:
+
+$$
 z_i = (x_i - \bar{x})^2
 $$
 
 It is easy to see that the variance is actually the mean of the square
-of the deviations from the mean: $$ \sigma^2 = \frac{1}{n}\sum_{i=1}^nz_i $$
+of the deviations from the mean: 
+
+$$
+\sigma^2 = \frac{1}{n}\sum_{i=1}^nz_i
+$$
 
 The standard deviation is simply the square root of the variance and
 returns the variance to the same units as the original variable. The
@@ -641,8 +652,7 @@ and approximately one and half standard deviation below the mean.
 Univariate description is a powerful way to get to know our data before
 doing any more sophisticated explorations or analysis. 
 
-## Bivariate
-description
+## Bivariate description
 
 Moving on from univariate description, understanding how two variables
 relate to one another is another key aspect of EDA.
@@ -721,7 +731,9 @@ deviations from the mean of two variables:
 
 $$
 C(x,y) = \frac{1}{n}\sum_i(x_i - \bar{x})(y_i - \bar{y})
-$$ Here, $\bar{x}$ and $\bar{y}$ are the means of the variables.
+$$ 
+
+Here, $\bar{x}$ and $\bar{y}$ are the means of the variables.
 Positive or negative deviations result in positive covariance, while
 opposing deviations result in negative covariance. Like-like deviations
 (both positive or negative) increase covariance, while opposite
@@ -731,7 +743,9 @@ correlation coefficient:
 
 $$
 r(x, y) = \frac{C(x, y)}{\sigma_x\cdot\sigma_y}
-$$ The correlation coefficient ranges between -1 and 1, where 0
+$$ 
+
+The correlation coefficient ranges between -1 and 1, where 0
 indicates no covariance. Correlations can be calculated using the
 `correlate()` function from the {[corrr](https://corrr.tidymodels.org/)}
 package in a pipe-friendly manner:

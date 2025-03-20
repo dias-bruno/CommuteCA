@@ -43,12 +43,11 @@ Justice*](https://mobilizingjustice.ca/)[^1].
     alliance of academics from various Canadian provinces and
     institutions, transportation firms, and nonprofit organizations
 
-The main objective of the *CommuteCA* package is to develop
-standardized methods for transport analysis in research, especially for
-studies using Statistics Canada surveys. Among the available surveys, we
-focused our efforts on the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
-which contain valuable variables for transportation research.
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
 
 This R markdown aims to provide a brief introduction of `R` language and
 the concepts of data. This notebook[^2] is an updated and reduced

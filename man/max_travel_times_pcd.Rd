@@ -19,7 +19,9 @@ A simple feature class (sf) polygon object containing 1,083 rows and 3 variables
 data(max_travel_times_pcd)
 }
 \description{
-This object contains the maximum travel times for commuting to work for all Census Divisions (CD) in Canada, obtained from the Census of Population (2021).
+This object contains the maximum travel times for commuting to work for all Census Divisions (CD) in Canada,
+obtained from the Census of Population (2021). The methodology to obtain this data set is described in the
+R markdown 'making-data-v2.Rmd'.
 }
 \keyword{census}
 \keyword{division}

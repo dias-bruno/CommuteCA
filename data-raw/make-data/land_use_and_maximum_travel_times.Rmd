@@ -417,7 +417,7 @@ Apply the rules to avoid confidentiality risks for the land use table:
 
 ```{r}
 land_use_general_CT_support <- land_use_general_CT_support %>% 
-  filter(Population_CT >= 40, ,labour_force >= 10, jobs >= 10, lf_unweighted >= 5, jobs_unweighted >= 5) %>%
+  filter(Population_CT >= 40, labour_force >= 10, jobs >= 10, lf_unweighted >= 5, jobs_unweighted >= 5) %>%
   mutate(jobs_rounded = round(jobs / 5) * 5,
          labour_force_rounded = round(labour_force / 5) * 5) %>% 
   dplyr::select(CTUID,PCD,CMAUID,CMANAME,PRUID,labour_force,labour_force_rounded,lf_unweighted,jobs,jobs_rounded, jobs_unweighted,Population_CT,Respondents_CT)
@@ -507,7 +507,6 @@ Export of maximum travel times tables:
 write.csv(max_travel_times_cma_support[,c("CMA","PwMode", "Max_duration_rounded")], paste0(diretorio_export, "max_travel_times_cma_release.csv"), row.names=FALSE)
 
 write.csv(max_travel_times_cma_support, paste0(diretorio_export, "max_travel_times_cma_support.csv"), row.names=FALSE)
-
 
 write.csv(max_travel_times_pcd_support[,c("PCD","PwMode", "Max_duration_rounded")], paste0(diretorio_export, "max_travel_times_pcd_release.csv"), row.names=FALSE)
 

@@ -1,5 +1,5 @@
 ---
-title: "Calculating the accessibility and spatial availability of jobs"
+title: "Calculating the accessibility and spatial availability of jobs (_Dissemination area_ level)"
 runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
 subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
 author: "Bruno Santos & Antonio Paez"
@@ -51,12 +51,11 @@ Justice*](https://mobilizingjustice.ca/)[^1].
     alliance of academics from various Canadian provinces and
     institutions, transportation firms, and nonprofit organizations
 
-The main objective of the *CommuteCA* package is to develop
-standardized methods for transport analysis in research, especially for
-studies using Statistics Canada surveys. Among the available surveys, we
-focused our efforts on the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
-which contain valuable variables for transportation research.
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
 
 Considering the number of workers and employment opportunities obtained
 from the [*2021 Census of
@@ -82,12 +81,12 @@ of travel.
 
 ## Data
 
-The dataset used in this demonstration is synthetic data produced to
+The dataset used in this demonstration is test data produced to
 replicate the variables available in the original Census of Population.
-The synthetic data contains 200,000 rows and 17 columns. As in the original census data,
+The test data contains 200,000 rows and 17 columns. As in the original census data,
 each row refers to a respondent and each column refers to a
 variable[^2].\
-The creation of synthetic data was necessary because the surveys
+The creation of test data was necessary because the surveys
 provided by Statistics Canada are confidential and cannot be accessed
 outside of a Research Data Center.
 
@@ -97,7 +96,7 @@ outside of a Research Data Center.
 
 If you want to work with the original Census dataset, the process for
 obtaining the accessibility measures will be the same as for the
-synthetic data, except that you will have to update the address of the
+test data, except that you will have to update the address of the
 file in the chunk[^3] called *load-census-data*.
 
 [^3]: A code chunk is an executable part of the R code
@@ -134,7 +133,7 @@ disseminated. DAs cover all Canadian territory.
 We will also use the travel time table created in the previous step, in
 the R markdown called *03_travel_times.Rmd*.[^5].
 
-[^5]: Although we have provided synthetic census data for all Canadian
+[^5]: Although we have provided test census data for all Canadian
     provinces and territories, we have produced a travel table only for
     the city of Toronto. So if you want to test the methodology for
     other cities or regions, you'll have to generate a travel time for
@@ -319,16 +318,19 @@ Reading census data and creating a R data frame[^9]:
 
 [^9]: For this demonstration, we will use the case of the city of
     Toronto. If you want to use the other options, the original data
-    from the Census in an RDC office or the synthetic data for all
+    from the Census in an RDC office or the test data for all
     locations in Canada, *update* the address in the chunk.
     
 ```{r}
-files_address <- paste0(here(),"/data-raw/input/synthetic/census_synthetic_v3.csv") # Census address
+files_address <- paste0(here(),"/data-raw/DA/input/test/census_test_v3.csv") # Census address
+census <- read.csv(files_address, header = TRUE)
 ```
 
+Or if you have installed *CommuteCA*, you can access the test data:
 
 ```{r load-census-data}
-census <- read.csv(files_address, header = TRUE)
+# data("census_test_data")
+# census <- census_test_data
 ```
 
 | ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -527,25 +529,25 @@ census_employed$PWDUR[census_employed$PWDUR == 0] <- 0.1 # Besides it is possibl
 # Bike travel times
 df_tt_bike <- census_employed %>% 
   filter(PwMode == 'Bike') %>%
-  dplyr::select(PWDUR) %>%
+  dplyr::select(PWDUR, CompW1) %>%
   mutate(mode = "Bike")
 
 # Car travel times
 df_tt_car <- census_employed %>% 
   filter(PwMode == 'Car/motor') %>%
-  dplyr::select(PWDUR)%>%
+  dplyr::select(PWDUR, CompW1) %>%
   mutate(mode = "Car/motor")
 
 # Transit travel times
 df_tt_transit <- census_employed %>% 
   filter(PwMode == 'Transit') %>%
-  dplyr::select(PWDUR)%>%
+  dplyr::select(PWDUR, CompW1) %>%
   mutate(mode = "Transit")
 
 # Walk travel times
 df_tt_walk <- census_employed %>% 
   filter(PwMode == 'Walk') %>%
-  dplyr::select(PWDUR)%>%
+  dplyr::select(PWDUR, CompW1) %>%
   mutate(mode = "Walk")
 ```
 
@@ -615,24 +617,27 @@ lowest_aic <- function(values){
 }
 
 # Test the distributions
-test_distributions <- function(x){
-  gamma_ <<- fitdistrplus::fitdist(data=x, "gamma", method="mme")
-  lnorm_ <<- fitdistrplus::fitdist(data=x, "lnorm", method="mme")
-  norm_ <<- fitdistrplus::fitdist(data=x, "norm", method="mme")
-  exp_ <<- fitdistrplus::fitdist(data=x, "exp", method="mme")
-  unif_ <<- fitdistrplus::fitdist(data=x, "unif", method="mme")
-  
-  chosen_function <- lowest_aic(c(lnorm_$aic, gamma_$aic, unif_$aic, norm_$aic, exp_$aic))
-
-  return(chosen_function)
-}
-
-test_distributions_weighted <- function(x, weights){
+test_distributions <- function(x, weights){
   gamma_ <<- fitdistrplus::fitdist(data=x, "gamma", method="mme", weights = weights)
   lnorm_ <<- fitdistrplus::fitdist(data=x, "lnorm", method="mme", weights = weights)
   norm_ <<- fitdistrplus::fitdist(data=x, "norm", method="mme", weights = weights)
   exp_ <<- fitdistrplus::fitdist(data=x, "exp", method="mme", weights = weights)
   unif_ <<- fitdistrplus::fitdist(data=x, "unif", method="mme", weights = weights)
+  
+  values <- c(lnorm_$aic, gamma_$aic, unif_$aic, norm_$aic, exp_$aic)
+  values <- values[!is.na(values)]
+  
+  chosen_function <- lowest_aic(values)
+
+  return(chosen_function)
+}
+
+test_distributions_weighted <- function(x, weights){
+  gamma_ <<- fitdistrplus::fitdist(data = x, "gamma", method="mme", weights = weights)
+  lnorm_ <<- fitdistrplus::fitdist(data = x, "lnorm", method="mme", weights = weights)
+  norm_ <<- fitdistrplus::fitdist(data = x, "norm", method="mme", weights = weights)
+  exp_ <<- fitdistrplus::fitdist(data = x, "exp", method="mme", weights = weights)
+  unif_ <<- fitdistrplus::fitdist(data = x, "unif", method="mme", weights = weights)
   
   values <- c(lnorm_$aic, gamma_$aic, unif_$aic, norm_$aic, exp_$aic)
   values <- values[!is.na(values)]
@@ -647,7 +652,8 @@ Obtaining the theoretical impedance function for the bike mode:
 
 ```{r bike-function}
 mode <- 'Bike'
-bike_function <- test_distributions(tld_empirical[tld_empirical$mode == mode, ]$PWDUR)
+bike_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
 bike_function
 ```
 
@@ -655,7 +661,8 @@ Obtaining the theoretical impedance function for the car mode:
 
 ```{r car-function}
 mode <- 'Car/motor'
-car_function <- test_distributions(tld_empirical[tld_empirical$mode == mode, ]$PWDUR)
+car_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
 car_function
 
 ```
@@ -664,7 +671,8 @@ Obtaining the theoretical impedance function for the transit mode:
 
 ```{r transit-function}
 mode <- 'Transit'
-transit_function <- test_distributions(tld_empirical[tld_empirical$mode == mode, ]$PWDUR)
+transit_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
 transit_function
 ```
 
@@ -672,7 +680,8 @@ Obtaining the theoretical impedance function for the walk mode:
 
 ```{r walk-function}
 mode <- 'Walk'
-walk_function <- test_distributions(tld_empirical[tld_empirical$mode == mode, ]$PWDUR)
+walk_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
 walk_function
 ```
 
@@ -834,10 +843,10 @@ par(mfrow = c(1, 1))
 
 # Reading and preparing the travel matrix table
 
-Reading the travel time table created in the *01_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
+Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm <- read.csv("travel_times\\PCD3520\\ttm.csv") # Travel time table address
+ttm <- read.csv(paste0(here(),"/data-raw/DA/travel_times/PCD3520/ttm.csv")) # Travel time table address
 ```
 
 Visualizing some statistics about the travel time matrix:
@@ -855,11 +864,11 @@ Bringing weights information from the Census table:
 
 ```{r ttm-weights}
 ttm <- ttm %>% 
-   mutate(PRCDDA = as.factor(PRCDDA), 
-          PWDA = as.factor(PWDA),
+   mutate(from_id = as.factor(from_id), 
+          to_id = as.factor(to_id),
           PwMode = as.factor(PwMode))
   
-weights <- census_employed %>%
+weights_df <- census_employed %>%
   group_by(PRCDDA,
            PWDA,
            PwMode) %>%
@@ -867,10 +876,14 @@ weights <- census_employed %>%
             .groups = "drop")
 
 ttm <- ttm %>% 
-  left_join(weights, by= c("PRCDDA","PWDA","PwMode"))
+  left_join(weights_df, by = c("from_id" = "PRCDDA", "to_id" = "PWDA", "PwMode" = "PwMode"))
 
-ttm[is.na(ttm$weights),]$weights <- 0
+if (anyNA(ttm$weights)) {
+  ttm$weights[is.na(ttm$weights)] <- 0
+}
+
 ttm$weights <- round(ttm$weights)
+
 ttm[ttm$travel_time == 0,]$travel_time <- 0.1
 ```
 
@@ -914,7 +927,7 @@ for(cma in unique(ttm$CMA)){
 
     } else {
 
-      best_mode_function <- test_distributions_weighted(x = ttm_cma_mode$travel_time, 
+      best_mode_function <- test_distributions(x = ttm_cma_mode$travel_time, 
                                                         weights = ttm_cma_mode$weights)
 
       ttm_cma_mode$dist <- best_mode_function$distname
@@ -1040,7 +1053,8 @@ value to lines with NA values in number of jobs/labour force.
 
 ```{r fixing-OD}
 land_use[is.na(land_use$labour_force),]$labour_force <- 0
-land_use[is.na(land_use$jobs),]$jobs <- 0
+
+
 ```
 
 Confirming whether the labour force and job opportunities in the OD
@@ -1076,12 +1090,28 @@ The accessibility table is formed by the junction of the land use and
 travel times tables:
 
 ```{r accessibility-table}
-accessibility_table <- ttm_f %>%
-  left_join(land_use[,c("PRCDDA","PwMode","labour_force")], by = c("PRCDDA","PwMode")) %>%
-  left_join(land_use[,c("PRCDDA","PwMode","jobs")], by = c("PWDA" = "PRCDDA","PwMode"))
+accessibility_table <- ttm_f %>% 
+  dplyr::rename('PRCDDA' = from_id,
+         'PWDA' = to_id) %>% 
+  left_join(land_use[,c("PRCDDA","PwMode","labour_force")], by = c("PRCDDA" = "PRCDDA", "PwMode" = "PwMode")) %>%
+  left_join(land_use[,c("PRCDDA","PwMode","jobs")], by = c("PWDA" = "PRCDDA","PwMode" = "PwMode"))
 
 accessibility_table[is.na(accessibility_table$labour_force),]$labour_force <- 0
-accessibility_table[is.na(accessibility_table$jobs),]$jobs <- 0
+
+accessibility_table %>%
+   group_by(PWDA) %>%
+   mutate(jobs = ifelse(is.na(jobs), 
+                        max(jobs, na.rm = TRUE), # Use max to get a non-NA value
+                        jobs)) %>%
+   ungroup()
+```
+
+```{r}
+accessibility_table %>%
+  group_by(PWDA) %>%
+  summarise(job = first(jobs)) %>%
+  dplyr::select(job) %>%
+  sum()
 ```
 
 ```{r cleaning-env}
@@ -1193,6 +1223,8 @@ spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
     # Calculate the Spatial Availability
     df %>%
       dplyr::mutate(SA_ij = !!opp * f_t)
+    
+    
 }
 ```
 
@@ -1249,88 +1281,61 @@ Confidentiality vetting is the process of reviewing the results to be released b
 
 The following rules apply to our results:
 
-- Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$).
-- Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable. In addition, counts must be rounded up to multiples of 5. 
+- *Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$)*.	Statistics must not be released for identifiable areas with less than 40 persons. This condition is usually met with geography levels used at the RDCs. The population threshold can be applied to the (long form) weighted population estimate. 
+- In addition, we cannot get count outputs at DA level. For this reason, only the accessibility tables can be released.  
 
-The block above checks the total population of each DA and the number of respondents:
+The block above checks the total population of each DA:
 
 ```{r da-vetting}
 vetting_da_mode <- census %>%
   group_by(PRCDDA, PwMode) %>%
-  summarize(Respondents_mode = n()) %>% 
-         dplyr::select(PRCDDA, PwMode, Respondents_mode)
+  summarize(Weighted_pop_mode = sum(CompW1)) %>% 
+         dplyr::select(PRCDDA, PwMode, Weighted_pop_mode)
 
 vetting_da <- census %>%
   group_by(PRCDDA) %>%
-  summarize(Population_DA = sum(CompW1),
-            Respondents_DA = n()) %>% 
-         dplyr::select(PRCDDA, Population_DA, Respondents_DA)
+  summarize(Weighted_pop = sum(CompW1)) %>% 
+         dplyr::select(PRCDDA, Weighted_pop)
 ```
 
-Creating new files with the total DA population and the number of respondents:
+Creating new files with the total DA population:
 
 ```{r creating-release}
-# Land Use Tables
-land_use_mode_support <- land_use %>% 
-  left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
-  left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, PwMode, labour_force, jobs, Respondents_mode, Population_DA)
-
-land_use_general <- land_use %>% 
-    group_by(PRCDDA) %>%
-    summarize(labour_force = sum(labour_force),
-              jobs = first(jobs))
-
-land_use_general_support <- land_use_general %>%
-  left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, labour_force, jobs, Population_DA, Respondents_DA)
-
 # Hansen-type Accessibility
 HT_mode_support <- HT_mode %>% 
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, PwMode, HT_im, Respondents_mode, Population_DA)
+  dplyr::select(PRCDDA, PwMode, HT_im, Weighted_pop_mode)
 
 HT_support <- HT %>% 
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, HT_i, Population_DA, Respondents_DA)
+  dplyr::select(PRCDDA, HT_i, Weighted_pop)
 
 # Spatial Availability 
 SA_mode_support <- SA_mode %>% 
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode')) %>%
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, PwMode, SA_im, Respondents_mode, Population_DA)
+  dplyr::select(PRCDDA, PwMode, SA_im, Weighted_pop_mode)
 
 SA_support <- SA %>% 
   left_join(vetting_da, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, SA_i, Population_DA, Respondents_DA)
-```
-
-Apply the rules to avoid confidentiality risks for the land use table: 
-
-```{r}
-land_use_general_support <- land_use_general_support %>% 
-  filter(labour_force > 10, Population_DA >= 40, jobs >= 40, Respondents_DA >= 5) %>%
-  mutate(jobs_rounded = round(jobs / 5) * 5,
-         labour_force_rounded = round(labour_force / 5) * 5)
-
-
-land_use_mode_support <- land_use_mode_support %>% 
-  filter(labour_force > 10, Population_DA >= 40, jobs >= 40, Respondents_mode >= 5) %>%
-  mutate(jobs_rounded = round(jobs / 5) * 5,
-         labour_force_rounded = round(labour_force / 5) * 5)
+  dplyr::select(PRCDDA, SA_i, Weighted_pop)
 ```
 
 Apply the rules to avoid confidentiality risks for the accessibility tables: 
 
 ```{r filter-support}
-HT_mode_support <- HT_mode_support[HT_mode_support$Population_DA >= 40 & !is.na(HT_mode_support$Respondents_mode) & HT_mode_support$Respondents_mode >= 5, ]
+HT_mode_support <- HT_mode_support %>%
+  filter(Weighted_pop_mode >= 40)
 
-HT_support <- HT_support[HT_support$Population_DA >= 40 & !is.na(HT_support$Respondents_DA) & HT_support$Respondents_DA >= 5, ]
+HT_support <- HT_support %>%
+  filter(Weighted_pop >= 40)
 
-SA_mode_support <- SA_mode_support[SA_mode_support$Population_DA >= 40 & !is.na(SA_mode_support$Respondents_mode) & SA_mode_support$Respondents_mode >= 5, ]
+SA_mode_support <- SA_mode_support %>%
+  filter(Weighted_pop_mode >= 40)
 
-SA_support <- SA_support[SA_support$Population_DA >= 40 & !is.na(SA_support$Respondents_DA) & SA_support$Respondents_DA >= 5, ]
+SA_support <- SA_support  %>%
+  filter(Weighted_pop >= 40)
 ```
 
 # Data export
@@ -1340,8 +1345,7 @@ processed data. In order to organize the files, we will create a folder
 within the 'output' directory, named according to the pattern: type of
 study region + study region code.
 
-In our case, we filtered the census data according to the variable *PCD
-= 3520* (Toronto census division). For this reason, we will assign
+In our case, we filtered the census data according to the variable *PCD = 3520* (Toronto census division). For this reason, we will assign
 the name "PCD" to the type variable in the block below:
 
 ```{r type-folder}
@@ -1351,7 +1355,7 @@ type = 'PCD'
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here::here(),"/data-raw/output/", type, code, "/") #Update the address to export the data, if necessary
+diretorio_export <- paste0(here::here(),"/data-raw/DA/output/", type, code, "/") #Update the address to export the data, if necessary
 dir.create(diretorio_export)
 ```
 
@@ -1367,25 +1371,14 @@ write.csv(land_use %>%
 write.csv(land_use, paste0(diretorio_export, "land_use_mode_original_DA.csv"), row.names=FALSE)
 
 # HT tables
-write.csv(HT, paste0(diretorio_export, "HT_general_original.csv"), row.names=FALSE)
-write.csv(HT_mode, paste0(diretorio_export, "HT_mode_original.csv"), row.names=FALSE)
+write.csv(HT[,c("PRCDDA","HT_i")], paste0(diretorio_export, "HT_general_original.csv"), row.names=FALSE)
+write.csv(HT_mode[,c("PRCDDA","PwMode","HT_im")], paste0(diretorio_export, "HT_mode_original.csv"), row.names=FALSE)
 
 # SA tables
-write.csv(SA, paste0(diretorio_export, "SA_general_original.csv"), row.names=FALSE)
-write.csv(SA_mode, paste0(diretorio_export, "SA_mode_original.csv"), row.names=FALSE)
+write.csv(SA[,c("PRCDDA","SA_i")], paste0(diretorio_export, "SA_general_original.csv"), row.names=FALSE)
+write.csv(SA_mode[,c("PRCDDA","PwMode","SA_im")], paste0(diretorio_export, "SA_mode_original.csv"), row.names=FALSE)
 ```
 
-Export of land use tables:
-
-```{r export-land-use-release}
-write.csv(land_use_general_support[,c("PRCDDA","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_general_DA_release.csv"), row.names=FALSE)
-
-write.csv(land_use_general_support, paste0(diretorio_export, "land_use_general_DA_support.csv"), row.names=FALSE)
-
-write.csv(land_use_mode_support[,c("PRCDDA","PwMode","labour_force_rounded","jobs_rounded")], paste0(diretorio_export, "land_use_mode_DA_release.csv"), row.names=FALSE)
-
-write.csv(land_use_mode_support, paste0(diretorio_export, "land_use_mode_DA_support.csv"), row.names=FALSE)
-```
 
 Export of Hansen tables:
 
@@ -1414,3 +1407,4 @@ write.csv(SA_mode_support, paste0(diretorio_export, "SA_mode_support.csv"), row.
 ```{r export-SA_ij_mode}
 # write.csv(SA_ij_mode, paste0(diretorio_export, "SA_ij_mode.csv"), row.names=FALSE)
 ```
+
