@@ -9,12 +9,12 @@
 #' the [*Sherman Centre for Digital Scholarship*](https://scds.ca/) and
 #' the [*Mobilizing Justice*](https://mobilizingjustice.ca/).
 #'
-#' @docType data
+#' @docType package
 #' @name CommuteCA-package
 #' @author Bruno Dos Santos, School of Earth, Environment and Society, McMaster University \email{dossanb@@mcmaster.ca}
 #' @author Antonio Paez, School of Earth, Environment and Society, McMaster University \email{paezha@@mcmaster.ca}
 #' @references \url{https://github.com/dias-bruno/CommuteCA}
-NULL
+"_PACKAGE"
 
 ##############################################
 ##                DATA SETS                 ##
