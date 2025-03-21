@@ -266,5 +266,5 @@ You can install the development version of *CommuteCA* from:
 
 ``` r
 # install.packages("pak")
-pak::pak("dias-bruno/commutecatest")
+pak::pak("dias-bruno/CommuteCA")
 ```
