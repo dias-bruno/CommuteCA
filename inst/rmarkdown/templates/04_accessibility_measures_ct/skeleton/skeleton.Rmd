@@ -62,7 +62,7 @@ from the [*2021 Census of
 Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
 this R markdown aims to create a methodology to obtain Hansen-type
 accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
-for all Canadian provinces and territories, considering different modes
+for any Canadian provinces and territories, considering different modes
 of travel.
 
 ## Suggested Readings

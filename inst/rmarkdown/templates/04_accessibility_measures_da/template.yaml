@@ -1,4 +1,4 @@
-name: 04_accessibility_measures_DA
+name: 04_Accessibility_Measures_DA
 description: >
-   A description of the template
+     This R markdown enables to obtain accessibility measures for any Canadian city at the Dissemination Area spatial unit level.
 create_dir: FALSE

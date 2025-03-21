@@ -1,4 +1,4 @@
-name: 02_exploratory_data_analysis
+name: 02_Exploratory_Data_Analysis
 description: >
-   A description of the template
+   This R markdown aims to provide a brief introduction to Exploratory Data Analysis (EDA).
 create_dir: FALSE
