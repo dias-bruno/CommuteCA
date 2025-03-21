@@ -204,6 +204,7 @@ library("tmap")
 #> remotes::install_github('r-tmap/tmap')
 
 data("census_tracts_ca21") # Census Tract Geometries
+data("census_divisions_ca21") # Census Division geometries
 data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
 
 census_tracts_ca21 <- census_tracts_ca21 %>% 
@@ -264,6 +265,6 @@ alt="Job accessibility for the city of Toronto (Soukhov-type, spatial availabili
 You can install the development version of *CommuteCA* from:
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("dias-bruno/CommuteCA")
+# install.packages("pak")
+pak::pak("dias-bruno/commutecatest")
 ```

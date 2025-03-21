@@ -164,6 +164,7 @@ library("sf")
 library("tmap")
 
 data("census_tracts_ca21") # Census Tract Geometries
+data("census_divisions_ca21") # Census Division geometries
 data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
 
 census_tracts_ca21 <- census_tracts_ca21 %>% 
@@ -214,6 +215,6 @@ availability).](man/figures/SA_by_mode_CT.jpg)
 You can install the development version of *CommuteCA* from:
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("dias-bruno/CommuteCA")
+# install.packages("pak")
+pak::pak("dias-bruno/commutecatest")
 ```
