@@ -82,6 +82,7 @@ augment the functionality of base `R`. For this session, the following
 packages are used:
 
 ```{r}
+library(CommuteCA)
 library(corrr) # Correlations in R
 library(dplyr) # A Grammar of Data Manipulation
 library(janitor) # Simple Tools for Examining and Cleaning Dirty Data

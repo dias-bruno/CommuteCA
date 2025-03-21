@@ -107,10 +107,10 @@ NULL
 #'}
 #' @docType data
 #' @keywords maximum travel time in the census division
-#' @name max_travel_times_pcd
-#' @usage data(max_travel_times_pcd)
+#' @name pcd_max_travel_times
+#' @usage data(pcd_max_travel_times)
 #' @source "[Census of Population 2021](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E) accessed September 11, 2024.
-"max_travel_times_pcd"
+"pcd_max_travel_times"
 
 #' Maximum travel times in the Census Metropolitan Area.
 #'
@@ -126,10 +126,10 @@ NULL
 #'}
 #' @docType data
 #' @keywords maximum travel time in the census metropolitan area
-#' @name max_travel_times_cma
-#' @usage data(max_travel_times_cma)
+#' @name cma_max_travel_times
+#' @usage data(cma_max_travel_times)
 #' @source "[Census of Population 2021](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E) accessed September 11, 2024.
-"max_travel_times_cma"
+"cma_max_travel_times"
 
 #' Census tract (CT) boundaries and associated data (2021).
 #'
@@ -222,78 +222,6 @@ NULL
 #' @usage data(land_use_CT_mode)
 #' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
 "land_use_CT_mode"
-
-#' Toronto job accessibility (Spatial Availability)
-#'
-#' This object contains the value of job accessibility for the City of Toronto, at the level of Dissemination Areas (DAs).
-#' The measures were obtained applying the Spatial Availability metric, using the Census of Population (2021) as data source.
-#'
-#' @format A data frame containing 3,727 rows and 2 variables; each row represents a unique DA.
-#'   \describe{
-#'   \item{PRCDDA}{Uniquely identifies a dissemination area (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code and the 4-digit dissemination area code).}
-#'   \item{SA_i}{DA job accessibility (Spatial Availability).}
-#'}
-#' @docType data
-#' @keywords Toronto spatial availability accessibility dissemination area
-#' @name SA_Toronto_general_DA
-#' @usage data(SA_Toronto_general_DA)
-#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
-"SA_Toronto_general_DA"
-
-#' Toronto job accessibility (Spatial Availability) by mode
-#'
-#' This object contains the value of job accessibility for the City of Toronto, at the level of Dissemination Areas (DAs),
-#' considering different modes of transportation ('Bike', 'Car', 'Transit', and 'Walk').
-#' The measures were obtained applying the Spatial Availability metric, using the Census of Population (2021) as data source.
-#'
-#' @format A data frame containing 7,486 rows and 3 variables; each row represents a unique DA.
-#'   \describe{
-#'   \item{PRCDDA}{Uniquely identifies a dissemination area (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code and the 4-digit dissemination area code).}
-#'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-#'   \item{SA_im}{DA job accessibility (Spatial Availability).}
-#'}
-#' @docType data
-#' @keywords Toronto spatial availability accessibility dissemination area mode transportation
-#' @name SA_Toronto_mode_DA
-#' @usage data(SA_Toronto_mode_DA)
-#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
-"SA_Toronto_mode_DA"
-
-#' Toronto job accessibility (Hansen)
-#'
-#' This object contains the value of job accessibility for the City of Toronto, at the level of Dissemination Areas (DAs).
-#' The measures were obtained applying the Spatial Availability metric, using the Census of Population (2021) as data source.
-#'
-#' @format A data frame containing 3,727 rows and 2 variables; each row represents a unique DA.
-#'   \describe{
-#'   \item{PRCDDA}{Uniquely identifies a dissemination area (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code and the 4-digit dissemination area code).}
-#'   \item{HA_i}{DA job accessibility (Hansen type).}
-#'}
-#' @docType data
-#' @keywords Toronto hansen accessibility dissemination area
-#' @name HT_Toronto_general_DA
-#' @usage data(HT_Toronto_general_DA)
-#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
-"HT_Toronto_general_DA"
-
-#' Toronto job accessibility (Hansen) by mode
-#'
-#' This object contains the value of job accessibility for the City of Toronto, at the level of Dissemination Areas (DAs),
-#' considering different modes of transportation ('Bike', 'Car', 'Transit', and 'Walk').
-#' The measures were obtained applying the Spatial Availability metric, using the Census of Population (2021) as data source.
-#'
-#' @format A data frame containing 7,486 rows and 3 variables; each row represents a unique DA.
-#'   \describe{
-#'   \item{PRCDDA}{Uniquely identifies a dissemination area (composed of the 2-digit province/territory unique identifier followed by the 2-digit census division code and the 4-digit dissemination area code).}
-#'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-#'   \item{HA_im}{DA job accessibility (Spatial Availability).}
-#'}
-#' @docType data
-#' @keywords Toronto accessibility dissemination area mode transportation hansen
-#' @name HT_Toronto_mode_DA
-#' @usage data(HT_Toronto_mode_DA)
-#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
-"HT_Toronto_mode_DA"
 
 #' Impedance functions for Canadian Census Divisions
 #'
