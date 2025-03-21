@@ -81,8 +81,10 @@ of travel.
 
 ## Data
 
-For the Census Tract level analysis, *CommuteCA* provides data set with land use tables that contains the labour force by transportation mode, and number of jobs in each Census Tract. Informations about the file can be seen by: 
+For the Census Tract level analysis, *CommuteCA* provides data set with land use tables that contains the labour force by transportation mode, and number of jobs in each Census Tract. Information about the file can be seen by: 
+
 ```{r}
+library('CommuteCA') # Access data sets from CommuteCA R package
 #?census_tracts_ca21
 ```
 

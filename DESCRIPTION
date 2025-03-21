@@ -1,6 +1,6 @@
 Package: CommuteCA
 Title: an R package to develop standardized methods for job accessibility analysis in research
-Version: 0.2.0.000
+Version: 0.2.1.000
 Authors@R: 
     c(person("Bruno", "Dos Santos", , "dossanb@mcmaster.ca", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-6748-2038")),

@@ -329,6 +329,7 @@ census <- read.csv(files_address, header = TRUE)
 Or if you have installed *CommuteCA*, you can access the test data:
 
 ```{r load-census-data}
+# library('CommuteCA') # Access data sets from CommuteCA R package
 # data("census_test_data")
 # census <- census_test_data
 ```
