@@ -7,6 +7,7 @@
 .httr-oauth
 .DS_Store
 .quarto
+/data-ignore-inputs/
 /data-raw/DA/output/
 /data-raw/DA/travel_times/PCD3520/
 /data-raw/CT/output/

@@ -5,6 +5,8 @@ output: html_document
 
 Load libraries:
 ```{r}
+library(glue)
+library(here)
 library('sf')
 library('tidyverse')
 library('usethis')
@@ -16,7 +18,7 @@ library('devtools')
 ## Census divisions:
 ```{r}
 # reading file
-census_divisions_ca21 <- sf::read_sf("C:/Bruno/packages/0_support_packages/commute_CA/lcd_buffer.shp")
+census_divisions_ca21 <- sf::st_read(glue::glue(here::here(), "/data-ignore-inputs/lcd_buffer.shp"))
 ```
 
 ```{r}
@@ -29,7 +31,8 @@ usethis::use_data(census_divisions_ca21,
 ## Census Tracts
 ```{r}
 # reading file
-census_tracts_ca21 <- sf::read_sf("C:/Bruno/packages/0_support_packages/commute_CA/census_tracts_ca21.shp")
+census_tracts_ca21 <-
+sf::st_read(glue::glue(here::here(), "/data-ignore-inputs/census_tracts_ca21.shp"))
 ```
 
 ```{r}
@@ -43,7 +46,7 @@ usethis::use_data(census_tracts_ca21,
 ## Dissemination Areas
 ```{r}
 # reading file
-dissemination_areas_ca21 <- sf::read_sf("C:/Bruno/packages/0_support_packages/commute_CA/dissemination_areas_ca21_str.shp")
+dissemination_areas_ca21 <- sf::st_read(glue::glue(here::here(), "/data-ignore-inputs/dissemination_areas_ca21_str.shp"))
 ```
 
 ```{r}
@@ -58,7 +61,7 @@ usethis::use_data(dissemination_areas_ca21,
 ## Census Test Data:
 ```{r}
 # reading file
-census_test_data <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/census_test_v3.csv")
+census_test_data <- read_csv(glue::glue(here::here(), "/data-ignore-inputs/census_test_v3.csv"))
 ```
 
 ```{r}
@@ -72,7 +75,7 @@ usethis::use_data(census_test_data,
 ## CMA Impedance Functions
 ```{r}
 # reading file
-cma_impedance_functions <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/cma_impedance_functions.csv")
+cma_impedance_functions <- read_csv(glue::glue(here::here(), "/data-ignore-inputs/cma_impedance_functions.csv"))
 ```
 
 ```{r}
@@ -87,7 +90,7 @@ usethis::use_data(cma_impedance_functions,
 ## PCD Impedance Functions
 ```{r}
 # reading file
-pcd_impedance_functions <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/pcd_impedance_functions.csv")
+pcd_impedance_functions <-read_csv(glue::glue(here::here(), "/data-ignore-inputs/pcd_impedance_functions.csv"))
 ```
 
 ```{r}
@@ -101,7 +104,7 @@ usethis::use_data(pcd_impedance_functions,
 ## PR Impedance Functions
 ```{r}
 # reading file
-pr_impedance_functions <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/pr_impedance_functions.csv")
+pr_impedance_functions <- read_csv(glue::glue(here::here(), "/data-ignore-inputs/pr_impedance_functions.csv"))
 ```
 
 ```{r}
@@ -115,7 +118,7 @@ usethis::use_data(pr_impedance_functions,
 ## Land Use by mode 
 ```{r}
 # reading file
-land_use_CT_mode <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/land_use_CT_mode.csv")
+land_use_CT_mode <-read_csv(glue::glue(here::here(), "/data-ignore-inputs/land_use_CT_mode.csv"))
 ```
 
 ```{r}
@@ -129,7 +132,7 @@ usethis::use_data(land_use_CT_mode,
 ## Land Use general
 ```{r}
 # reading file
-land_use_CT_general <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/land_use_CT_general.csv")
+land_use_CT_general <- read_csv(glue::glue(here::here(), "/data-ignore-inputs/land_use_CT_general.csv"))
 ```
 
 ```{r}
@@ -144,7 +147,7 @@ usethis::use_data(land_use_CT_general,
 
 ```{r}
 # reading file
-pcd_max_travel_times <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/pcd_max_travel_times.csv")
+pcd_max_travel_times <- read_csv(glue::glue(here::here(), "/data-ignore-inputs/pcd_max_travel_times.csv"))
 ```
 
 ```{r}
@@ -158,7 +161,7 @@ usethis::use_data(pcd_max_travel_times,
 
 ```{r}
 # reading file
-cma_max_travel_times <- read_csv("C:/Bruno/packages/0_support_packages/commute_CA/cma_max_travel_times.csv")
+cma_max_travel_times <-read_csv(glue::glue(here::here(), "/data-ignore-inputs/cma_max_travel_times.csv"))
 ```
 
 ```{r}
