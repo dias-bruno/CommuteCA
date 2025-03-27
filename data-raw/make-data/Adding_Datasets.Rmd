@@ -22,7 +22,7 @@ census_divisions_ca21 <- sf::read_sf("C:/Bruno/packages/0_support_packages/commu
 ```{r}
 # adding file to the package
 usethis::use_data(census_divisions_ca21,
-                  compress = "xz",
+                  compress = "bzip2",
                   version = 3,
                   overwrite = TRUE)
 ```
