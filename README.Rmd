@@ -5,8 +5,6 @@ editor_options:
     wrap: 72
 ---
 
-# CommuteCA2
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, include = FALSE}
@@ -135,7 +133,7 @@ accessibility measures without visiting an RDC office.
 After obtained the accessibility measures for your region of interest,
 this R markdown presents a methodology for visually displaying and
 analyzing the data.
-
+<!--
 ### Data sets
 
 The package contains a series of datasets for accessibility analysis and
@@ -163,7 +161,7 @@ The package also includes land use tables with labor force population
 and job counts for census tracts. The code below visualizes Toronto's
 labour force distribution by transportation mode:
 
-```{r Toronto-lf-map}
+```{r Toronto-lf-map, eval=FALSE}
 library("CommuteCA2")
 library("sf")
 library("tmap")

@@ -1,6 +1,4 @@
 
-# CommuteCA2
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 <!-- badges: start -->
 <!-- badges: end -->
@@ -122,9 +120,7 @@ accessibility measures without visiting an RDC office.
 
 After obtained the accessibility measures for your region of interest,
 this R markdown presents a methodology for visually displaying and
-analyzing the data.
-
-### Data sets
+analyzing the data. \<!– \### Data sets
 
 The package contains a series of datasets for accessibility analysis and
 other transportation studies.
@@ -184,7 +180,6 @@ labour force distribution by transportation mode:
 ``` r
 library("CommuteCA2")
 library("sf")
-#> Linking to GEOS 3.12.2, GDAL 3.9.1, PROJ 9.4.1; sf_use_s2() is TRUE
 library("tmap")
 
 #data("census_tracts_ca21") # Census Tract Geometries
