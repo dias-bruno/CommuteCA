@@ -70,9 +70,14 @@ census_test_data <- read_csv(glue::glue(here::here(),
 
 ```{r}
 # adding file to the package
-usethis::use_data(census_test_data,
-                  compress = "bzip2",
-                  overwrite = TRUE)
+save(census_test_data, 
+     file = glue::glue(here::here(),
+                       "/data/census_test_data.rda"),
+     compress = "bzip2")
+
+# usethis::use_data(census_test_data,
+#                   compress = "bzip2",
+#                   overwrite = TRUE)
 ```
 
 ## CMA Impedance Functions
