@@ -24,8 +24,8 @@ rm(list = ls())
 
 ```{r setup, include=FALSE}
 # layout configuration 
-library(tufte)
-library(knitr)
+library(tufte) # not installed on this machine
+library(knitr) # A General-Purpose Package for Dynamic Report Generation in R
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
@@ -66,13 +66,14 @@ Load the packages:
 library(dplyr)# A Grammar of Data Manipulation 
 library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
 library(scales) # Scale data column-wise in a computationally efficient way
+library(sf) # Simple Features for R
 library(here) # enable easy file referencing in project-oriented workflows
 ```
 
 Reading census data and creating a R data frame:
 
 ```{r}
-files_address <- paste0(here(),"/data-raw/input/synthetic/census_synthetic_v3.csv") # Census address
+files_address <- paste0(here(),"/data-ignore-inputs/census_test_v3.csv") # Census address
 ```
 
 
@@ -272,11 +273,17 @@ land_use_DA <- land_use_DA %>%
 Now, let's transform this table to an CT level table. First, we'll add the data `dissemination_areas_ca21.rda`, which the CT information for each DA: 
 
 ```{r}
-load(paste0(here::here(),"/data/dissemination_areas_ca21.rda"))
+# reading file
+dissemination_areas_ca21 <- sf::st_read(glue::glue(here::here(), 
+                                                   "/data-ignore-inputs/dissemination_areas_ca21_str.shp"))
+```
+
+```{r}
+#load(paste0(here::here(),"/data/dissemination_areas_ca21.rda"))
 
 #dissemination_areas_ca21 <- read.csv(paste0(here::here(),"/data/dissemination_areas_ca21.csv"), header = TRUE)
 
-dissemination_areas_ca21 <- as.data.frame(dissemination_areas_ca21)
+dissemination_areas_ca21 <- as.data.frame(dissemination_areas_ca21) |> st_drop_geometry()
 
 dissemination_areas_ca21$DAUID <- as.factor(dissemination_areas_ca21$DAUID)
 ```
@@ -484,7 +491,7 @@ processed data.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here::here(),"/data-raw/output/CT/") #Update the address to export the data, if necessary
+diretorio_export <- paste0(here::here(),"/data-ignore-inputs/") #Update the address to export the data, if necessary
 dir.create(diretorio_export, recursive = TRUE)
 ```
 
@@ -512,3 +519,4 @@ write.csv(max_travel_times_pcd_support[,c("PCD","PwMode", "Max_duration_rounded"
 
 write.csv(max_travel_times_pcd_support, paste0(diretorio_export, "max_travel_times_pcd_support.csv"), row.names=FALSE)
 ```
+

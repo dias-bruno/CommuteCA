@@ -1,5 +1,9 @@
 
+# CommuteCA2
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+<!-- badges: start -->
+<!-- badges: end -->
 
 # CommuteCA
 
@@ -149,46 +153,28 @@ data("pr_impedance_functions") # Load provincial impedance functions
 pr_impedance_functions %>% 
   filter(Pr == 'Alberta') %>% # Filter for Alberta
   select(Pr, CMA_type, PwMode, distribution, est_1, est_2) # Display key columns
-#>         Pr                              CMA_type    PwMode distribution
-#> 1  Alberta                                CMA/CA Car/motor        lnorm
-#> 2  Alberta                                CMA/CA   Transit        gamma
-#> 3  Alberta                                CMA/CA      Walk          exp
-#> 4  Alberta                                CMA/CA      Bike        gamma
-#> 5  Alberta Moderate metropolitan influenced zone Car/motor        lnorm
-#> 6  Alberta Moderate metropolitan influenced zone      Walk        lnorm
-#> 7  Alberta Moderate metropolitan influenced zone   Transit        gamma
-#> 8  Alberta Moderate metropolitan influenced zone      Bike        lnorm
-#> 9  Alberta     Weak metropolitan influenced zone Car/motor        lnorm
-#> 10 Alberta     Weak metropolitan influenced zone      Walk        lnorm
-#> 11 Alberta     Weak metropolitan influenced zone      Bike        lnorm
-#> 12 Alberta     Weak metropolitan influenced zone   Transit        gamma
-#> 13 Alberta   Strong metropolitan influenced zone Car/motor        gamma
-#> 14 Alberta   Strong metropolitan influenced zone      Walk        lnorm
-#> 15 Alberta   Strong metropolitan influenced zone      Bike         unif
-#> 16 Alberta   Strong metropolitan influenced zone   Transit          exp
-#> 17 Alberta       No metropolitan influenced zone Car/motor          exp
-#> 18 Alberta       No metropolitan influenced zone      Walk        lnorm
-#> 19 Alberta       No metropolitan influenced zone   Transit        gamma
-#>         est_1       est_2
-#> 1  2.85460050  0.68852960
-#> 2  2.89128944  0.06843334
-#> 3  0.07527407  0.00000000
-#> 4  2.27164673  0.10593182
-#> 5  2.77916345  0.86349605
-#> 6  1.60573174  1.05103395
-#> 7  1.54061890  0.03805530
-#> 8  2.07416320  0.79410686
-#> 9  2.46235874  0.97471122
-#> 10 1.81993182  0.96358833
-#> 11 2.00735531  0.80808469
-#> 12 1.24639321  0.02346271
-#> 13 1.38546874  0.05002713
-#> 14 1.05911762  1.28742159
-#> 15 0.00000000 35.10561417
-#> 16 0.02640051  0.00000000
-#> 17 0.04703065  0.00000000
-#> 18 1.38831321  0.79033268
-#> 19 3.25054825  0.08020833
+#> # A tibble: 19 × 6
+#>    Pr      CMA_type                           PwMode distribution  est_1   est_2
+#>    <chr>   <chr>                              <chr>  <chr>         <dbl>   <dbl>
+#>  1 Alberta CMA/CA                             Car/m… lnorm        2.85    0.689 
+#>  2 Alberta CMA/CA                             Trans… gamma        2.89    0.0684
+#>  3 Alberta CMA/CA                             Walk   exp          0.0753  0     
+#>  4 Alberta CMA/CA                             Bike   gamma        2.27    0.106 
+#>  5 Alberta Moderate metropolitan influenced … Car/m… lnorm        2.78    0.863 
+#>  6 Alberta Moderate metropolitan influenced … Walk   lnorm        1.61    1.05  
+#>  7 Alberta Moderate metropolitan influenced … Trans… gamma        1.54    0.0381
+#>  8 Alberta Moderate metropolitan influenced … Bike   lnorm        2.07    0.794 
+#>  9 Alberta Weak metropolitan influenced zone  Car/m… lnorm        2.46    0.975 
+#> 10 Alberta Weak metropolitan influenced zone  Walk   lnorm        1.82    0.964 
+#> 11 Alberta Weak metropolitan influenced zone  Bike   lnorm        2.01    0.808 
+#> 12 Alberta Weak metropolitan influenced zone  Trans… gamma        1.25    0.0235
+#> 13 Alberta Strong metropolitan influenced zo… Car/m… gamma        1.39    0.0500
+#> 14 Alberta Strong metropolitan influenced zo… Walk   lnorm        1.06    1.29  
+#> 15 Alberta Strong metropolitan influenced zo… Bike   unif         0      35.1   
+#> 16 Alberta Strong metropolitan influenced zo… Trans… exp          0.0264  0     
+#> 17 Alberta No metropolitan influenced zone    Car/m… exp          0.0470  0     
+#> 18 Alberta No metropolitan influenced zone    Walk   lnorm        1.39    0.790 
+#> 19 Alberta No metropolitan influenced zone    Trans… gamma        3.25    0.0802
 ```
 
 The package also includes land use tables with labor force population
@@ -196,50 +182,46 @@ and job counts for census tracts. The code below visualizes Toronto’s
 labour force distribution by transportation mode:
 
 ``` r
-library("CommuteCA")
+library("CommuteCA2")
 library("sf")
-#> Linking to GEOS 3.11.2, GDAL 3.8.2, PROJ 9.3.1; sf_use_s2() is TRUE
+#> Linking to GEOS 3.12.2, GDAL 3.9.1, PROJ 9.4.1; sf_use_s2() is TRUE
 library("tmap")
-#> Breaking News: tmap 3.x is retiring. Please test v4, e.g. with
-#> remotes::install_github('r-tmap/tmap')
 
-data("census_tracts_ca21") # Census Tract Geometries
-data("census_divisions_ca21") # Census Division geometries
+#data("census_tracts_ca21") # Census Tract Geometries
+#data("census_divisions_ca21") # Census Division geometries
 data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
 
-census_tracts_ca21 <- census_tracts_ca21 %>% 
-  filter(PCD == 3520) # Filtering data for the city of Toronto 
+#census_tracts_ca21 <- census_tracts_ca21 %>% 
+#  filter(PCD == 3520) # Filtering data for the city of Toronto 
 
-land_use_CT_mode <- land_use_CT_mode %>% 
-  filter(PCD == 3520) %>% # Filtering data for the city of Toronto 
-  select(CTUID, PwMode, labour_force_est_rounded, jobs_rounded)
+#land_use_CT_mode <- land_use_CT_mode %>% 
+#  filter(PCD == 3520) %>% # Filtering data for the city of Toronto 
+#  select(CTUID, PwMode, labour_force_est_rounded, jobs_rounded)
 
 # Joining both data sets
-Toronto <- expand.grid(CTUID = unique(census_tracts_ca21$CTUID), 
-              PwMode = unique(land_use_CT_mode$PwMode)) %>%
-  left_join(land_use_CT_mode, by = c("CTUID" = "CTUID", "PwMode" = "PwMode")) %>%
-  left_join(census_tracts_ca21, by = "CTUID")
+#Toronto <- expand.grid(CTUID = unique(census_tracts_ca21$CTUID), 
+#              PwMode = unique(land_use_CT_mode$PwMode)) %>%
+#  left_join(land_use_CT_mode, by = c("CTUID" = "CTUID", "PwMode" = "PwMode")) %>%
+#  left_join(census_tracts_ca21, by = "CTUID")
 
-Toronto <- st_as_sf(Toronto, crs = st_crs(census_tracts_ca21)) # transforming the table in a spatial data type
+#Toronto <- st_as_sf(Toronto, crs = st_crs(census_tracts_ca21)) # transforming the table in a spatial data type
 
 # Creating the plot
-total_pop_by_mode_CT <- tm_shape(Toronto) + 
-   tm_polygons("labour_force_est_rounded",
-              style = "cont",
-              palette = "Reds",
-              title = " ",
-              border.col = NULL) +  
-   tm_facets(by = "PwMode") +       
-   tm_scale_bar(position = c("right", "bottom")) +
-   tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions_ca21) +
-   tm_borders("black", lwd=0.5)
+#total_pop_by_mode_CT <- tm_shape(Toronto) + 
+#   tm_polygons("labour_force_est_rounded",
+#              style = "cont",
+#              palette = "Reds",
+#              title = " ",
+#              border.col = NULL) +  
+#   tm_facets(by = "PwMode") +       
+#   tm_scale_bar(position = c("right", "bottom")) +
+#   tm_compass(position = c("left", "top"), size = 1.0) + 
+#   tm_shape(census_divisions_ca21) +
+#   tm_borders("black", lwd=0.5)
 
 # Visualizing
-total_pop_by_mode_CT
+#total_pop_by_mode_CT
 ```
-
-<img src="man/figures/README-Toronto-lf-map-1.png" width="100%" />
 
 These datasets enable census tract-level accessibility analysis. For
 instance, the job accessibility for the city of Toronto (Hansen type):

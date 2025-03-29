@@ -24,8 +24,8 @@ rm(list = ls())
 
 ```{r setup, include=FALSE}
 # layout configuration 
-library(tufte)
-library(knitr)
+library(tufte) # not installed on this machine
+library(knitr) # A General-Purpose Package for Dynamic Report Generation in R
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
@@ -72,7 +72,8 @@ library(here) # enable easy file referencing in project-oriented workflows
 Reading census data and creating a R data frame:
 
 ```{r}
-files_address <- paste0(here(),"/data-raw/DA/input/test/census_test_v3.csv") # Census address
+files_address <- paste0(here(),
+                        "/data-ignore-inputs/census_test_v3.csv") # Census address
 ```
 
 
@@ -537,7 +538,7 @@ processed data.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here::here(),"/data-raw/make-data/") #Update the address to export the data, if necessary
+diretorio_export <- paste0(here::here(),"/data-ignore-inputs/") #Update the address to export the data, if necessary
 dir.create(diretorio_export, recursive = TRUE)
 ```
 
@@ -559,3 +560,4 @@ write.csv(pr_impedance_functions %>% dplyr::select(-pop_area), paste0(diretorio_
 
 write.csv(pr_impedance_functions, paste0(diretorio_export, "pr_impedance_functions_support.csv"), row.names=FALSE)
 ```
+
