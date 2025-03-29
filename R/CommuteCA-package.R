@@ -9,35 +9,7 @@ NULL
 ##              CENSUS DATA                 ##
 ##############################################
 
-#' 2021 Census of Population Test Data
-#'
-#' This object contains test data (fake observations created to represent the original version) of the Census of Population.
-#'
-#' @format A data frame object containing 20,000 rows and 17 variables; each row represents a unique (fake) respondent.
-#'   \describe{
-#'   \item{Frame_ID}{Unique identifier of the (fake) respondent.}
-#'   \item{PRCDDA}{Refers to the dissemination area (DA) of current residence}
-#'   \item{Pr}{Refers to the province or territory of current residence.}
-#'   \item{CMA}{Census metropolitan area or census agglomeration of current residence.}
-#'   \item{PCD}{Census division of current residence.}
-#'   \item{CompW1}{Weight for the households and dwellings universes.}
-#'   \item{LBR_FORC}{This variable refers to whether a person was employed, unemployed or not in the labour force.}
-#'   \item{CfInc}{Total income of census family (sum of the total incomes of all members of that family).}
-#'   \item{CFCNT}{Census family size (numbers of persons).}
-#'   \item{CF_PnCF_NumEarners}{Number of earners in census family.}
-#'   \item{PWDA}{Place of work dissemination area.}
-#'   \item{PWPR}{Place of work province.}
-#'   \item{PWCD}{Census metropolitan area or census agglomeration of place of work.}
-#'   \item{PWCMA}{Place of work census division.}
-#'   \item{PWDUR}{Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work.}
-#'   \item{PWDist}{Distance (straight-line) from home to work.}
-#'   \item{PwMode}{Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.}
-#'}
-#' @docType data
-#' @keywords census test data
-#' @name census_test_data
-#' @usage data(census_test_data)
-"census_test_data"
+
 
 ##############################################
 ##  TRAVEL TIMES AND IMPEDANCE FUNCTIONS    ##
