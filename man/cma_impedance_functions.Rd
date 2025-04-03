@@ -10,10 +10,10 @@ A data frame containing 675 rows and 12 variables; each row represents a unique 
 \item{CMA}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 \item{Pr}{Province or Territory.}
 \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-\item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be "exponential", "norm", “lnorm”, “gamma” or “unif”)}.
+\item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be 'exponential', 'norm', 'lnorm', 'gamma' or 'unif')}.
 \item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
 \item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-\item{loglike}{Log-Likelihood obtained for the function 'distribution.'}
+\item{loglike}{Log Likelihood obtained for the function 'distribution.'}
 \item{AIC}{Akaike information criterion obtained for function 'distribution.'}
 \item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
 }
@@ -30,7 +30,7 @@ and Census Agglomerations (CMA/CAs), for job destinations,
 considering different transportation modes ('Bike', 'Car', 'Transit', and 'Walk').
 We estimated impedance functions  using the fitdistrplus package, using the 'PwDUR'
 (Commuting duration) of the 2021 Census of Population.
-The best-fit function was defined by selecting the lowest Akaike information criterion.
+The best fit function was defined by selecting the lowest Akaike information criterion.
 }
 \keyword{agglomerations}
 \keyword{area}

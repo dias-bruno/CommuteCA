@@ -7,7 +7,7 @@
 \format{
 A data frame containing 6,148 rows and 8 variables; each row represents a unique CT.
 \describe{
-\item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven‑character numeric "name" (including leading zeros, decimal point and trailing zeros).}
+\item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven character numeric 'name' (including leading zeros, decimal point and trailing zeros).}
 \item{CTNAME}{Census tract name.}
 \item{CMAUID}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 \item{CMANAME}{Census Metropolitan Area or Census Agglomeration name.}

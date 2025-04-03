@@ -81,9 +81,10 @@ of travel.
 
 ## Data
 
-For the Census Tract level analysis, *CommuteCA* provides data set with land use tables that contains the labour force by transportation mode, and number of jobs in each Census Tract. Informations about the file can be seen by: 
+For the Census Tract level analysis, *CommuteCA* provides data sets with land use tables that contains the labour force by transportation mode, and number of jobs in each Census Tract. Information about the file can be seen by:
+
 ```{r}
-#?census_tracts_ca21
+#?land_use_CT_mode
 ```
 
 We will also use the travel time table created in the previous step, in
@@ -414,14 +415,14 @@ specific_function
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm <- read_csv(paste0(here(),"/data-raw/CT/travel_times/PCD3520/ttm.csv"),
+ttm <- read_csv(paste0(here(),"/data-raw/aux-files/PCD3520/CT/travel_times/ttm.csv"),
                 col_types = cols(
                   from_id = col_character(),   
                   to_id = col_character(),
                   travel_time = col_double(),
                   PwMode = col_character(),
                   PCD = col_character(),
-                  CMA = col_character(),
+                  CMAUID = col_character(),
                   PRUID = col_character()))
 ```
 
@@ -528,6 +529,9 @@ accessibility_table <- accessibility_table %>%
    group_by(to_id) %>%
    mutate(jobs = ifelse(is.na(jobs), 
                         max(jobs, na.rm = TRUE), # Use max to get a non-NA value
+                        jobs), 
+          jobs = ifelse(is.infinite(jobs), 
+                        0, # Sometimes, a given DA may not have any jobs, resulting in all values in the jobs field being NA. As a result, the previous step may produce -Inf values since it's not possible to determine the maximum value in NA entries. To fix this, we replace all -Inf values with 0. 
                         jobs)) %>%
    ungroup()
 ```
@@ -569,6 +573,7 @@ from_id <- ttm %>%
 ```{r}
 setdiff(CTUID, from_id)
 ```
+
 # Calculating the Hansen Accessibility
 
 Generating the Hansen Accessibility (HT):
@@ -721,14 +726,10 @@ Note that the sum of spatial availability matches with the total amount
 of job opportunities in the system. As explained above, this happens
 because this metric is constrained.
 
-```{r type-folder}
-type = 'PCD'
-```
-
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here::here(),"/data-raw/CT/output/", type, code, "/") #Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/CT/output/") # Update the address to export the data, if necessary
 dir.create(diretorio_export)
 ```
 

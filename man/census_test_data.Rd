@@ -22,7 +22,7 @@ A data frame object containing 20,000 rows and 17 variables; each row represents
 \item{PWCD}{Census metropolitan area or census agglomeration of place of work.}
 \item{PWCMA}{Place of work census division.}
 \item{PWDUR}{Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work.}
-\item{PWDist}{Distance (straight-line) from home to work.}
+\item{PWDist}{Distance (straight line) from home to work.}
 \item{PwMode}{Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.}
 }
 }

@@ -7,7 +7,7 @@
 \format{
 A simple feature class (sf) polygon object containing 1,083 rows and 3 variables; each row represents a combination of CD and transportation mode.
 \describe{
-\item{PCD}{Uniquely identifies a census division (composed of the 2-digit province or territory unique identifier followed by the 2-digit census division code).}
+\item{PCD}{Uniquely identifies a census division (composed of the 2 digit province or territory unique identifier followed by the 2 digit census division code).}
 \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
 \item{Max_time_value}{Maximum travel time for the CD using the mentioned transportation mode.}
 }

@@ -6,7 +6,7 @@
 NULL
 
 ##############################################
-##              CENSUS DATA                 ##
+##           CENSUS TEST DATA               ##
 ##############################################
 
 #' 2021 Census of Population Test Data
@@ -30,7 +30,7 @@ NULL
 #'   \item{PWCD}{Census metropolitan area or census agglomeration of place of work.}
 #'   \item{PWCMA}{Place of work census division.}
 #'   \item{PWDUR}{Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work.}
-#'   \item{PWDist}{Distance (straight-line) from home to work.}
+#'   \item{PWDist}{Distance (straight line) from home to work.}
 #'   \item{PwMode}{Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.}
 #'}
 #' @docType data
@@ -51,7 +51,7 @@ NULL
 #'
 #' @format A simple feature class (sf) polygon object containing 1,083 rows and 3 variables; each row represents a combination of CD and transportation mode.
 #'   \describe{
-#'   \item{PCD}{Uniquely identifies a census division (composed of the 2-digit province or territory unique identifier followed by the 2-digit census division code).}
+#'   \item{PCD}{Uniquely identifies a census division (composed of the 2 digit province or territory unique identifier followed by the 2 digit census division code).}
 #'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
 #'   \item{Max_time_value}{Maximum travel time for the CD using the mentioned transportation mode.}
 #'}
@@ -94,10 +94,10 @@ NULL
 #'   \item{Pr}{Province or Territory.}
 #'   \item{CMA}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 #'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be "exponential", "norm", “lnorm”, “gamma” or “unif”)}.
+#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be 'exponential', 'norm', 'lnorm', 'gamma' or 'unif')}.
 #'   \item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
 #'   \item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-#'   \item{loglike}{Log-Likelihood obtained for the function 'distribution.'}
+#'   \item{loglike}{Log Likelihood obtained for the function 'distribution.'}
 #'   \item{AIC}{Akaike information criterion obtained for function 'distribution.'}
 #'   \item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
 #'}
@@ -115,17 +115,17 @@ NULL
 #' considering different transportation modes ('Bike', 'Car', 'Transit', and 'Walk').
 #' We estimated impedance functions  using the fitdistrplus package, using the 'PwDUR'
 #' (Commuting duration) of the 2021 Census of Population.
-#' The best-fit function was defined by selecting the lowest Akaike information criterion.
+#' The best fit function was defined by selecting the lowest Akaike information criterion.
 #'
 #' @format A data frame containing 675 rows and 12 variables; each row represents a unique function.
 #'   \describe{
 #'   \item{CMA}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 #'   \item{Pr}{Province or Territory.}
 #'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be "exponential", "norm", “lnorm”, “gamma” or “unif”)}.
+#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be 'exponential', 'norm', 'lnorm', 'gamma' or 'unif')}.
 #'   \item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
 #'   \item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-#'   \item{loglike}{Log-Likelihood obtained for the function 'distribution.'}
+#'   \item{loglike}{Log Likelihood obtained for the function 'distribution.'}
 #'   \item{AIC}{Akaike information criterion obtained for function 'distribution.'}
 #'   \item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
 #'}
@@ -151,10 +151,10 @@ NULL
 #'   \item{Pr}{Province or Territory.}
 #'   \item{CMA_type}{Type of Census Metropolitan Area or Census Agglomeration (Possible values: 'Territories (outside CAs)','CMA/CA','Strong metropolitan influenced zone', 'Moderate metropolitan influenced zone','Weak metropolitan influenced zone', or 'No metropolitan influenced zone').}
 #'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be "exponential", "norm", “lnorm”, “gamma” or “unif”)}.
+#'   \item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be 'exponential', 'norm', 'lnorm', 'gamma' or 'unif')}.
 #'   \item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
 #'   \item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-#'   \item{loglike}{Log-Likelihood obtained for the function 'distribution.'}
+#'   \item{loglike}{Log Likelihood obtained for the function 'distribution.'}
 #'   \item{AIC}{Akaike information criterion obtained for function 'distribution.'}
 #'   \item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
 #'}
@@ -185,7 +185,7 @@ NULL
 #'
 #' @format A data frame containing 6,148 rows and 8 variables; each row represents a unique CT.
 #'   \describe{
-#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven‑character numeric "name" (including leading zeros, decimal point and trailing zeros).}
+#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven character numeric 'name' (including leading zeros, decimal point and trailing zeros).}
 #'   \item{CTNAME}{Census tract name.}
 #'   \item{CMAUID}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 #'   \item{CMANAME}{Census Metropolitan Area or Census Agglomeration name.}
@@ -219,7 +219,7 @@ NULL
 #'
 #' @format A data frame containing 23,970 rows and 9 variables; each row represents a unique CT.
 #'   \describe{
-#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven‑character numeric "name" (including leading zeros, decimal point and trailing zeros).}
+#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven character numeric 'name' (including leading zeros, decimal point and trailing zeros).}
 #'   \item{CTNAME}{Census tract name.}
 #'   \item{CMAUID}{Census Metropolitan Area or Census Agglomeration unique identifier.}
 #'   \item{CMANAME}{Census Metropolitan Area or Census Agglomeration name.}

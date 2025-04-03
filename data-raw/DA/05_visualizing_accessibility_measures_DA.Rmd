@@ -98,12 +98,13 @@ library(scales) # for scaling data
 library(sf) # support for simple features, a standardized way to encode spatial vector data
 library(tmap) # thematic maps
 library(tidyr) # tidying data
+library(here)
 ```
 
 Reading the tables:
 
 ```{r}
-output_folder <- paste0(here::here(),"/data-raw/DA/output/PCD3520/")
+output_folder <- paste0(here::here(),"/data-raw/aux-files/PCD3520/DA/output/")
 ```
 
 
@@ -118,72 +119,75 @@ land_use_general <- read.csv(paste0(output_folder, "land_use_general_original_DA
 
 Reading the DA geometries:
 ```{r}
-data("dissemination_areas_ca21.rda")
-data("census_divisions_ca21.rda")
+directory_da <- paste0(here(), "/data-raw/aux-files/PCD3520/DA/") # Update this address if necessary
+dissemination_areas <-   st_read(paste0(directory_da, "dissemination_areas.shp"))
 ```
 
-Selecting only the DA in our study area:
+Reading the census_divisions geometries:
 
 ```{r}
-DA <- dissemination_areas_ca21
-
-DA <- DA %>% 
-  filter(PCD %in% (unique(substr(unique(land_use_general$PRCDDA), 1,4)))) # It will select the dissemination areas with PCD codes within our study area
-
-CD <- census_divisions_ca21 
-
-CD <- CD %>% 
-  filter(CDUID %in% (unique(DA$PCD))) # It will select the census division of our study area
+directory_cd <- paste0(here(), "/data-raw/aux-files/PCD3520/") # Update this address if necessary
+census_divisions <-   st_read(paste0(directory_cd, "census_divisions.shp"))
 ```
 
-Merging the DA with the accessibility measures tables:
+Merging the dissemination_areas with the accessibility measures tables:
 
 ```{r}
-names(DA)[1] <- "PRCDDA"
+names(dissemination_areas)[1] <- "PRCDDA"
 
 mode_metrics_da <- 
-  expand.grid(PRCDDA = unique(DA$PRCDDA), PwMode = unique(HT_mode$PwMode)) %>%
-  full_join(DA, by = "PRCDDA") %>%
+  expand.grid(PRCDDA = unique(dissemination_areas$PRCDDA), PwMode = unique(HT_mode$PwMode)) %>%
+  full_join(dissemination_areas, by = "PRCDDA") %>%
   mutate(PRCDDA = as.numeric(PRCDDA)) %>%
   full_join(HT_mode, by = c("PRCDDA", "PwMode")) %>%
   full_join(SA_mode, by = c("PRCDDA", "PwMode")) %>% 
   full_join(land_use_mode[,c("PRCDDA","PwMode","labour_force")], by = c("PRCDDA", "PwMode"))
 
-mode_metrics_da[is.na(mode_metrics_da$HT_im),]$HT_im <- 0
-mode_metrics_da[is.na(mode_metrics_da$SA_im),]$SA_im <- 0
-mode_metrics_da[is.na(mode_metrics_da$labour_force),]$labour_force <- 0
+mode_metrics_da <- mode_metrics_da %>%
+  mutate(
+    HT_im = ifelse(is.na(HT_im), 0, HT_im),
+    SA_im = ifelse(is.na(SA_im), 0, SA_im),
+    labour_force = ifelse(is.na(labour_force), 0, labour_force)
+  )
 
-mode_metrics_da_sf <- st_as_sf(mode_metrics_da, crs = st_crs(DA))
+mode_metrics_da_sf <- st_as_sf(mode_metrics_da, crs = st_crs(dissemination_areas))
 ```
 
 Preparing the tables to plot the maps:
 
 ```{r}
 # Hansen
-HT_metrics_da <- DA %>% 
+HT_metrics_da <- dissemination_areas %>% 
   mutate(PRCDDA = as.numeric(PRCDDA)) %>%
   full_join(HT, by = "PRCDDA") %>%
   full_join(land_use_general, by ="PRCDDA")
 
-HT_metrics_da[is.na(HT_metrics_da$HT_i),]$HT_i <- 0
-HT_metrics_da[is.na(HT_metrics_da$labour_force),]$labour_force <- 0
-HT_metrics_da[is.na(HT_metrics_da$jobs),]$jobs <- 0
+HT_metrics_da <- HT_metrics_da %>%
+  mutate(
+    HT_i = ifelse(is.na(HT_i), 0, HT_i),
+    labour_force = ifelse(is.na(labour_force), 0, labour_force),
+    jobs = ifelse(is.na(jobs), 0, jobs)
+  )
+
 
 # Spatial Availability
-SA_metrics_da <- DA %>% 
+SA_metrics_da <- dissemination_areas %>% 
   mutate(PRCDDA = as.numeric(PRCDDA)) %>%
   full_join(SA, by = "PRCDDA") %>% 
   full_join(land_use_general, by ="PRCDDA")
 
-SA_metrics_da[is.na(SA_metrics_da$SA_i),]$SA_i <- 0
-SA_metrics_da[is.na(SA_metrics_da$labour_force),]$labour_force <- 0
-SA_metrics_da[is.na(SA_metrics_da$jobs),]$jobs <- 0
+SA_metrics_da <- SA_metrics_da %>%
+  mutate(
+    SA_i = ifelse(is.na(SA_i), 0, SA_i),
+    labour_force = ifelse(is.na(labour_force), 0, labour_force),
+    jobs = ifelse(is.na(jobs), 0, jobs)
+  )
 ```
 
 ## Visualizing the accessibility measures with maps
 
 Plotting the count of people within the labour force and count of job
-opportunities in each DA:
+opportunities in each dissemination_areas:
 
 ```{r}
 labour_force_plot <- tm_shape(HT_metrics_da) + 
@@ -192,7 +196,7 @@ labour_force_plot <- tm_shape(HT_metrics_da) +
               palette = "Reds",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -206,7 +210,7 @@ jobs_plot <- tm_shape(SA_metrics_da) +
               palette = "Blues",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -235,7 +239,7 @@ ht_plot <- tm_shape(HT_metrics_da) +
               palette = "Purples",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -249,7 +253,7 @@ sa_plot <- tm_shape(SA_metrics_da) +
               palette = "Oranges",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -288,7 +292,7 @@ jobs_per_labour_force <- tm_shape(HT_metrics_da) +
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -311,7 +315,7 @@ SA_per_labour_force <- tm_shape(SA_metrics_da) +
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
-  tm_shape(CD) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -346,7 +350,7 @@ total_pop_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
    tm_facets(by = "PwMode") +       
    tm_scale_bar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(CD) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(total_pop_by_mode_DA, 
@@ -371,7 +375,7 @@ HT_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_facets(by="PwMode") + 
-   tm_shape(CD) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(HT_by_mode_DA, 
@@ -396,7 +400,7 @@ SA_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_facets(by="PwMode") + 
-   tm_shape(CD) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(SA_by_mode_DA, 

@@ -144,7 +144,7 @@ The travel times table has the following variables:
 | **Variable** | **Description**                                                                   |
 |----------------|--------------------------------------------------------|
 | PRCDDA       | Refers to the DA defined as the origin.                                           |
-| CMA          | Census metropolitan area or census agglomeration of the DA defined as the origin. |
+| CMAUID       | Census metropolitan area or census agglomeration of the DA defined as the origin. |
 | PWDA         | Refers to the DA defined as the destination.                                      |
 | travel_time  | Estimated travel time in minutes from origin to destination.                      |
 | PwMode       | Transportation mode used to calculate the travel time.                            |
@@ -308,6 +308,7 @@ measures.](rmarkdown_figures/Flowchart_transparent.png)
 Load the packages:
 
 ```{r load-packages}
+library(CommuteCA)
 library(dplyr)# A Grammar of Data Manipulation 
 library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
 library(scales) # Scale data column-wise in a computationally efficient way
@@ -322,15 +323,25 @@ Reading census data and creating a R data frame[^9]:
     locations in Canada, *update* the address in the chunk.
     
 ```{r}
-files_address <- paste0(here(),"/data-raw/DA/input/test/census_test_v3.csv") # Census address
-census <- read.csv(files_address, header = TRUE)
+# For the original Census data set
+# files_address <- paste0(here(),"insert-the-RDC-address.csv!!!")
+# census <- read.csv(files_address, header = TRUE)
 ```
 
-Or if you have installed *CommuteCA*, you can access the test data:
+If the original Census dataset available in the RDC is not in .csv (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
 
 ```{r load-census-data}
-# data("census_test_data")
-# census <- census_test_data
+data("census_test_data")
+census <- census_test_data
 ```
 
 | ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -846,7 +857,7 @@ par(mfrow = c(1, 1))
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm <- read.csv(paste0(here(),"/data-raw/DA/travel_times/PCD3520/ttm.csv")) # Travel time table address
+ttm <- read.csv(paste0(here(),"/data-raw/aux-files/PCD3520/DA/travel_times/ttm.csv")) # Travel time table address
 ```
 
 Visualizing some statistics about the travel time matrix:
@@ -903,39 +914,39 @@ function based on the empirical length distributions.[^15].
 
 ttm_f <- data.frame()
 
-for(cma in unique(ttm$CMA)){
+for(pcd in unique(ttm$PCD)){
 
-  # CMA data set
-  ttm_cma <- ttm[ttm$CMA == cma, ]
+  # PCD data set
+  ttm_pcd <- ttm[ttm$PCD == pcd, ]
   
-  cat("Obtaining the impedance function for the CMA: ", code, "\n")
+  cat("Obtaining the impedance function for the PCD: ", code, "\n")
 
-  for(mode in (unique(ttm_cma$PwMode))){
+  for(mode in (unique(ttm_pcd$PwMode))){
     
     cat("Transportation mode: ", mode, "\n")
 
-    ttm_cma_mode <- ttm_cma[ttm_cma$PwMode == mode, ]
+    ttm_pcd_mode <- ttm_pcd[ttm_pcd$PwMode == mode, ]
 
-    if(length(ttm_cma_mode$travel_time) == 1){
+    if(length(ttm_pcd_mode$travel_time) == 1){
 
-      ttm_cma_mode$dist <- 'No dist.'
+      ttm_pcd_mode$dist <- 'No dist.'
 
-      ttm_cma_mode$f <- 1
+      ttm_pcd_mode$f <- 1
 
-      ttm_f <- rbind(ttm_f, ttm_cma_mode)
+      ttm_f <- rbind(ttm_f, ttm_pcd_mode)
 
 
     } else {
 
-      best_mode_function <- test_distributions(x = ttm_cma_mode$travel_time, 
-                                                        weights = ttm_cma_mode$weights)
+      best_mode_function <- test_distributions(x = ttm_pcd_mode$travel_time, 
+                                                        weights = ttm_pcd_mode$weights)
 
-      ttm_cma_mode$dist <- best_mode_function$distname
+      ttm_pcd_mode$dist <- best_mode_function$distname
 
-      ttm_cma_mode$f <- generate_impedance(mode_function = best_mode_function,
-                                           travel_cost = ttm_cma_mode$travel_time)
+      ttm_pcd_mode$f <- generate_impedance(mode_function = best_mode_function,
+                                           travel_cost = ttm_pcd_mode$travel_time)
 
-      ttm_f <- rbind(ttm_f, ttm_cma_mode)
+      ttm_f <- rbind(ttm_f, ttm_pcd_mode)
 
     }
 
@@ -1053,8 +1064,7 @@ value to lines with NA values in number of jobs/labour force.
 
 ```{r fixing-OD}
 land_use[is.na(land_use$labour_force),]$labour_force <- 0
-
-
+land_use[is.na(land_use$jobs),]$jobs <- 0
 ```
 
 Confirming whether the labour force and job opportunities in the OD
@@ -1098,10 +1108,13 @@ accessibility_table <- ttm_f %>%
 
 accessibility_table[is.na(accessibility_table$labour_force),]$labour_force <- 0
 
-accessibility_table %>%
+accessibility_table <- accessibility_table %>%
    group_by(PWDA) %>%
    mutate(jobs = ifelse(is.na(jobs), 
                         max(jobs, na.rm = TRUE), # Use max to get a non-NA value
+                        jobs), 
+          jobs = ifelse(is.infinite(jobs), 
+                        0, # Sometimes, a given DA may not have any jobs, resulting in all values in the jobs field being NA. As a result, the previous step may produce -Inf values since it's not possible to determine the maximum value in NA entries. To fix this, we replace all -Inf values with 0. 
                         jobs)) %>%
    ungroup()
 ```
@@ -1116,7 +1129,7 @@ accessibility_table %>%
 
 ```{r cleaning-env}
 # List of objects required for the next steps
-keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "land_use","accessibility_table", "code")
+keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "ttm_f","accessibility_table", "code")
 all_objects <- ls()
 
 # Remove all objects except the ones in the keep list
@@ -1171,9 +1184,9 @@ function:
 
 #defining the spatial availability function
 
-spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
+spatial_availability <- function(df, origin, destination, pop, opp, mode, f) {
   
-    origin <- rlang::enquo(origin)
+origin <- rlang::enquo(origin)
     destination <- rlang::enquo(destination)
     pop <- rlang::enquo(pop)
     opp <- rlang::enquo(opp)
@@ -1184,8 +1197,8 @@ spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
     sum_pop <- df %>%
     dplyr::distinct(!!origin, !!mode,  
                   .keep_all = TRUE) %>%
-    dplyr::mutate(sum_pop = (!!pop)) %>%
-    dplyr::pull(sum_pop) %>%
+    dplyr::summarise(pop = (!!pop)) %>%
+    dplyr::pull(pop) %>%
     sum()
   
     df$sum_pop <- sum_pop
@@ -1223,9 +1236,8 @@ spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
     # Calculate the Spatial Availability
     df %>%
       dplyr::mutate(SA_ij = !!opp * f_t)
-    
-    
 }
+
 ```
 
 Calculating the spatial availability:
@@ -1235,11 +1247,11 @@ Calculating the spatial availability:
 
 SA_ij_mode <- accessibility_table %>%
   spatial_availability(origin = PRCDDA,
-                      destination = PWDA,
-                      pop = labour_force,
-                      mode = PwMode,
-                      opp = jobs,
-                      f = f)
+                       destination = PWDA,
+                       pop = labour_force,
+                       mode = PwMode,
+                       opp = jobs,
+                       f = f)
 ```
 
 The table above displays the spatial availability for each combination
@@ -1251,7 +1263,6 @@ SA_mode <- SA_ij_mode %>%
   group_by(PRCDDA,PwMode) %>%
   summarise(SA_im = sum(SA_ij)) %>%
   left_join(land_use, by = c('PRCDDA','PwMode'))
-
 ```
 
 The *SA_im* presents the value of spatial availability for each DA by
@@ -1341,21 +1352,12 @@ SA_support <- SA_support  %>%
 # Data export
 
 To finalize the methodology of this R markdown, we will export the
-processed data. In order to organize the files, we will create a folder
-within the 'output' directory, named according to the pattern: type of
-study region + study region code.
-
-In our case, we filtered the census data according to the variable *PCD = 3520* (Toronto census division). For this reason, we will assign
-the name "PCD" to the type variable in the block below:
-
-```{r type-folder}
-type = 'PCD'
-```
+processed data.
 
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here::here(),"/data-raw/DA/output/", type, code, "/") #Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/") # Update the address to export the data, if necessary
 dir.create(diretorio_export)
 ```
 
@@ -1408,3 +1410,10 @@ write.csv(SA_mode_support, paste0(diretorio_export, "SA_mode_support.csv"), row.
 # write.csv(SA_ij_mode, paste0(diretorio_export, "SA_ij_mode.csv"), row.names=FALSE)
 ```
 
+Legend for th exported files: 
+
+- `Original`: original files as calculated in this Rmarkdown *(NOT RELEASED BY RDC)*.
+- `Release`: files that can be released by RDC, after applied the vetting filters. 
+- `Support`: files to support the RDC analyst to release the files.
+
+Also, the files are divided between `mode` (transportation mode) and `general` (without distinction by transportation mode)

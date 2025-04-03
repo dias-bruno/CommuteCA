@@ -13,6 +13,7 @@ Useful links:
 \itemize{
   \item \url{https://github.com/paezha/CommuteCA2}
   \item \url{https://paezha.github.io/CommuteCA2/}
+  \item \url{https://paezha.github.io/CommuteCA/}
   \item Report bugs at \url{https://github.com/paezha/CommuteCA2/issues}
 }
 

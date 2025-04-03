@@ -80,7 +80,7 @@ After obtaining the accessibility measures for our study area, in this
 
 The data used in this R markdown is the output of the previous `R`
 markdown, in which we calculated accessibility and spatial availability
-for our study area. We will use the census tract (census_tracts_ca21) geometry,
+for our study area. We will use the census tract (census_tracts) geometry,
 available in this package, to plot maps of the study area.
 
 # Let's code!
@@ -94,15 +94,16 @@ library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graph
 library(RColorBrewer) # color schemes for maps (and other graphics) designed
 library(scales) # for scaling data
 library(sf) # support for simple features, a standardized way to encode spatial vector data
-library(tmap) # thematic maps
+library(tmap) # thematic maps - version  "3.3-4"!!!
 library(tidyr) # tidying data
 library(readr) # Read csv files setting column data types
+library('here') # enable easy file referencing in project-oriented workflows
 ```
 
 Reading the tables:
 
 ```{r}
-output_folder <- paste0(here::here(),"/data-raw/CT/output/PCD3520/")
+output_folder <- paste0(here::here(),"/data-raw/aux-files/PCD3520/CT/output/")
 ```
 
 
@@ -132,32 +133,27 @@ land_use_general <- read_csv(paste0(output_folder, "land_use_general.csv"),
                   CTUID = col_character()))
 ```
 
-Reading the census_tracts_ca21 geometries:
-
+Reading the census_tracts geometries:
 ```{r}
-data("census_tracts_ca21")
-data("census_divisions_ca21.rda")
+directory_ct <- paste0(here(), "/data-raw/aux-files/PCD3520/CT/") # Update this address if necessary
+census_tracts <-   st_read(paste0(directory_ct, "census_tracts.shp"))
 ```
 
-Selecting only the census_tracts_ca21 in our study area:
-
+Reading the census_divisions geometries:
 ```{r}
-census_tracts_ca21 <- census_tracts_ca21 %>% 
-  filter(PCD %in% (unique(land_use_general$PCD))) # It will select the census tract with PCD codes within our study area
-
-census_divisions_ca21 <- census_divisions_ca21 %>% 
-  filter(CDUID %in% (unique(land_use_general$PCD))) # It will select the census division of our study area
+directory_cd <- paste0(here(), "/data-raw/aux-files/PCD3520/") # Update this address if necessary
+census_divisions <-   st_read(paste0(directory_cd, "census_divisions.shp"))
 ```
 
-Merging the census_tracts_ca21 with the accessibility measures tables:
+Merging the census_tracts with the accessibility measures tables:
 
 ```{r}
-names(census_tracts_ca21)[1] <- "CTUID"
+names(census_tracts)[1] <- "CTUID"
 
 mode_metrics_ct <- 
-  expand.grid(CTUID = unique(census_tracts_ca21$CTUID), 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
               PwMode = unique(HT_mode$PwMode)) %>%
-  left_join(census_tracts_ca21, by = "CTUID") %>% 
+  left_join(census_tracts, by = "CTUID") %>% 
   left_join(HT_mode, by = c("CTUID" = "from_id", "PwMode" = "PwMode")) %>%
   left_join(SA_mode, by = c("CTUID" = "from_id", "PwMode" = "PwMode")) %>% 
   left_join(land_use_mode[,c("CTUID","PwMode","labour_force")], by = c("CTUID" = "CTUID", "PwMode" = "PwMode"))
@@ -166,14 +162,14 @@ mode_metrics_ct[is.na(mode_metrics_ct$HT_im),]$HT_im <- 0
 mode_metrics_ct[is.na(mode_metrics_ct$SA_im),]$SA_im <- 0
 mode_metrics_ct[is.na(mode_metrics_ct$labour_force),]$labour_force <- 0
 
-mode_metrics_ct_sf <- st_as_sf(mode_metrics_ct, crs = st_crs(census_tracts_ca21))
+mode_metrics_ct_sf <- st_as_sf(mode_metrics_ct, crs = st_crs(census_tracts))
 ```
 
 Preparing the tables to plot the maps:
 
 ```{r}
 # Hansen
-HT_metrics_ct <- census_tracts_ca21 %>% 
+HT_metrics_ct <- census_tracts %>% 
   full_join(HT, by = c("CTUID" = "from_id")) %>%
   full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
 
@@ -182,7 +178,7 @@ HT_metrics_ct[is.na(HT_metrics_ct$labour_force),]$labour_force <- 0
 HT_metrics_ct[is.na(HT_metrics_ct$jobs),]$jobs <- 0
 
 # Spatial Availability
-SA_metrics_ct <- census_tracts_ca21 %>% 
+SA_metrics_ct <- census_tracts %>% 
   full_join(SA, by = c("CTUID" = "from_id")) %>%
   full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
 
@@ -194,7 +190,7 @@ SA_metrics_ct[is.na(SA_metrics_ct$jobs),]$jobs <- 0
 ## Visualizing the accessibility measures with maps
 
 Plotting the count of people within the labour force and count of job
-opportunities in each census_tracts_ca21:
+opportunities in each census_tracts:
 
 ```{r}
 labour_force_plot <- tm_shape(HT_metrics_ct) + 
@@ -203,7 +199,7 @@ labour_force_plot <- tm_shape(HT_metrics_ct) +
               palette = "Reds",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -217,7 +213,7 @@ jobs_plot <- tm_shape(SA_metrics_ct) +
               palette = "Blues",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -246,7 +242,7 @@ ht_plot <- tm_shape(HT_metrics_ct) +
               palette = "Purples",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -260,7 +256,7 @@ sa_plot <- tm_shape(SA_metrics_ct) +
               palette = "Oranges",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -299,7 +295,7 @@ jobs_per_labour_force <- tm_shape(HT_metrics_ct) +
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -322,7 +318,7 @@ SA_per_labour_force <- tm_shape(SA_metrics_ct) +
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
-  tm_shape(census_divisions_ca21) +
+  tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
@@ -357,7 +353,7 @@ total_pop_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
    tm_facets(by = "PwMode") +       
    tm_scale_bar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions_ca21) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(total_pop_by_mode_CT, 
@@ -382,7 +378,7 @@ HT_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_facets(by="PwMode") + 
-   tm_shape(census_divisions_ca21) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(HT_by_mode_CT, 
@@ -407,7 +403,7 @@ SA_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_facets(by="PwMode") + 
-   tm_shape(census_divisions_ca21) +
+   tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(SA_by_mode_CT, 
