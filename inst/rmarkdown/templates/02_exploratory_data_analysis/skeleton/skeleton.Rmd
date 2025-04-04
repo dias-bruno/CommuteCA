@@ -82,7 +82,7 @@ augment the functionality of base `R`. For this session, the following
 packages are used:
 
 ```{r}
-library(CommuteCA)
+library(CommuteCA) # To access data sets
 library(corrr) # Correlations in R
 library(dplyr) # A Grammar of Data Manipulation
 library(janitor) # Simple Tools for Examining and Cleaning Dirty Data
@@ -156,15 +156,13 @@ a different folder that does not follow the pattern of the `COMMUCECA21`
 package.
 
 ```{r census-file-address}
-census_address <- paste0(here::here(), "/data-raw/DA/input/test/census_test_v3.csv") 
-census <- read_csv(census_address)
+# census_address <- paste0(here::here(), "census-address.csv") 
+# census <- read_csv(census_address)
 ```
 
-Or if you have installed *CommuteCA*, you can access the test data by running:
-
 ```{r reading-census}
-#data(census_test_data)
-#census <- census_test_data
+data(census_test_data)
+census <- census_test_data
 ```
 
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -755,8 +753,8 @@ package in a pipe-friendly manner:
 # PWDUR: Commuting duration
 # PWDist: Distance (straight-line) from home to work
 
-census |>
-  select(PWDUR, PWDist) |> 
+census %>% 
+  dplyr::select(PWDUR, PWDist) %>% 
   correlate(method = "pearson",
             use = "pairwise.complete.obs")
 ```
@@ -791,7 +789,7 @@ for us by "flattening" the data:
 ```{r}
 census |>
   filter(PWDist != -3) |>
-  select(CfInc, PWDist) |>
+  dplyr::select(CfInc, PWDist) |>
   slice_head(n = 10) |>
   summary()
 ```
@@ -816,7 +814,7 @@ To better appreciate this power, consider the matrix of correlations:
 
 ```{r}
 census |>
-  select(where(is.numeric)) |>
+  dplyr::select(where(is.numeric)) |>
   correlate(method = "pearson",
             use = "pairwise.complete.obs") |> 
   shave()
@@ -826,7 +824,7 @@ Now compare to:
 
 ```{r}
 census |>
-  select(where(is.numeric)) |>
+  dplyr::select(where(is.numeric)) |>
   correlate(method = "pearson",
             use = "pairwise.complete.obs") |> 
   shave() |>

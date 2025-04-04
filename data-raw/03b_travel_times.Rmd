@@ -72,11 +72,6 @@ To create the travel time matrix, we'll need the following data files:
 
 # Let's code!
 
-```{r install-activeCA, include = FALSE}
-#install.packages("pak")
-#pak::pak("dias-bruno/ActiveCA")
-```
-
 Load the packages:
 
 ```{r load-packages}

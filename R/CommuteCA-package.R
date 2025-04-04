@@ -1,9 +1,21 @@
-#' @keywords internal
+#' CommuteCA: an R package to develop standardized methods for transport analysis in research
+#'
+#' The main objective of the *CommuteCA* package is to develop standardized methods for
+#' accessibility analysis in research, especially for studies using Statistics Canada surveys.
+#' Among the available surveys, we focused our efforts on the [*2021 Census of Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+#' which contain valuable variables for transportation research.
+#' This package was created in conjunction with the office of the
+#' [*Research Data Center* at *McMaster University*](https://rdc.mcmaster.ca/),
+#' the [*Sherman Centre for Digital Scholarship*](https://scds.ca/) and
+#' the [*Mobilizing Justice*](https://mobilizingjustice.ca/).
+#'
+#' @docType package
+#' @name CommuteCA-package
+#' @author Bruno Dos Santos, School of Earth, Environment and Society, McMaster University \email{dossanb@@mcmaster.ca}
+#' @author Antonio Paez, School of Earth, Environment and Society, McMaster University \email{paezha@@mcmaster.ca}
+#' @references \url{https://github.com/dias-bruno/CommuteCA}
 "_PACKAGE"
 
-## usethis namespace: start
-## usethis namespace: end
-NULL
 
 ##############################################
 ##           CENSUS TEST DATA               ##

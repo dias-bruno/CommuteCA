@@ -4,9 +4,19 @@
 \name{CommuteCA-package}
 \alias{CommuteCA}
 \alias{CommuteCA-package}
-\title{CommuteCA: Standardized Methods for Accessibility Analysis in Canadian Research}
+\title{CommuteCA: an R package to develop standardized methods for transport analysis in research}
 \description{
-The main objective of the *CommuteCA* package is to develop standardized methods for accessibility analysis in research, especially for studies using Statistics Canada surveys. Among the available surveys, we focused our efforts on the 2021 Census of Population, which contain valuable variables for transportation research. This package was created with support from the office of the Research Data Center at McMaster University, the Sherman Centre for Digital Scholarship and Mobilizing Justice.
+The main objective of the \emph{CommuteCA} package is to develop standardized methods for
+accessibility analysis in research, especially for studies using Statistics Canada surveys.
+Among the available surveys, we focused our efforts on the \href{https://www12.statcan.gc.ca/census-recensement/index-eng.cfm}{\emph{2021 Census of Population}},
+which contain valuable variables for transportation research.
+This package was created in conjunction with the office of the
+\href{https://rdc.mcmaster.ca/}{\emph{Research Data Center} at \emph{McMaster University}},
+the \href{https://scds.ca/}{\emph{Sherman Centre for Digital Scholarship}} and
+the \href{https://mobilizingjustice.ca/}{\emph{Mobilizing Justice}}.
+}
+\references{
+\url{https://github.com/dias-bruno/CommuteCA}
 }
 \seealso{
 Useful links:
@@ -19,12 +29,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Bruno Dos Santos \email{dossanb@mcmaster.ca} (\href{https://orcid.org/0000-0002-6748-2038}{ORCID})
+Bruno Dos Santos, School of Earth, Environment and Society, McMaster University \email{dossanb@mcmaster.ca}
 
-Authors:
-\itemize{
-  \item Antonio Paez \email{paezha@mcmaster.ca} (\href{https://orcid.org/0000-0001-6912-9919}{ORCID})
+Antonio Paez, School of Earth, Environment and Society, McMaster University \email{paezha@mcmaster.ca}
 }
-
-}
-\keyword{internal}
