@@ -1,0 +1,1557 @@
+---
+title: "Selecting disadvantaged population groups in terms of accessibility  (_Dissemination area_ level)"
+runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
+
+After calculating job accessibility, in this R markdown we will identify
+disadvantaged population groups with lower job accessibility levels.
+Considering only on the labor force population, the median level of job
+accessibility (spatial availability) for youth (15 to 24 years old),
+women, low-income individuals, unemployed, people with disabilities,
+single-parent households, refugees, new immigrants, and racialized
+populations will be measured separately. For each group, the
+Mann-Whitney U test will be applied to compare accessibility levels
+between the disadvantaged group and the corresponding non-disadvantaged
+group (for instance, comparing the accessibility levels of youth aged 15
+to 24 years with adults older than 24 years). The Mann-Whitney U test is
+a non-parametric statistical test that compares two independent
+distributions to determine if they come from the same population. The
+result of a Mann-Whitney U test indicates whether two samples have the
+same median.
+
+## Data
+
+The dataset used in this demonstration is test data produced to
+replicate the variables available in the original Census of Population.
+The test data contains 200,000 rows and 17 columns. As in the original
+census data, each row refers to a respondent and each column refers to a
+variable[^2].\
+The creation of test data was necessary because the surveys provided by
+Statistics Canada are confidential and cannot be accessed outside of a
+Research Data Center.
+
+[^2]: You can check out more information about the Census on the
+    [Dictionary
+    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+
+If you want to work with the original Census dataset, the process for
+obtaining the accessibility measures will be the same as for the test
+data, except that you will have to update the address of the file in the
+chunk[^3] called *load-census-data*.
+
+[^3]: A code chunk is an executable part of the R code
+
+For this R markdown, we'll use the following variables[^4]:
+
+[^4]: The explanation of each variable can be found in the [*2021 Census
+    of Population's
+    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+
+|  |  |
+|---------------|-----------------------------------------------|
+| **Variable** | **Description** |
+| PRCDDA | Refers to the dissemination area (DA) of current residence. |
+| PCD | Census division of current residence. |
+| CompW1 | Weight for the households and dwellings universes. |
+| LBR_FORC | This variable refers to whether a person was employed, unemployed or not in the labour force. |
+| AGE | Age of the respondent. |
+| GENDER_BINARY | Gender of person (binary).  |
+| LOLICOA | Income: Low-income status based on LICO-AT (after tax). |
+| LOLIMA | Income: Low-income status based on LIM-AT (after tax). |
+| ACTLMFLG | Activities of daily living: Flag. |
+| CFAMSTSIMPLE | This variable refers to whether a person was employed, unemployed or not in the labour force. |
+| IMMCAT5 | Immigration: Admission category. |
+| PerImmA | Immigration: Immigrant status and period of immigration (by five year group). |
+| DVisMin | This variable refers to whether a person was employed, unemployed or not in the labour force. |
+
+
+: Census variables used in this R markdown.
+
+A dissemination area (DA) is a small, relatively stable geographic unit
+composed of one or more adjacent dissemination blocks. It is the
+smallest standard geographic area for which all census data are
+disseminated. DAs cover all Canadian territory.
+
+# Let's code
+
+```{r load-packages}
+#library(CommuteCA)
+library(dplyr)# A Grammar of Data Manipulation 
+library(here) # enable easy file referencing in project-oriented workflows
+library(tidyr) # Wide tables
+library(ggplot2) # Plot graphs 
+```
+
+Reading census data and creating a R data frame[^5]:
+
+[^5]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
+```{r}
+# Reading the test Census data set
+files_address <- paste0(here(),"/data-raw/make-data/census_test_toronto.csv")
+census <- read.csv(files_address, header = TRUE)
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
+
+```{r load-census-data}
+# data("census_test_toronto")
+# census <- census_test_toronto
+```
+
+| ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+
+If the original Census dataset available in the RDC is not in .csv
+(comma-separated values) format but is instead provided in other formats
+such as SPSS, SAS, or SAS Data, you can use the foreign package (a
+built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
+```
+
+The original census dataset has a wide variety of attributes. However,
+we will only work with a selection of these variables. The next chunk
+selects only the variables previously chosen for our analysis, reducing
+the size of the dataframe and making data processing faster:
+
+```{r select-variables-census}
+census <- census %>% 
+          dplyr::select("PRCDDA",
+                 "PCD",
+                 "CompW1",
+                 "LBR_FORC",
+                 "AGE",
+                 "GENDER_BINARY",
+                 "LOLICOA",
+                 "LoLIMA",
+                 "ACTLMFLG",
+                 "CFAMSTSIMPLE",
+                 "IMMCAT5",
+                 "PerImmA", 
+                 "DVisMin")
+```
+
+It's possible to filter the data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations)[^6]. The chunk below shows how to make this
+procedure:
+
+[^6]: As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
+
+```{r filter-boundaries}
+code_pcd <- 3520 # census division of Toronto
+
+# Filtering by census division
+census_filtered <- census %>%
+                    filter(PCD == code_pcd  & (!LBR_FORC %in% c(-3,3))) # Only select respondents who live in PCD and are within the labour force 
+ 
+census_pcd <- census %>%
+                    filter(PCD == code_pcd) # Only select respondents who live in PCD
+```
+
+### Labelling variables
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^7]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^7]: Those who, during the reference period: (a) Did any work at all at
+    a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years (already previously excluded from
+    our dataset)
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force (already previously excluded from our
+    dataset)
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:[^8]
+
+[^8]: Given that the non-binary population is small, data aggregation to
+    a two-category gender variable is sometimes necessary to protect the
+    confidentiality of responses provided. In these cases, individuals
+    in the category “non-binary persons” are distributed into the other
+    two gender categories and are denoted by the “+” symbol.
+
+-   1: Woman+.
+-   2: Man+.
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Concept not applicable (territories or reserves) - not in low
+    income
+-   4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LOLICOA' has the
+following possible values:[^]
+
+[^] Refers to the income situation of a person in relation to the Low-income cut-offs, after-tax (LICO-AT). Persons with income that is below this low-income line are considered to be in low income.
+
+- -3: Concept not applicable (collective households)
+- 1: Not in low income
+- 2: In low income
+- 3: Concept not applicable (territories or reserves) - not in low income
+- 4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LoLIMA' has the
+following possible values:[^]
+
+[^] Refers to the income situation of a person in relation to the Low-income measure, after-tax (LIM-AT). Persons with income that is below this low-income line are considered to be in low income.
+
+- -3: Concept not applicable (collective households)
+- 1: Not in low income
+- 2: In low income
+- 3: Not in low income (territories or reserves)
+- 4: In low income (territories or reserves)
+- 5: Concept not applicable (collective households) - not in low income
+- 6: Concept not applicable (collective households) - in low income
+
+We will use the variable *ACTLMFLG - Activities of daily living: Flag* as an indicative of disability, because the Census of Population does not have a variable regarding disability. The question on activities of daily living refers to difficulties a person may have doing certain activities as a result of physical, cognitive, mental, or other health-related conditions or problems. We will select all those respondents who affirm to have frequent (always) difficulties to develop regular activities. According to the census code book, the variable 'ACTLMFLG' has the
+following possible values:
+
+- -2: Not stated
+- 1: Yes, always
+- 2: Yes, often
+- 3: Yes, sometimes
+- 4: No
+
+According to the census code book, the variable 'CFAMSTSIMPLE' has the following possible values:
+
+- 1: Married spouse or common-law partner
+- 2: Parent in a one-parent family
+- 3: Child
+- 4: Person not in a census family
+
+According to the census code book, the variable 'IMMCAT5' has the following possible values:
+
+- 1: Non-immigrants
+- 2: Non-permanent residents3 Immigrants admitted before 1980
+- 100010: Economic immigrants - Principal applicants
+- 100020: Economic immigrants - Secondary applicants
+- 200000: Immigrants sponsored by family
+- 300000: Refugees
+- 400000: Other immigrants
+
+According to the census code book, "Visible minority" refers to whether a person is a visible minority as defined by the Employment Equity Act. The Employment Equity Act defines visible minorities as "persons, other than Aboriginal peoples, who are non-Caucasian in race or non-white in colour." The visible minority population consists mainly of the following groups: South Asian, Chinese, Black, Filipino, Arab, Latin American, Southeast Asian, West Asian, Korean and Japanese. The variable 'DVisMin' has the following possible values:
+
+- 1: Other (not a visible minority)
+- 2: South Asian
+- 3: Chinese
+- 4: Black
+- 5: Filipino
+- 6: Arab
+- 7: Latin American
+- 8: Southeast Asian
+- 9: West Asian
+- 10: Korean
+- 11: Japanese
+- 12: Visible minority, n.i.e.
+- 13: Multiple visible minorities
+- 14: Indigenous peoples
+
+In the next chunk, we will rename the travel modes to facilitate the readability of the data.
+
+```{r labelling-variables}
+census_filtered_labeled <- census_filtered %>%
+                   mutate( # Labour force
+                     LBR_FORC_label = 
+                            case_when(LBR_FORC == 1 ~ "Employed",
+                                      LBR_FORC == 2 ~ "Unemployed"),
+                          LBR_FORC_label = factor(LBR_FORC_label), 
+                           # Gender 
+                          GENDER_BINARY_label = 
+                            case_when(GENDER_BINARY == 1 ~ "Woman+",
+                                      GENDER_BINARY == 2 ~ "Man+"),
+                          GENDER_BINARY_label = factor(GENDER_BINARY_label), 
+                           # Low income population - LOLICOA
+                     LOLICOA_label = 
+                       case_when(LOLICOA == -3 ~ "Not in low income", 
+                                 LOLICOA == 1 ~ "Not in low income",
+                                 LOLICOA == 2 ~ "In low income",
+                                 LOLICOA == 3 ~ "Not in low income",
+                                 LOLICOA == 4 ~ "In low income"),
+                     LOLICOA_label = factor(LOLICOA_label), 
+                    LoLIMA_label = 
+                       case_when(LoLIMA == -3 ~ "Not in low income", 
+                                 LoLIMA == 1 ~ "Not in low income",
+                                 LoLIMA == 2 ~ "In low income",
+                                 LoLIMA == 3 ~ "Not in low income",
+                                 LoLIMA == 4 ~ "In low income",
+                                 LoLIMA == 5 ~ "Not in low income",
+                                 LoLIMA == 6 ~ "In low income"),
+                     LoLIMA_label = factor(LoLIMA_label), 
+                    Low_Income = 
+                      case_when(LoLIMA_label == "In low income" | LOLICOA_label == "In low income" ~ "In low income",
+                                TRUE ~ "Not in low income"), 
+                    Low_Income = factor(Low_Income), 
+                    # Disability
+                    ACTLMFLG_label = 
+                       case_when(ACTLMFLG == -2 ~ "Without frequent difficulties", 
+                                 ACTLMFLG == 1 ~ "With frequent difficulties",
+                                 ACTLMFLG == 2 ~ "Without frequent difficulties",
+                                 ACTLMFLG == 3 ~ "Without frequent difficulties",
+                                 ACTLMFLG == 4 ~ "Without frequent difficulties"),
+                    ACTLMFLG_label = factor(ACTLMFLG_label), 
+                    # Single-parent family
+                    CFAMSTSIMPLE_label = 
+                       case_when(CFAMSTSIMPLE == 1 ~ "Non single-parent family",
+                                 CFAMSTSIMPLE == 2 ~ "Single-parent family",
+                                 CFAMSTSIMPLE == 3 ~ "Non single-parent family",
+                                 CFAMSTSIMPLE == 4 ~ "Non single-parent family"),
+                     CFAMSTSIMPLE_label = factor(CFAMSTSIMPLE_label), 
+                    # Refugees
+                    IMMCAT5_label = 
+                       case_when(IMMCAT5 == 300000 ~ "Refugee",
+                                 IMMCAT5 != 300000 ~ "Not a refugee"),
+                     IMMCAT5_label = factor(IMMCAT5_label), 
+                    # New immigrant
+                    PerImmA_label = 
+                       case_when(PerImmA == 10 ~ "New immigrant",
+                                 PerImmA != 10 ~ "Not a new immigrant"),
+                     PerImmA_label = factor(PerImmA_label),
+                    # Visible Minority (binary)
+                    DVisMin_binary_label = 
+                       case_when(DVisMin == 1 ~ "Not a visible minority",
+                                 DVisMin != 1 ~ "Visible minority"),
+                     DVisMin_binary_label = factor(DVisMin_binary_label), 
+                    # Visible Minority (full-group)
+                    DVisMin_label = 
+                      case_when(DVisMin == 1  ~ "Other (not a visible minority)",
+                                DVisMin == 2  ~ "South Asian",
+                                DVisMin == 3  ~ "Chinese",
+                                DVisMin == 4  ~ "Black",
+                                DVisMin == 5  ~ "Filipino",
+                                DVisMin == 6  ~ "Arab",
+                                DVisMin == 7  ~ "Latin American",
+                                DVisMin == 8  ~ "Southeast Asian",
+                                DVisMin == 9  ~ "West Asian",
+                                DVisMin == 10 ~ "Korean",
+                                DVisMin == 11 ~ "Japanese",
+                                DVisMin == 12 ~ "Visible minority, n.i.e.",
+                                DVisMin == 13 ~ "Multiple visible minorities",
+                                DVisMin == 14 ~ "Indigenous peoples"),
+                    DVisMin_label = factor(DVisMin_label),
+                    AGE_label = 
+                      case_when(AGE <= 24 ~ "Youth",
+                                TRUE  ~ "Adult"),
+                    AGE_label = factor(AGE_label))
+```
+
+View summary statistics from the data frame:
+
+```{r census-summary}
+summary(census_filtered_labeled)
+```
+
+## Accessibility information
+
+In the previous rmarkdown, we calculate accessibility measures at the DA level. Now, we will load the csv file with the general spatial availability measures (not distinct by mode):
+
+```{r reading-accessibility-files}
+# For the original accessibility_measures data set
+files_address <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/SA_general_original.csv")
+accessibility_measures <- read.csv(files_address, header = TRUE)
+```
+
+Join census data with the accessibility measures: 
+
+```{r joining-tables}
+census_accessibility <- census_filtered_labeled %>% 
+  left_join(accessibility_measures, by = "PRCDDA") %>%
+  rename("Total_SA" = SA_i) %>% 
+  mutate(across(c("Total_SA"), ~replace_na(., 0)))
+```
+
+# Identifying differences in accessibility
+
+Now, we will identify the differences in accessibility by population groups. However, it is important to remember that the census data has weights for each respondent. Because of this, we will expand the census file, repeating the respondent line based on their weight. This means that, a person with weight = 2, will appear two times in this new data frame:
+
+```{r expand-census}
+expanded_census_accessibility <- census_accessibility %>% 
+  uncount(weights = round(CompW1))
+```
+
+Creating new data frames to save summary information about the populations: 
+
+```{r summary-tables}
+summary_pop_table <- data.frame(Variable = character(),
+                                Description = character(),
+                                Category = character(),
+                                Equity = character(),
+                                Total_pop = numeric(),
+                                Respondents = numeric(),
+                                Median = numeric(),
+                                Mean = numeric(),
+                                Median_rate = numeric(),
+                                Mean_rate = numeric(),
+                                stringsAsFactors = FALSE)
+
+pvalue_table <- data.frame(Variable = character(),
+                          Description = character(),
+                          P_value = numeric(),
+                          Significance = character(),
+                          stringsAsFactors = FALSE)
+```
+
+## Youth population
+
+Starting with the youth population, we will consider as the disadvantaged group all respondents younger than 15-years. 
+
+```{r age}
+variable <- "AGE_label"
+description <- "Age group"
+disadvantaged <- "Youth"
+non_disadvantaged <- "Adult"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Gender
+
+For gender, we will consider as the disadvantaged group all respondents who identify themselves as Woman+ (the + indicates non-binary population, but due to low representation of this group had to be merged in a binary classification): 
+
+```{r gender}
+variable <- "GENDER_BINARY_label"
+description <- "Gender"
+disadvantaged <- "Woman+"
+non_disadvantaged <- "Man+"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Labour force
+
+For labour force, we will consider as the disadvantaged group all unemployed respondents:  
+
+```{r labour-force}
+variable <- "LBR_FORC_label"
+description <- "Labour force"
+disadvantaged <- "Unemployed"
+non_disadvantaged <- "Employed"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Low Income
+
+We will consider as the disadvantaged group all low income respondents (LICO or LIMA): 
+
+```{r}
+variable <- "Low_Income"
+description <- "Low income (LICO or LIMA)"
+disadvantaged <- "In low income"
+non_disadvantaged <- "Not in low income"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Disability
+
+As a disability indicator, we will consider as the disadvantaged group all respondents who reported frequent difficulties to develop regular activities:  
+
+```{r disability}
+variable <- "ACTLMFLG_label"
+description <- "Disability indicator"
+disadvantaged <- "With frequent difficulties"
+non_disadvantaged <- "Without frequent difficulties"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Single-parent
+
+We will consider as the disadvantaged group all single-parents: 
+
+```{r single-parent}
+variable <- "CFAMSTSIMPLE_label"
+description <- "Family type"
+disadvantaged <- "Single-parent family"
+non_disadvantaged <- "Non single-parent family"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Refugee
+
+We will consider as the disadvantaged group all respondents who are refugees. 
+
+```{r refugee}
+variable <- "IMMCAT5_label"
+description <- "Refugee status"
+disadvantaged <- "Refugee"
+non_disadvantaged <- "Not a refugee"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## New immigrant
+
+We will consider as the disadvantaged group all respondents who are new immigrants (those who immigrated after 2016): 
+
+```{r new-immigrant}
+variable <- "PerImmA_label"
+description <- "Immigration"
+disadvantaged <- "New immigrant"
+non_disadvantaged <- "Not a new immigrant"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Visible Minority (Binary)
+
+We will consider as the disadvantaged group all respondents who are in a visible minority group. 
+
+```{r visible-minority-binary}
+variable <- "DVisMin_binary_label"
+description <- "Racialized populations"
+disadvantaged <- "Visible minority"
+non_disadvantaged <- "Not a visible minority"
+
+census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+```
+
+The previous chunk display the median and mean values for the disadvantaged/non-disadvantaged groups. The following chuck save this information in the summary dataframe: 
+
+```{r}
+df <- census_accessibility %>% 
+  group_by(!!sym(variable)) %>%
+  dplyr::summarise(
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    .groups = "drop") %>% 
+  rename(Category = !!sym(variable))
+
+# Rates
+medr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Median)
+
+medr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+
+meanr_disad <- 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+
+meanr_ad <- 
+  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
+  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+
+df <- df %>%
+  mutate(Variable = variable,
+    Description = description,
+    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
+    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
+    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
+  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+
+summary_pop_table <- bind_rows(summary_pop_table, df) 
+```
+
+Evaluating if the differences in median is statistically significant: 
+
+```{r}
+# Kruskal test
+kruskal_test <- kruskal.test(formula = as.formula(paste("Total_SA ~", variable)),
+                       data = expanded_census_accessibility)
+
+df_kruskal_test <- data.frame(Variable = variable,
+  Description = description,
+  P_value = kruskal_test$p.value,
+  Significance = ifelse(kruskal_test$p.value <= 0.05, "Significant", "Not significant"),
+  stringsAsFactors = FALSE)
+
+pvalue_table <- bind_rows(pvalue_table, df_kruskal_test)
+
+kruskal_test
+```
+
+## Visible Minority (Groups)
+
+Now, we will analyze differences in accessibility within the visible minority groups: 
+
+```{r visible-minority-groups}
+summary_dvismin_table <- data.frame(Variable = character(),
+                                Description = character(),
+                                Category = character(),
+                                Equity = character(),
+                                Total_pop = numeric(),
+                                Respondents = numeric(),
+                                Median = numeric(),
+                                Mean = numeric(),
+                                Median_rate = numeric(),
+                                Mean_rate = numeric(),
+                                stringsAsFactors = FALSE)
+
+variable <- "DVisMin_label"
+
+dvismin_groups <- unique(census_accessibility[[variable]])
+
+for (group in dvismin_groups) {
+  
+  temp <- census_accessibility %>%
+    mutate(
+      Equity = ifelse(!!sym(variable) == group, "Disadvantaged", "Non-disadvantaged")
+    )
+  
+  df <- temp %>%
+    group_by(Equity) %>%
+    summarise(
+      Total_pop = sum(CompW1, na.rm = TRUE),
+      Respondents = n(),
+      Median = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+      Mean = sum(Total_SA * CompW1) / sum(CompW1),
+      .groups = "drop"
+    )
+  
+  medr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Median) / 
+                 df %>% filter(Equity == "Disadvantaged") %>% pull(Median)
+
+  medr_ad <- 1 / medr_disad
+
+  meanr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Mean) / 
+                  df %>% filter(Equity == "Disadvantaged") %>% pull(Mean)
+
+  meanr_ad <- 1 / meanr_disad
+
+  df <- df %>%
+    mutate(
+      Variable = variable,
+      Description = group,
+      Category = ifelse(Equity == "Disadvantaged", group, paste0("Non-",group)),
+      Median_rate = ifelse(Equity == "Disadvantaged", medr_ad, medr_disad),
+      Mean_rate   = ifelse(Equity == "Disadvantaged", meanr_ad, meanr_disad)
+    ) %>%
+	select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+
+  summary_dvismin_table <- bind_rows(summary_dvismin_table, df)
+}
+```
+
+# Visualizing differences
+
+The following chunk display the median values for each disadvantaged/non-disadvantaged group: 
+
+```{r}
+summary_pop_table
+```
+
+Showing the p-values to check if these differences are significant: 
+
+```{r}
+pvalue_table
+```
+
+# Plots 
+
+Using the ggplot library, we will visualize these differences in form of bar plots. 
+
+Setting the output folder address: 
+
+```{r}
+output_folder <- paste0(here::here(),"/data-raw/aux-files/PCD3520/DA/output/")
+``` 
+
+First, visualizing the medians of all population groups: 
+
+```{r medinas-general-pop}
+description_order <- summary_pop_table %>%
+  group_by(Description) %>%
+  summarise(median_overall = max(Median[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  arrange(desc(median_overall)) %>%
+  pull(Description)
+
+description_order
+
+summary_pop_table_ordered <- summary_pop_table %>%
+  mutate(
+    Description = factor(Description, levels = description_order),
+    Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
+  ) %>%
+  arrange(Description, Equity) 
+
+figure_medians_by_pop_group <- summary_pop_table_ordered %>% 
+ggplot(aes(y = Description, x = Median, fill = Equity)) +
+geom_bar(stat="identity", position=position_dodge()) +
+scale_fill_brewer(palette="Reds") + 
+geom_text(aes(label = Category, x = 3),
+          position = position_dodge(width = 0.9),
+          hjust = 0,  
+          size = 2.5) + 
+geom_text(aes(label = round(Median)),
+          position = position_dodge(width = 0.9),
+          hjust = -0.1,  
+          size = 2.5) +
+  labs(
+    y = NULL,
+    x = "Median job accessibility (spatial availability)",
+    fill = "Equity concerns"
+  ) + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(output_folder,"/medians_by_pop_group.jpg"), 
+       plot = figure_medians_by_pop_group,
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r median-figure}
+knitr::include_graphics(paste0(output_folder,"/medians_by_pop_group.jpg"))
+```
+
+Now, the median rate (the division of median from a group by the other): 
+
+```{r median-rate-general-pop}
+description_order_rate <- summary_pop_table %>%
+  group_by(Description) %>%
+  summarise(median_overall = max(Median_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  arrange(desc(median_overall)) %>%
+  pull(Description)
+
+summary_pop_table_ordered_rate <- summary_pop_table %>%
+  mutate(
+    Description = factor(Description, levels = description_order_rate),
+    Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
+  ) %>%
+  arrange(Description, Equity) 
+
+figure_ration_medians_by_pop_group <- summary_pop_table_ordered_rate %>% 
+ggplot(aes(y = Description, x = Median_rate, fill = Equity)) +
+geom_bar(stat="identity", position=position_dodge()) +
+scale_fill_brewer(palette="Blues") + 
+geom_text(aes(label = Category, x = 0.01),
+          position = position_dodge(width = 0.9),
+          hjust = 0,  
+          size = 2.5) + 
+geom_text(aes(label = round(Median_rate,2)),
+          position = position_dodge(width = 0.9),
+          hjust = -0.1,  
+          size = 2.5) +
+  labs(
+    y = NULL,
+    x = "Median rate of job accessibility (spatial availability)",
+    fill = "Equity concerns"
+  ) + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(output_folder,"/ratio_medians_by_pop_group.jpg"), 
+       plot = figure_ration_medians_by_pop_group,
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(output_folder,"/ratio_medians_by_pop_group.jpg"))
+```
+
+## Visible minorities
+
+Using the ggplot library, we will visualize these differences in form of bar plots. First, visualizing the medians of between visible minority groups: 
+
+```{r median-vismin-pop}
+
+description_order_racial <- summary_dvismin_table %>%
+  group_by(Description) %>%
+  summarise(median_overall = max(Median[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  arrange(desc(median_overall)) %>%
+  pull(Description)
+
+summary_racial_table_ordered <- summary_dvismin_table %>%
+  mutate(
+    Description = factor(Description, levels = description_order_racial),
+    Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
+  ) %>%
+  arrange(Description, Equity) 
+
+figure_medians_by_racial_group <- summary_racial_table_ordered %>% 
+ggplot(aes(y = Description, x = Median, fill = Equity)) +
+geom_bar(stat="identity", position=position_dodge()) +
+scale_fill_brewer(palette="Pastel2") + 
+geom_text(aes(label = Category, x = 3),
+          position = position_dodge(width = 0.9),
+          hjust = 0,  
+          size = 2.5) + 
+geom_text(aes(label = round(Median)),
+          position = position_dodge(width = 0.9),
+          hjust = -0.1,  
+          size = 2.5) +
+  labs(
+    y = NULL,
+    x = "Median job accessibility (spatial availability)",
+    fill = "Equity concerns"
+  ) + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(output_folder,"/medians_by_racial_group.jpg"), 
+       plot = figure_medians_by_racial_group,
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(output_folder,"/medians_by_racial_group.jpg"))
+```
+
+Now, the median rate (the division of median from a group by the other): 
+
+```{r median-vismin-pop}
+description_order_rate_racial <- summary_dvismin_table %>%
+  group_by(Description) %>%
+  summarise(median_overall = max(Median_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  arrange(desc(median_overall)) %>%
+  pull(Description)
+
+summary_pop_table_ordered_rate_racial <- summary_dvismin_table %>%
+  mutate(
+    Description = factor(Description, levels = description_order_rate_racial),
+    Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
+  ) %>%
+  arrange(Description, Equity) 
+
+figure_ration_medians_by_racial_group <- summary_pop_table_ordered_rate_racial %>% 
+ggplot(aes(y = Description, x = Median_rate, fill = Equity)) +
+geom_bar(stat="identity", position=position_dodge()) +
+scale_fill_brewer(palette="Oranges") + 
+geom_text(aes(label = Category, x = 0.01),
+          position = position_dodge(width = 0.9),
+          hjust = 0,  
+          size = 2.5) + 
+geom_text(aes(label = round(Median_rate,2)),
+          position = position_dodge(width = 0.9),
+          hjust = -0.1,  
+          size = 2.5) +
+  labs(
+    y = NULL,
+    x = "Median rate of job accessibility (spatial availability)",
+    fill = "Equity concerns"
+  ) + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(output_folder,"/ratio_medians_by_racial_group.jpg"), 
+       plot = figure_ration_medians_by_racial_group,
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(output_folder,"/ratio_medians_by_racial_group.jpg"))
+```
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be released by the Research Data Center to ensure that confidentiality risks for StatCan respondents are minimized. 
+
+The following rules apply to our results:
+
+- Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$).
+- Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable. In addition, counts must be rounded up to multiples of 5. 
+
+We are performing the analysis at the level of a City (PCD), however, to facilitate the work of the RDC analyst, we will also include these information to our table outputs: 
+
+```{r vetting}
+census_pcd_vetting <- census_pcd %>%
+  group_by(PCD) %>%
+  summarize(Population_PCD = sum(CompW1),
+            Respondents_PCD = n()) %>% 
+         dplyr::select(PCD, Population_PCD, Respondents_PCD)
+
+### Sumary tables 
+summary_pop_table_support <- summary_pop_table %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+    filter(Population_PCD >= 40, Respondents_PCD >= 5) %>%
+  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Total_pop_rounded, Respondents, Respondents_PCD, Median, Mean, Median_rate, Mean_rate, PCD, Population_PCD, Respondents_PCD)
+
+summary_dvismin_table_support <- summary_dvismin_table %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+    filter(Population_PCD >= 40, Respondents_PCD >= 5) %>%
+  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Total_pop_rounded, Respondents, Respondents_PCD, Median, Mean, Median_rate, Mean_rate, PCD, Population_PCD, Respondents_PCD)
+
+### P-value table
+aux_pop_table <- summary_pop_table_support %>% 
+  group_by(Description) %>%
+  summarize(Population_Group = sum(Total_pop),
+            Respondents_Group = sum(Respondents))
+
+pvalue_table_support <- pvalue_table %>% 
+  left_join(aux_pop_table, by = "Description") %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+  dplyr::select(Variable, Description, Population_Group, Respondents_Group, P_value, Significance, PCD, Population_PCD, Respondents_PCD)
+```
+
+# Data export
+
+To finalize the methodology of this R markdown, we will export the
+processed data. 
+
+```{r directory-export}
+diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/")
+```
+
+Export of summary tables:
+
+```{r export-summary-tab}
+# Release - all groups
+write.csv(summary_pop_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export, "summary_pop_table_release.csv"), row.names=FALSE)
+
+# Supporting file for RDC - all groups 
+write.csv(summary_pop_table_support, paste0(diretorio_export, "summary_pop_table_support.csv"), row.names=FALSE)
+
+# Release - visible minorities 
+write.csv(summary_dvismin_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export, "summary_vmin_table_release.csv"), row.names=FALSE)
+
+# Supporting file for RDC - visible minorities 
+write.csv(summary_dvismin_table_support, paste0(diretorio_export, "summary_vmin_table_support.csv"), row.names=FALSE)
+```
+
+Export of p-values tables:
+```{r export-summary-tab}
+write.csv(pvalue_table_support[,c("Variable", "Description", "P_value",  "Significance")], paste0(diretorio_export, "pvalue_table_release.csv"), row.names=FALSE)
+
+write.csv(pvalue_table_support, paste0(diretorio_export, "pvalue_table_support.csv"), row.names=FALSE)
+```
+
