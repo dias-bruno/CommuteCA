@@ -857,7 +857,9 @@ par(mfrow = c(1, 1))
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm <- read.csv(paste0(here(),"/data-raw/aux-files/PCD3520/DA/travel_times/ttm.csv")) # Travel time table address
+ttm_file <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/ttm.csv")
+
+ttm <- read.csv(ttm_file) # Travel time table address
 ```
 
 Visualizing some statistics about the travel time matrix:
@@ -1357,8 +1359,10 @@ processed data.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/") # Update the address to export the data, if necessary
-dir.create(diretorio_export)
+diretorio_export <- paste0(here(),"/data-raw/output/PCD3520/DA/accessibility-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
 ```
 
 Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.

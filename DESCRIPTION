@@ -1,6 +1,6 @@
 Package: CommuteCA
 Title: Standardized Methods for Accessibility Analysis in Canadian Research
-Version: 0.2.1.1
+Version: 3.1
 Authors@R: 
     c(person("Bruno", "Dos Santos", , "dossanb@mcmaster.ca", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-6748-2038")),
@@ -24,5 +24,5 @@ Suggests:
     dplyr,
     sf,
     tmap
-URL: https://github.com/paezha/CommuteCA, https://paezha.github.io/CommuteCA/
-BugReports: https://github.com/paezha/CommuteCA/issues
+URL: https://github.com/dias-bruno/CommuteCA, https://dias-bruno.github.io/CommuteCA/
+BugReports: https://github.com/dias-bruno/CommuteCA/issues

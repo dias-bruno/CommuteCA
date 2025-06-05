@@ -89,7 +89,6 @@ For `Census tracts` and `Dissemination areas`, you will need to:
 
 First, you need install the `cancensus` library [@cancensus]: 
 ```{r}
-#install.packages("cancensus")
 library('cancensus')
 library('geojsonsf')
 library('sf')
@@ -100,7 +99,7 @@ library('here')
 `cancensus` requires a valid `CensusMapper` API key to use. You can obtain a free API key by [signing up](https://censusmapper.ca/users/sign_up) for a CensusMapper account. To check your API key, just go to “Edit Profile” (in the top-right of the CensusMapper menu bar). Once you have your key, you can store it in your system environment so it is automatically used in API calls. To do so just enter `set_cancensus_api_key('<your_api_key>', install = TRUE)`.
 
 ```{r}
-set_cancensus_api_key('<your_api_key>', install = TRUE)
+set_cancensus_api_key('<your_api_key>', install = TRUE, overwrite=TRUE)
 ```
 
 You can visualize all available data set in the library by doing:
@@ -110,7 +109,7 @@ list_census_datasets()
 
 For this demonstration, we will access the data set related to the City of Toronto (Census Divisions (CD) = `3520`).
 ```{r}
-code <- "3520" # As a character!
+code <- "3520" # As a character! you can change for your city code
 ```
 
 In our case, we are interested on the Census Divisions: 
@@ -176,24 +175,18 @@ dissemination_areas <- dissemination_areas %>%
 We will now download these datasets as shapefiles for use in the next steps. First, we will create a folder within the `raw-data` directory using the city code of our study area. This organization makes it easier to manage files if we decide to analyze multiple study areas.
 
 ```{r}
-directory <- paste0(here(), "/data-raw/aux-files/PCD", code, "/")
+directory <- paste0(here(), "/data-raw/output/PCD", code, "/spatial-files/")
 
 if(!dir.exists(directory)){
-  dir.create(directory, recursive = TRUE)
-  
-  # dir.create(paste0(directory, "/CT/travel_times/"))
-
-  dir.create(paste0(directory, "/DA/travel_times/"))
-  
-  }
+  dir.create(directory, recursive = TRUE)}
 ```
 
 Saving the files:
 ```{r}
-sf::st_write(census_divisions, paste0(directory, "census_divisions.shp"))
+sf::st_write(census_divisions, paste0(directory, "census_divisions.shp"), append=FALSE)
 
-# sf::st_write(census_tracts, paste0(directory, "/CT/census_tracts.shp"))
+sf::st_write(census_tracts, paste0(directory, "census_tracts.shp"), append=FALSE)
 
-sf::st_write(dissemination_areas, paste0(directory, "/DA/dissemination_areas.shp"))
+sf::st_write(dissemination_areas, paste0(directory, "dissemination_areas.shp"), append=FALSE)
 ```
 

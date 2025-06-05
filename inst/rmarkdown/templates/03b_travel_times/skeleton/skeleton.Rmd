@@ -98,13 +98,15 @@ You need to set the directory where you are saved the spatial files obtained thr
 ```{r}
 code <- 'PCD3520' # For the city of Toronto
 
+directory <- paste0(here(), "/data-raw/output/" , code, "/spatial-files/")
+
 # For census tract
-# directory <- paste0(here(), "/data-raw/aux-files/" , code, "/CT/") # For census tract
-# spatial_unit <- st_read(paste0(directory, "census_tracts.shp"))
+# spatial_unit <- st_read(paste0(directory, "census_tracts.shp"))  # For census tract
+# spatial_unit_type <- 'CT'
 
 # For dissemination areas
-directory <- paste0(here(), "/data-raw/aux-files/" , code, "/DA/") # For dissemination areas
-spatial_unit <- st_read(paste0(directory, "dissemination_areas.shp"))                       
+spatial_unit <- st_read(paste0(directory, "dissemination_areas.shp"))
+spatial_unit_type <- 'DA' 
 ```
 
 Converting the spatial units to simple features and taking the centroids from each DA:
@@ -117,10 +119,19 @@ spatial_unit_centroids <-  data.frame(id = as.data.frame(st_centroid(spatial_uni
 colnames(spatial_unit_centroids) <- c("id", "lon", "lat")
 ```
 
-Indicate the path where OSM and GTFS data are stored and build the graph:
+Create a folder to place the OSM and GTFS data:
+
 ```{r r5r-core}
-r5r_core <- setup_r5(data_path = paste0(directory, "travel_times"), verbose = FALSE)
+directory_r5r <- paste0(here(), "/data-raw/output/" , code, "/", spatial_unit_type , "/travel_times/")
+
+if(!dir.exists(directory_r5r)){
+  dir.create(directory_r5r, recursive = TRUE)}
 ```
+
+```{r r5r-core}
+r5r_core <- setup_r5(data_path = directory_r5r, verbose = FALSE)
+```
+
 We'll use the `travel_time_matrix()` function from the {r5r} `R` package to estimate the travel time for each origin-destination pair on a set departure date. 
 
 The function uses some travel parameters that can be viewed on the [package's documents page](https://ipeagit.github.io/r5r/), but in our case we'll use the following parameters and inputs:
@@ -262,6 +273,6 @@ ttm_spatial_unit <- ttm %>%
 To finalize the methodology of this R markdown, we will export the processed data. Export the travel time table:
 
 ```{r export-ttm}
-write.csv(ttm_spatial_unit[,c("from_id","to_id","travel_time","PwMode","PCD","CMAUID","PRUID")], paste0(directory, "travel_times/ttm.csv"), row.names=FALSE)
+write.csv(ttm_spatial_unit[,c("from_id","to_id","travel_time","PwMode","PCD","CMAUID","PRUID")], paste0(directory_r5r, "ttm.csv"), row.names=FALSE)
 ```
 

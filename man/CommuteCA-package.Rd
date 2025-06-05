@@ -21,10 +21,9 @@ the \href{https://mobilizingjustice.ca/}{\emph{Mobilizing Justice}}.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/paezha/CommuteCA2}
-  \item \url{https://paezha.github.io/CommuteCA2/}
-  \item \url{https://paezha.github.io/CommuteCA/}
-  \item Report bugs at \url{https://github.com/paezha/CommuteCA2/issues}
+  \item \url{https://github.com/dias-bruno/CommuteCA}
+  \item \url{https://dias-bruno.github.io/CommuteCA/}
+  \item Report bugs at \url{https://github.com/dias-bruno/CommuteCA/issues}
 }
 
 }

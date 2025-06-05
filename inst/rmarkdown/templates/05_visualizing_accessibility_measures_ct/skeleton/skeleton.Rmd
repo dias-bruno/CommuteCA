@@ -100,49 +100,50 @@ library(readr) # Read csv files setting column data types
 library('here') # enable easy file referencing in project-oriented workflows
 ```
 
-Reading the tables:
+Setting the folder with the accessibility measures: 
 
 ```{r}
-output_folder <- paste0(here::here(),"/data-raw/aux-files/PCD3520/CT/output/")
+code <- "PCD3520"
+measures_folder <- paste0(here::here(),"/data-raw/output/", code, "/CT/accessibility-measures/")
 ```
 
 
 ```{r reading-tables}
-HT_mode <- read_csv(paste0(output_folder, "HT_mode.csv"),
+HT_mode <- read_csv(paste0(measures_folder, "HT_mode.csv"),
                 col_types = cols(
                   from_id = col_character()))
 
-HT <- read_csv(paste0(output_folder, "HT_general.csv"),
+HT <- read_csv(paste0(measures_folder, "HT_general.csv"),
                 col_types = cols(
                   from_id = col_character()))
 
-SA_mode <- read_csv(paste0(output_folder, "SA_mode.csv"),
+SA_mode <- read_csv(paste0(measures_folder, "SA_mode.csv"),
                 col_types = cols(
                   from_id = col_character()))
 
-SA <- read_csv(paste0(output_folder, "SA_general.csv"),
+SA <- read_csv(paste0(measures_folder, "SA_general.csv"),
                 col_types = cols(
                   from_id = col_character()))
 
-land_use_mode <- read_csv(paste0(output_folder, "land_use_mode.csv"),
+land_use_mode <- read_csv(paste0(measures_folder, "land_use_mode.csv"),
                 col_types = cols(
                   CTUID = col_character()))
 
-land_use_general <- read_csv(paste0(output_folder, "land_use_general.csv"),
+land_use_general <- read_csv(paste0(measures_folder, "land_use_general.csv"),
                 col_types = cols(
                   CTUID = col_character()))
 ```
 
 Reading the census_tracts geometries:
+
 ```{r}
-directory_ct <- paste0(here(), "/data-raw/aux-files/PCD3520/CT/") # Update this address if necessary
-census_tracts <-   st_read(paste0(directory_ct, "census_tracts.shp"))
+directory_spatial_files <- paste0(here(), "/data-raw/output/PCD3520/spatial-files/") # Update this address if necessary
+census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.shp"))
 ```
 
 Reading the census_divisions geometries:
 ```{r}
-directory_cd <- paste0(here(), "/data-raw/aux-files/PCD3520/") # Update this address if necessary
-census_divisions <-   st_read(paste0(directory_cd, "census_divisions.shp"))
+census_divisions <-   st_read(paste0(directory_spatial_files, "census_divisions.shp"))
 ```
 
 Merging the census_tracts with the accessibility measures tables:
@@ -173,21 +174,30 @@ HT_metrics_ct <- census_tracts %>%
   full_join(HT, by = c("CTUID" = "from_id")) %>%
   full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
 
-HT_metrics_ct[is.na(HT_metrics_ct$HT_i),]$HT_i <- 0
-HT_metrics_ct[is.na(HT_metrics_ct$labour_force),]$labour_force <- 0
-HT_metrics_ct[is.na(HT_metrics_ct$jobs),]$jobs <- 0
+HT_metrics_ct$HT_i <- ifelse(is.na(HT_metrics_ct$HT_i), 0, HT_metrics_ct$HT_i)
+HT_metrics_ct$labour_force <- ifelse(is.na(HT_metrics_ct$labour_force), 0, HT_metrics_ct$labour_force)
+HT_metrics_ct$jobs <- ifelse(is.na(HT_metrics_ct$jobs), 0, HT_metrics_ct$jobs)
 
 # Spatial Availability
 SA_metrics_ct <- census_tracts %>% 
   full_join(SA, by = c("CTUID" = "from_id")) %>%
   full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
 
-SA_metrics_ct[is.na(SA_metrics_ct$SA_i),]$SA_i <- 0
-SA_metrics_ct[is.na(SA_metrics_ct$labour_force),]$labour_force <- 0
-SA_metrics_ct[is.na(SA_metrics_ct$jobs),]$jobs <- 0
+SA_metrics_ct$SA_i <- ifelse(is.na(SA_metrics_ct$SA_i), 0, SA_metrics_ct$SA_i)
+SA_metrics_ct$labour_force <- ifelse(is.na(SA_metrics_ct$labour_force), 0, SA_metrics_ct$labour_force)
+SA_metrics_ct$jobs <- ifelse(is.na(SA_metrics_ct$jobs), 0, SA_metrics_ct$jobs)
 ```
 
 ## Visualizing the accessibility measures with maps
+
+Creating a directory to export the figures:
+
+```{r directory-export}
+diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD3520/CT/accessibility-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_figures)){
+  dir.create(diretorio_export_figures, recursive = TRUE)}
+```
 
 Plotting the count of people within the labour force and count of job
 opportunities in each census_tracts:
@@ -224,7 +234,7 @@ jobs_plot <- tm_shape(SA_metrics_ct) +
 lf_jobs_CT <- tmap_arrange(labour_force_plot, jobs_plot, ncol = 2)
 
 tmap_save(lf_jobs_CT, 
-          paste0(output_folder,"lf_jobs_CT.jpg"), 
+          paste0(diretorio_export_figures,"lf_jobs_CT.jpg"), 
           width = 20, 
           height = 15, 
           units = "cm", 
@@ -267,7 +277,7 @@ sa_plot <- tm_shape(SA_metrics_ct) +
 HT_SA_CT <- tmap_arrange(ht_plot, sa_plot, ncol = 2)
 
 tmap_save(HT_SA_CT, 
-          paste0(output_folder,"HT_SA_CT.jpg"), 
+          paste0(diretorio_export_figures,"HT_SA_CT.jpg"), 
           width = 20, 
           height = 15, 
           units = "cm", 
@@ -330,7 +340,7 @@ jobs_SA_per_lf_CT <- tmap_arrange(jobs_per_labour_force, SA_per_labour_force, nc
 
 
 tmap_save(jobs_SA_per_lf_CT, 
-          paste0(output_folder,"jobs_SA_per_lf_CT.jpg"), 
+          paste0(diretorio_export_figures,"jobs_SA_per_lf_CT.jpg"), 
           width = 20, 
           height = 15, 
           units = "cm", 
@@ -357,7 +367,7 @@ total_pop_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(total_pop_by_mode_CT, 
-          paste0(output_folder,"total_pop_by_mode_CT.jpg"), 
+          paste0(diretorio_export_figures,"total_pop_by_mode_CT.jpg"), 
           width = 20, 
           height = 20, 
           units = "cm", 
@@ -382,7 +392,7 @@ HT_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(HT_by_mode_CT, 
-          paste0(output_folder,"HT_by_mode_CT.jpg"), 
+          paste0(diretorio_export_figures,"HT_by_mode_CT.jpg"), 
           width = 20, 
           height = 20, 
           units = "cm", 
@@ -407,7 +417,7 @@ SA_by_mode_CT <- tm_shape(mode_metrics_ct_sf) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(SA_by_mode_CT, 
-          paste0(output_folder,"SA_by_mode_CT.jpg"), 
+          paste0(diretorio_export_figures,"SA_by_mode_CT.jpg"), 
           width = 20, 
           height = 20, 
           units = "cm", 
@@ -444,7 +454,6 @@ Pop_SA_by_mode_CT <- ggplot(modal_SA_long,
       "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", round(total_SA), ")"),
       "perc_pop" = paste("Population\n by Mode\n(Total: ", round(total_pop), ")") )) +
   geom_col() + 
-  scale_fill_manual(values = c("#96CCD9","#49A695", "#A67360", "#8C3926")) + 
   geom_text(position = position_stack(vjust=0.5), color="black") +
   theme_classic() +
   theme(axis.ticks = element_blank(),
@@ -456,11 +465,11 @@ Pop_SA_by_mode_CT <- ggplot(modal_SA_long,
         legend.title = element_blank())
 
 
-ggsave(file = paste0(output_folder,"Pop_SA_by_mode_CT.jpg"), 
+ggsave(file = paste0(diretorio_export_figures,"Pop_SA_by_mode_CT.jpg"), 
        plot = Pop_SA_by_mode_CT,
        width = 10, 
        height = 10, 
-       units = "in", 
+       units = "cm", 
        dpi = 300)
 
 Pop_SA_by_mode_CT

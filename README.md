@@ -1,6 +1,8 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 # CommuteCA
@@ -137,6 +139,7 @@ For provinces, the calibrated job impedance functions are split by
 urbanity level or Indigenous Territory affiliation.
 
 ``` r
+library("CommuteCA")
 library('dplyr')
 #> 
 #> Attaching package: 'dplyr'
@@ -180,45 +183,26 @@ and job counts for census tracts. The code below visualizes Toronto’s
 labour force distribution by transportation mode:
 
 ``` r
-library("CommuteCA")
-library("sf")
-#> Linking to GEOS 3.12.2, GDAL 3.9.1, PROJ 9.4.1; sf_use_s2() is TRUE
-library("tmap")
-
-#data("census_tracts_ca21") # Census Tract Geometries
-#data("census_divisions_ca21") # Census Division geometries
 data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
 
-#census_tracts_ca21 <- census_tracts_ca21 %>% 
-#  filter(PCD == 3520) # Filtering data for the city of Toronto 
+land_use_3520 <- land_use_CT_mode %>%
+  filter(PCD == 3520) %>% # Filtering data for the city of Toronto
+  select(CTUID, PwMode, labour_force_est_rounded, jobs_rounded)
 
-#land_use_CT_mode <- land_use_CT_mode %>% 
-#  filter(PCD == 3520) %>% # Filtering data for the city of Toronto 
-#  select(CTUID, PwMode, labour_force_est_rounded, jobs_rounded)
-
-# Joining both data sets
-#Toronto <- expand.grid(CTUID = unique(census_tracts_ca21$CTUID), 
-#              PwMode = unique(land_use_CT_mode$PwMode)) %>%
-#  left_join(land_use_CT_mode, by = c("CTUID" = "CTUID", "PwMode" = "PwMode")) %>%
-#  left_join(census_tracts_ca21, by = "CTUID")
-
-#Toronto <- st_as_sf(Toronto, crs = st_crs(census_tracts_ca21)) # transforming the table in a spatial data type
-
-# Creating the plot
-#total_pop_by_mode_CT <- tm_shape(Toronto) + 
-#   tm_polygons("labour_force_est_rounded",
-#              style = "cont",
-#              palette = "Reds",
-#              title = " ",
-#              border.col = NULL) +  
-#   tm_facets(by = "PwMode") +       
-#   tm_scale_bar(position = c("right", "bottom")) +
-#   tm_compass(position = c("left", "top"), size = 1.0) + 
-#   tm_shape(census_divisions_ca21) +
-#   tm_borders("black", lwd=0.5)
-
-# Visualizing
-#total_pop_by_mode_CT
+land_use_3520[1:10,] #Visualizing the first ten rows
+#> # A tibble: 10 × 4
+#>    CTUID      PwMode    labour_force_est_rounded jobs_rounded
+#>    <chr>      <chr>                        <dbl>        <dbl>
+#>  1 5350001.00 Bike                            20         5805
+#>  2 5350001.00 Walk                            75         5805
+#>  3 5350001.00 Car/motor                      245         5805
+#>  4 5350001.00 Transit                         65         5805
+#>  5 5350002.00 Bike                           115          295
+#>  6 5350002.00 Walk                            30          295
+#>  7 5350002.00 Car/motor                       80          295
+#>  8 5350002.00 Transit                         55          295
+#>  9 5350003.00 Bike                            15          195
+#> 10 5350003.00 Walk                            15          195
 ```
 
 These datasets enable census tract-level accessibility analysis. For
@@ -245,6 +229,6 @@ alt="Job accessibility for the city of Toronto (Soukhov-type, spatial availabili
 You can install the development version of *CommuteCA* from:
 
 ``` r
-# install.packages("pak")
+install.packages("pak")
 pak::pak("dias-bruno/CommuteCA")
 ```

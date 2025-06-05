@@ -5,7 +5,7 @@
 \alias{census_test_data}
 \title{2021 Census of Population Test Data}
 \format{
-A data frame object containing 20,000 rows and 17 variables; each row represents a unique (fake) respondent.
+A data frame object containing 200,000 rows and 17 variables; each row represents a unique (fake) respondent.
 \describe{
 \item{Frame_ID}{Unique identifier of the (fake) respondent.}
 \item{PRCDDA}{Refers to the dissemination area (DA) of current residence}

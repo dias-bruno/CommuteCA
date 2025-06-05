@@ -116,7 +116,7 @@ For this R markdown, we'll use the following variables[^4]:
 | LOLICOA | Income: Low-income status based on LICO-AT (after tax). |
 | LOLIMA | Income: Low-income status based on LIM-AT (after tax). |
 | ACTLMFLG | Activities of daily living: Flag. |
-| CFAMSTSIMPLE | This variable refers to whether a person was employed, unemployed or not in the labour force. |
+| CFAMSTSIMPLE | Type of family. |
 | IMMCAT5 | Immigration: Admission category. |
 | PerImmA | Immigration: Immigrant status and period of immigration (by five year group). |
 | DVisMin | This variable refers to whether a person was employed, unemployed or not in the labour force. |
@@ -132,31 +132,27 @@ disseminated. DAs cover all Canadian territory.
 # Let's code
 
 ```{r load-packages}
-#library(CommuteCA)
+library(CommuteCA)
 library(dplyr)# A Grammar of Data Manipulation 
 library(here) # enable easy file referencing in project-oriented workflows
 library(tidyr) # Wide tables
 library(ggplot2) # Plot graphs 
 ```
 
-Reading census data and creating a R data frame[^5]:
 
-[^5]: For this demonstration, we will use the case of the city of
-    Toronto. If you want to use the other options, the original data
-    from the Census in an RDC office or the test data for all locations
-    in Canada, *update* the address in the chunk.
-
-```{r}
-# Reading the test Census data set
-files_address <- paste0(here(),"/data-raw/make-data/census_test_toronto.csv")
-census <- read.csv(files_address, header = TRUE)
-```
-
-Or if you have installed *CommuteCA*, you can access the *test* data:
+For this demonstration, we will use the case of the test data for the city of Toronto. 
 
 ```{r load-census-data}
-# data("census_test_toronto")
-# census <- census_test_toronto
+data("census_test_toronto")
+census <- census_test_toronto
+```
+
+Or if you want to run with the original data set from Census, update the address and execute the following chunk: 
+
+```{census-file-address}
+# Reading the original Census data set
+# files_address <- "INSERT-FULL-FILE-ADRESS"
+# census <- read.csv(files_address, header = TRUE)
 ```
 
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -439,7 +435,7 @@ In the previous rmarkdown, we calculate accessibility measures at the DA level. 
 
 ```{r reading-accessibility-files}
 # For the original accessibility_measures data set
-files_address <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/SA_general_original.csv")
+files_address <- paste0(here(),"/data-raw/output/PCD3520/DA/accessibility-measures/SA_general_original.csv")
 accessibility_measures <- read.csv(files_address, header = TRUE)
 ```
 
@@ -1274,11 +1270,20 @@ pvalue_table
 
 Using the ggplot library, we will visualize these differences in form of bar plots. 
 
-Setting the output folder address: 
+Creating a directory to export the figures and tables:
 
-```{r}
-output_folder <- paste0(here::here(),"/data-raw/aux-files/PCD3520/DA/output/")
-``` 
+```{r directory-export}
+diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD3520/DA/disadvantaged-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_figures)){
+  dir.create(diretorio_export_figures, recursive = TRUE)}
+
+diretorio_export_tables <- paste0(here(),"/data-raw/output/PCD3520/DA/disadvantaged-tables/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_tables)){
+  dir.create(diretorio_export_tables, recursive = TRUE)}
+```
+
 
 First, visualizing the medians of all population groups: 
 
@@ -1318,7 +1323,7 @@ geom_text(aes(label = round(Median)),
 theme_minimal()
 
 # Saving figure
-ggsave(file = paste0(output_folder,"/medians_by_pop_group.jpg"), 
+ggsave(file = paste0(diretorio_export_figures,"/medians_by_pop_group.jpg"), 
        plot = figure_medians_by_pop_group,
        width = 20, 
        height = 12, 
@@ -1327,7 +1332,7 @@ ggsave(file = paste0(output_folder,"/medians_by_pop_group.jpg"),
 ```
 
 ```{r median-figure}
-knitr::include_graphics(paste0(output_folder,"/medians_by_pop_group.jpg"))
+knitr::include_graphics(paste0(diretorio_export_figures,"/medians_by_pop_group.jpg"))
 ```
 
 Now, the median rate (the division of median from a group by the other): 
@@ -1366,7 +1371,7 @@ geom_text(aes(label = round(Median_rate,2)),
 theme_minimal()
 
 # Saving figure
-ggsave(file = paste0(output_folder,"/ratio_medians_by_pop_group.jpg"), 
+ggsave(file = paste0(diretorio_export_figures,"/ratio_medians_by_pop_group.jpg"), 
        plot = figure_ration_medians_by_pop_group,
        width = 20, 
        height = 12, 
@@ -1375,7 +1380,7 @@ ggsave(file = paste0(output_folder,"/ratio_medians_by_pop_group.jpg"),
 ```
 
 ```{r}
-knitr::include_graphics(paste0(output_folder,"/ratio_medians_by_pop_group.jpg"))
+knitr::include_graphics(paste0(diretorio_export_figures,"/ratio_medians_by_pop_group.jpg"))
 ```
 
 ## Visible minorities
@@ -1417,7 +1422,7 @@ geom_text(aes(label = round(Median)),
 theme_minimal()
 
 # Saving figure
-ggsave(file = paste0(output_folder,"/medians_by_racial_group.jpg"), 
+ggsave(file = paste0(diretorio_export_figures,"/medians_by_racial_group.jpg"), 
        plot = figure_medians_by_racial_group,
        width = 20, 
        height = 12, 
@@ -1426,7 +1431,7 @@ ggsave(file = paste0(output_folder,"/medians_by_racial_group.jpg"),
 ```
 
 ```{r}
-knitr::include_graphics(paste0(output_folder,"/medians_by_racial_group.jpg"))
+knitr::include_graphics(paste0(diretorio_export_figures,"/medians_by_racial_group.jpg"))
 ```
 
 Now, the median rate (the division of median from a group by the other): 
@@ -1465,7 +1470,7 @@ geom_text(aes(label = round(Median_rate,2)),
 theme_minimal()
 
 # Saving figure
-ggsave(file = paste0(output_folder,"/ratio_medians_by_racial_group.jpg"), 
+ggsave(file = paste0(diretorio_export_figures,"/ratio_medians_by_racial_group.jpg"), 
        plot = figure_ration_medians_by_racial_group,
        width = 20, 
        height = 12, 
@@ -1474,7 +1479,7 @@ ggsave(file = paste0(output_folder,"/ratio_medians_by_racial_group.jpg"),
 ```
 
 ```{r}
-knitr::include_graphics(paste0(output_folder,"/ratio_medians_by_racial_group.jpg"))
+knitr::include_graphics(paste0(diretorio_export_figures,"/ratio_medians_by_racial_group.jpg"))
 ```
 
 # Confidentiality vetting
@@ -1528,30 +1533,26 @@ pvalue_table_support <- pvalue_table %>%
 To finalize the methodology of this R markdown, we will export the
 processed data. 
 
-```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/DA/output/")
-```
-
 Export of summary tables:
 
 ```{r export-summary-tab}
 # Release - all groups
-write.csv(summary_pop_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export, "summary_pop_table_release.csv"), row.names=FALSE)
+write.csv(summary_pop_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_pop_table_release.csv"), row.names=FALSE)
 
 # Supporting file for RDC - all groups 
-write.csv(summary_pop_table_support, paste0(diretorio_export, "summary_pop_table_support.csv"), row.names=FALSE)
+write.csv(summary_pop_table_support, paste0(diretorio_export_tables, "summary_pop_table_support.csv"), row.names=FALSE)
 
 # Release - visible minorities 
-write.csv(summary_dvismin_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export, "summary_vmin_table_release.csv"), row.names=FALSE)
+write.csv(summary_dvismin_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_vmin_table_release.csv"), row.names=FALSE)
 
 # Supporting file for RDC - visible minorities 
-write.csv(summary_dvismin_table_support, paste0(diretorio_export, "summary_vmin_table_support.csv"), row.names=FALSE)
+write.csv(summary_dvismin_table_support, paste0(diretorio_export_tables, "summary_vmin_table_support.csv"), row.names=FALSE)
 ```
 
 Export of p-values tables:
 ```{r export-summary-tab}
-write.csv(pvalue_table_support[,c("Variable", "Description", "P_value",  "Significance")], paste0(diretorio_export, "pvalue_table_release.csv"), row.names=FALSE)
+write.csv(pvalue_table_support[,c("Variable", "Description", "P_value",  "Significance")], paste0(diretorio_export_tables, "pvalue_table_release.csv"), row.names=FALSE)
 
-write.csv(pvalue_table_support, paste0(diretorio_export, "pvalue_table_support.csv"), row.names=FALSE)
+write.csv(pvalue_table_support, paste0(diretorio_export_tables, "pvalue_table_support.csv"), row.names=FALSE)
 ```
 

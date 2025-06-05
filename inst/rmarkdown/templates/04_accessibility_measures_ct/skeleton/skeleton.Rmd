@@ -415,7 +415,9 @@ specific_function
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm <- read_csv(paste0(here(),"/data-raw/aux-files/PCD3520/CT/travel_times/ttm.csv"),
+ttm_file <- paste0(here(),"/data-raw//PCD3520/CT/travel_times/ttm.csv")
+
+ttm <- read_csv(ttm_file,
                 col_types = cols(
                   from_id = col_character(),   
                   to_id = col_character(),
@@ -545,6 +547,7 @@ accessibility_table %>%
   dplyr::select(job) %>%
   sum()
 ```
+
 Checking the total population:
 
 ```{r}
@@ -729,8 +732,10 @@ because this metric is constrained.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/aux-files/PCD3520/CT/output/") # Update the address to export the data, if necessary
-dir.create(diretorio_export)
+diretorio_export <- paste0(here(),"/data-raw/output/PCD3520/CT/accessibility-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
 ```
 
 Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.
