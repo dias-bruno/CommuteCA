@@ -91,6 +91,11 @@ library(ggridges) # Ridgeline Plots in 'ggplot2'
 library(readr) # Read csv files
 library(skimr) # Summary statistics about variables in data frames
 library(here) # enable easy file referencing in project-oriented workflows
+library(DescTools) # Tools for Descriptive Statistics 
+library(poliscidata) # Weights in R
+library(Hmisc) # Weights in R
+library(tidyr) # Pivoting tables
+library(weights) # Weights in R
 ```
 
 We will also load the following data frames for this session. The
@@ -197,9 +202,9 @@ example, for our census table we have[^6]:
     slow and will require a lot of RAM from your computer.
 
 ```{r}
-selected_columns <-c("Frame_ID", "PRCDDA", "Pr","CMA","PCD","CompW1","LBR_FORC","CfInc","CFCNT","CF_PnCF_NumEarners","PWDA","PWPR","PWCD","PWCMA","PWDUR","PWDist","PwMode")
-
-census <-  census[,selected_columns]
+census <-  census %>% 
+  select("Frame_ID", "PRCDDA", "Pr","CMA","PCD","CompW1","LBR_FORC","CfInc","CFCNT","CF_PnCF_NumEarners","PWDA","PWPR","PWCD","PWCMA","PWDUR","PWDist","PwMode")
+  
 
 summary(census)
 ```
@@ -228,31 +233,7 @@ know.
 
 ## Pre-processing data
 
-As said before, some of these variables should have been read as a
-factor variable. The next chunk corrects this problem by turning them
-into factors:
-
-```{r factoring-variables}
-census <- census %>% 
-          mutate_at(c("Frame_ID",
-                 "PRCDDA",
-                 "Pr",
-                 "CMA",
-                 "PCD",
-                 "PWDA",
-                 "PWPR",
-                 "PWCMA",
-                 "PWCD"), as.factor)
-```
-
-View summary statistics from the data frame:
-
-```{r census-summary}
-summary(census)
-```
-
-According to the census code book, the variable `PwMode` has the
-following possible values:
+Some of the variables should have been read as a factor variable. According to the census code book, the variable `PwMode` has the following possible values:
 
 -   -3: Not applicable.
 -   1: Car, truck or van - as a driver.
@@ -271,9 +252,9 @@ Additionally, we'll remove from our analysis travel modes signed as
 'Other methods':
 
 ```{r factoring-mode}
-census <- census  %>% 
+census  <- census  %>% 
           filter(PwMode < 10) %>% 
-          mutate(PwMode = case_when(
+          mutate(PwMode_label = case_when(
                   PwMode == -3 ~ "Not applicable",
                   PwMode > 0 & PwMode <= 2 ~ "Car/motor",
                   PwMode == 9 ~ "Car/motor",
@@ -281,13 +262,13 @@ census <- census  %>%
                   PwMode == 7  ~ "Walk",
                   PwMode == 8  ~ "Bike"),
          
-          PwMode = factor(PwMode, levels = c("Bike", "Walk", "Car/motor", "Transit", "Not applicable")))
+          PwMode_label = factor(PwMode_label, levels = c("Bike", "Walk", "Car/motor", "Transit", "Not applicable")))
 ```
 
-Now let's visualize the `PwMode` summary:
+Now let's visualize the `PwMode` label summary:
 
 ```{r}
-summary(census$PwMode)
+summary(census$PwMode_label)
 ```
 
 A not applicable situation for this variable is when the respondent is
@@ -307,21 +288,21 @@ In this case, we can update this variable as bellow:
 
 ```{r factoring-LBR_FORC}
 census <- census  %>% 
-          mutate(LBR_FORC = case_when(
+          mutate(LBR_FORC_label = case_when(
                   LBR_FORC == -3 ~ "Not applicable",
                   LBR_FORC == 1  ~ "Employed",
                   LBR_FORC == 2  ~ "Unemployed",
                   LBR_FORC == 3 ~ "Not in LF"),
          
-          LBR_FORC = factor(LBR_FORC, levels = c("Employed", "Unemployed", "Not in LF", "Not applicable")))
+          LBR_FORC_label = factor(LBR_FORC_label, levels = c("Employed", "Unemployed", "Not in LF", "Not applicable")))
 ```
 
 Next chunk update all `-3` values to `Not applicable` for the other
 categorical variables:
 
 ```{r}
-census[,c('PWDA', 'PWPR', 'PWCD', 'PWCMA')] <- census[,c('PWDA', 'PWPR', 'PWCD', 'PWCMA')] %>%
-  mutate_all(~ ifelse(. == -3, 'Not applicable', .))
+census <- census %>%
+  mutate(across(c(PWDA, PWPR, PWCD, PWCMA), ~ ifelse(. == -3, "Not applicable", .)))
 ```
 
 Finishing the pre-processing step, to increase the readability of the
@@ -329,7 +310,7 @@ table, we will update the name of the provinces of the respondents:
 
 ```{r}
 census <- census %>%
-  mutate(Pr = case_when(
+  mutate(Pr_label = case_when(
     Pr == 10 ~ "Newfoundland and Labrador",
     Pr == 11 ~ "Prince Edward Island",
     Pr == 12 ~ "Nova Scotia",
@@ -342,15 +323,21 @@ census <- census %>%
     Pr == 59 ~ "British Columbia",
     Pr == 60 ~ "Yukon",
     Pr == 61 ~ "Northwest Territories",
-    Pr == 62 ~ "Nunavut",
-    TRUE ~ as.factor(Pr)
-  ))
+    Pr == 62 ~ "Nunavut"), 
+    Pr_label = as.factor(Pr_label))
 ```
 
 Visualizing the summary statistics:
 
 ```{r}
 summary(census)
+```
+
+Considering that the original census dataset is a very large data file, it can be interesting to filter respondents based on where they live. In this demonstration, we will filter the dataset to include only respondents from the city of Toronto. We can get the information about the city of origin from the `PCD` variable. The `PCD` code for the city of Toronto is `3520`:
+
+```{r}
+census_city <- census %>% 
+  filter(PCD == 3520)
 ```
 
 ## Appropriate summary statistics by scale of measurement
@@ -386,7 +373,7 @@ center of mass of the data. For instance, given a sequence of
 quantitative values, such as:
 
 ```{r}
-x <- c(20, 30, 32, 34, 41, 41, 45, 46, 48, 51, 53, 54, 54, 56, 57, 58, 58, 59, 
+example_list <- c(20, 30, 32, 34, 41, 41, 45, 46, 48, 51, 53, 54, 54, 56, 57, 58, 58, 59, 
   60, 61, 64, 65, 65, 69, 71, 74, 77, 79, 88, 94)
 ```
 
@@ -415,25 +402,29 @@ from those used for ordered or quantitative data.
 
 The mode is the most frequent value in a distribution and is useful for
 both nominal and ordinal variables. To find the mode, we can count the
-occurrences of each value. For example, using the `tabyl()` function from
-the {[janitor](http://sfirke.github.io/janitor/)} package, which
-facilitates pipe-friendly tabulations, we can determine the mode of the
-variable `LBR_FORC` in census table. Here's how you can perform this
-task:
+occurrences of each value. We can obtain the mode of the `example_list` by executing the Mode function of the DescTools library:
 
 ```{r}
-census |> 
-  tabyl(LBR_FORC)
+DescTools::Mode(example_list)
+```
+The chunk above shows that the `example_list` contains 4 values as the most frequent, each of them being repeated 2 times: `41`, `54`, `58`, and `65`. 
+
+Using the `tabyl()` function from
+the {[janitor](http://sfirke.github.io/janitor/)} package, which
+facilitates pipe-friendly tabulations, we could easily determine the mode of the
+variable `LBR_FORC` in census table:
+
+```{r}
+census_city |> 
+  tabyl(LBR_FORC_label) # WRONG! You need to consider the weights! 
 ```
 
 The output shows that the `Employed` category is the mode of the
 `LBR_FORC` variable (considering the test data), representing
-around 75% of the cases.
-
-You can obtain the mode of a variable through the `R` built-in function:
+around 75% of the cases. *However*, it is important to remember that the census survey contains the weight of each respondent, described by the variable `Compw1`. This means that all the statistics made for the general population need to consider that person's weight. To do this, we will use the `wtd.mode` function from the R package `poliscidata`: 
 
 ```{r}
-mode(census$LBR_FORC)
+poliscidata::wtd.mode(census_city$LBR_FORC_label, weights = census_city$CompW1)
 ```
 
 ### Median
@@ -441,23 +432,38 @@ mode(census$LBR_FORC)
 The median is the quantile that splits a quantitative variables in two
 parts of equal size, the bottom 50% and the top 50% of values.
 
-To check the median value of total income of the family, we can use the `R` built-in function `median()`:
+To check the median value of total income of the family considering the weights, we can use the `Hmisc` library: 
 
 ```{r}
-median(census$CfInc)
+census_city %>% 
+  dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5))
+```
+
+This value is slightly different (but needs to be considered!) than the regular median without considering the weights: 
+
+```{r}
+median(census_city$CfInc) # WRONG! You need to consider the weights! 
 ```
 ### Mean
 
 The mean is probably the best known measure of central tendency, and it
 is defined as the sum of the values divided by the number of
 observations. Since it involves arithmetic operations it is not
-appropriate for categorical variables. The mean of quantitative
-variables is reported by `summary()` and `skim()`.
+appropriate for categorical variables. 
 
-To check the mean value of total income of the family, we can use the `R` built-in function `()`:
+To check the average value of a regular data set (without weights), we can use the `mean()` built-in function. In our case, to consider the weights of the respondents, we can again apply the `Hmisc` library:
 
 ```{r}
-mean(census$CfInc)
+#mean(census$CfInc) # WRONG! You need to consider the weights! 
+
+census_city %>% 
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1))
+```
+Another way of considering the weights to obtain the mean is to apply the weighted average. The mean value in both methods is the same: 
+
+```{r}
+census_city %>% 
+  dplyr::summarise(Mean = sum(CfInc * CompW1)/sum(CompW1))
 ```
 
 ### Spread
@@ -506,7 +512,7 @@ maximum and the minimum:
 107 - 14
 ```
 
-The second distribution is more spread.
+The second distribution is more spread. Both the minimum and maximum can be obtained without considering the weights of the population. 
 
 ### Inter-quartile range
 
@@ -519,28 +525,24 @@ second quantile represents the value that separates the lowest 25% of
 the sample from the remaining 75%, and the third quantile is the value
 that splits the highest 25% of the sample from the lowest 75%.
 
-If we skim the data, we see that the quartiles are reported ("p25" is
-the first quartile and "p75" is the third). The inter-quartile range can
-be calculated using those values.
+Previously, we used the `Hmisc` library to obtain the median value of `CfInc`. In fact, we applied the quantile function to obtain the median value considering the weights, because the median is the value that divides the values into two quantiles, those below and those above the median value. Now, we will obtain the values for the second and third quantiles by running the chunk below: 
 
 ```{r}
-census |>
-  skim(CfInc)
+census_city %>% 
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.75))
 ```
 
-```{r}
-149558.3 - 44933.87
-```
 
-We can *pull* the variable from the data frame, and use function `IQR()`
-to directly calculate the inter-quartile range. From the skim of the
-variable we know that there are some missing (NA) records that need to
-be removed, hence `na.rm = TRUE`:
+To obtain the inter-quantile range (IQR) we just need to subtract the second quantile from the third quantile: 
 
 ```{r}
-census |>
-  pull(CfInc) |>
-  IQR(na.rm = TRUE)
+census_city %>% 
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.75),
+                   IQR = Third_Q - Second_Q)
 ```
 
 The inter-quartile range involves an arithmetic operation, which is why
@@ -571,18 +573,14 @@ $$
 $$
 
 The standard deviation is simply the square root of the variance and
-returns the variance to the same units as the original variable. The
-standard deviation is reported by `skim()` as `sd`, and can also be
-calculated with function `sd()` (remember to remove the missing values):
+returns the variance to the same units as the original variable. To consider the weights in the calculation of the variance and standard deviation, you can execute the chunk bellow:
 
 ```{r}
-census |>
-  pull(CfInc) |>
-  sd(na.rm = TRUE)
+census_city %>% 
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1),
+                   Variance = Hmisc::wtd.var(CfInc, weights = CompW1),
+                   SD = sqrt(Variance))
 ```
-
-We see that the typical deviation from the mean of `CfInc` (total income
-of the family) was about \$ $60,509$.
 
 ## Univariate description
 
@@ -597,53 +595,48 @@ As an example, let us calculate the mean, standard deviation, and
 maximum of `CfInc` (total income of census family):
 
 ```{r}
-mean_CfInc <- census |> 
-  pull(CfInc) |> 
-  mean(na.rm = TRUE)
-
-sd_CfInc <- census |> 
-  pull(CfInc) |> 
-  sd(na.rm = TRUE)
-
-max_CfInc <- census |> 
-  pull(CfInc) |> 
-  max(na.rm = TRUE)
+Cfinc_statistics <- census_city %>% 
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1),
+                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5),
+                   SD = sqrt(Hmisc::wtd.var(CfInc, weights = CompW1)), 
+                   Max = max(CfInc),
+                   Min = min(CfInc))
 ```
 
 The maximum average income of the person responsible for the household
-in the data set was R\$ $259,872.70$. Just how common or unusual is this
+in the test data set for city of Toronto was R\$ $259,872.70$. Just how common or unusual is this
 value? That depends on how close (or far away) from the mean of the
 distribution this is, as well as on the spread of the distribution. The
 deviation from the mean is:
 
 ```{r}
-max_CfInc - mean_CfInc
+Cfinc_statistics$Max - Cfinc_statistics$Mean
 ```
 
-That is, approximately R\$ $161,352$. But the typical deviation from the
-mean in the sample was about R\$ $60,509$! Now, calculating:
+That is, approximately R\$ $159,762$. But the typical deviation from the
+mean in the sample was about R\$ $62,009$! Now, calculating:
 
 ```{r}
-(max_CfInc - mean_CfInc)/sd_CfInc
+(Cfinc_statistics$Max - Cfinc_statistics$Mean)/Cfinc_statistics$SD
 ```
 
 This tells us that the census tract with the highest total family income
 receives almost three times more than the average total family income.
-This observation is indeed quite unusual. How unusual was the census
+This observation is indeed quite unusual. 
+
+How unusual was the census
 tract with the lowest average income? Let us retrieve the minimum
 duration:
 
 ```{r}
-min_CfInc <- census |> 
-  pull(CfInc) |> 
-  min(na.rm = TRUE)
+Cfinc_statistics$Min
 ```
 
-That is, around \$ $3000$. Again, the typical deviation from the mean in
-the sample was R\$ $60,509$! So, calculating:
+That is, around \$ $3001$. Again, the typical deviation from the mean in
+the sample was R\$ $62,009$! So, calculating:
 
 ```{r}
-(min_CfInc - mean_CfInc)/sd_CfInc
+(Cfinc_statistics$Min - Cfinc_statistics$Mean)/Cfinc_statistics$SD
 ```
 
 The census tract with the lowest average income is closer to the mean,
@@ -660,64 +653,37 @@ relate to one another is another key aspect of EDA.
 
 Univariate description of a categorical variable involves tabulating the
 number of instances of each response. This can be expanded to
-simultaneously tabulating two categorical variables. Function `tabyl()`
-can be used, as in the following example:
+simultaneously tabulating two categorical variables. We will summarise the variables `Pr` (Province) and `PwMode` (mode of transport), summing all weights for each combination:
 
 ```{r}
-census |>
-  tabyl(Pr, PwMode) 
+census %>%
+  group_by(Pr, PwMode) %>%
+  summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") 
 ```
 
-What do we learn from this table? The output of the `tabyl()` function
-can be *adorned*, which can improve the readability of the table. The
+To facilitate the visualization, we will apply a pivot technique, turning the long table into a wide one like a contingency table:
+
+```{r}
+census_city %>%
+  group_by(Pr_label, PwMode_label) %>%
+  summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = PwMode_label, values_from = weighted_n, values_fill = 0)
+```
+
+What do we learn from this table? The output of the previous chunk can be *adorned*, which can improve the readability of the table. The
 following table gives the total sum of the columns as a row at the
 bottom of the table:
 
 ```{r}
-census |>
-  tabyl(Pr, PwMode) |>
-  adorn_totals(where = "row")
-```
-
-Or the total sums of the rows as a column at the right of the table:
-
-```{r}
-census |>
-  tabyl(Pr, PwMode) |>
-  adorn_totals(where = "col")
-```
-
-And the values can be displayed as proportions:
-
-```{r}
-census |>
-  tabyl(Pr, PwMode) |>
-  adorn_totals(where = "col") |>
-  adorn_percentages(denominator = "col") |>
-  adorn_pct_formatting()
-```
-
-If our data set has missing observations (NAs), the table can be
-displayed without the missing values, for example:
-
-```{r}
-census |>
-  tabyl(Pr, PwMode,
-        show_na = FALSE) |>
-  adorn_totals(where = "both")
-```
-
-There are in total $n = 198,326$ valid observations when we consider
-variables `Pr` and `PwMode` simultaneously. The proportions (by column)
-are as follows:
-
-```{r}
-census |>
-  tabyl(Pr, PwMode,
-        show_na = FALSE) |>
-  adorn_totals(where = "row") |>
-  adorn_percentages(denominator = "row") |>
-  adorn_pct_formatting()
+ census_city %>%
+  group_by(Pr_label, PwMode_label) %>%
+  summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = PwMode_label, values_from = weighted_n, values_fill = 0) %>%
+  adorn_totals("row") %>%               
+  adorn_totals("col") %>%               
+  adorn_percentages("row") %>%          
+  adorn_pct_formatting(digits = 1) %>%  
+  adorn_ns()       
 ```
 
 ## Quantitative variables: correlation
@@ -746,17 +712,14 @@ $$
 
 The correlation coefficient ranges between -1 and 1, where 0
 indicates no covariance. Correlations can be calculated using the
-`correlate()` function from the {[corrr](https://corrr.tidymodels.org/)}
+`wtd.cor` function from the {[weights](https://corrr.tidymodels.org/)}
 package in a pipe-friendly manner:
 
 ```{r}
 # PWDUR: Commuting duration
 # PWDist: Distance (straight-line) from home to work
 
-census %>% 
-  dplyr::select(PWDUR, PWDist) %>% 
-  correlate(method = "pearson",
-            use = "pairwise.complete.obs")
+weights::wtd.cor(x = census_city$PWDUR, y = census_city$PWDist, weight = census_city$CompW1)
 ```
 
 The code above shows that the variables `PWDUR` and `PWDist` have a very
@@ -795,45 +758,9 @@ census |>
 ```
 
 To make matters more difficult, this is only a small part of the full
-table (only ten rows and six columns). The task of identifying patterns
+table (only ten rows and six columns). Additionally, the summary does not account the weights of the respondents. The task of identifying patterns
 becomes increasingly complicated as the number of observations and the
 number of variables grow.
-
-Visualization techniques work by *encoding* the data in ways that make
-fuller use of our visual data processing powers. The power of
-visualization techniques is that we can process multiple information
-channels *in parallel*. Shapes and colors are only two ways to encode
-statistical information; in addition, we can distinguish shapes, angles,
-areas, and positions, among other spatial attributes. These encodings
-allow the brain to make sense of the underlying patterns in the blink of
-an eye (see Franconeri et al.
-[2021](https://journals.sagepub.com/doi/abs/10.1177/15291006211051956)),
-although with less precision than with summary statistics.
-
-To better appreciate this power, consider the matrix of correlations:
-
-```{r}
-census |>
-  dplyr::select(where(is.numeric)) |>
-  correlate(method = "pearson",
-            use = "pairwise.complete.obs") |> 
-  shave()
-```
-
-Now compare to:
-
-```{r}
-census |>
-  dplyr::select(where(is.numeric)) |>
-  correlate(method = "pearson",
-            use = "pairwise.complete.obs") |> 
-  shave() |>
-  rplot()
-```
-
-By encoding valence using colors and magnitude using size, we can
-present the same information in a form that we naturally process with
-greater ease.
 
 The grammar of graphics, formalized by [Leland
 Wilkinson](https://en.wikipedia.org/wiki/Leland_Wilkinson) in his
@@ -861,8 +788,8 @@ implemented as `geom_hist()`. Using the variable `CfInc` (total income
 of census family), we have:
 
 ```{r}
-ggplot(data = census,
-       aes(x = CfInc)) +
+ggplot(data = census_city,
+       aes(x = CfInc, weight = CompW1)) +
   geom_histogram()
 ```
 
@@ -873,47 +800,39 @@ The default number of bins in `geom_hist()` is 30, but this can be
 adjusted:
 
 ```{r}
-ggplot(data = census,
-       aes(x = CfInc)) +
+ggplot(data = census_city,
+       aes(x = CfInc, weight = CompW1)) +
   geom_histogram(bins = 20)
 ```
 
 An alternative geometric object is a frequency polygon, as shown here:
 
 ```{r}
-ggplot(data = census,
-       aes(x = CfInc)) +
+ggplot(data = census_city,
+       aes(x = CfInc, weight = CompW1)) +
   geom_freqpoly(bins = 20)
 ```
 
 A density plot is a smoother version of a frequency polygon:
 
 ```{r}
-ggplot(data = census,
-       aes(x = CfInc)) +
+ggplot(data = census_city,
+       aes(x = CfInc, weight = CompW1)) +
   geom_density(bins = 20) + 
- scale_x_continuous(breaks=seq(0,max(census$CfInc),50000))
+ scale_x_continuous(breaks=seq(0,max(census_city$CfInc),50000))
 ```
 
 We can use `geom_vline()` to draw vertical lines in the plot (the mean
 in blue, the median in green):
 
 ```{r}
-mean_CfInc <- census |> 
-  pull(CfInc) |> 
-  mean(na.rm = TRUE)
-
-median_CfInc <- census |> 
-  pull(CfInc) |> 
-  median(na.rm = TRUE)
-
-ggplot(data = census,
+ggplot(data = census_city,
        aes(x = CfInc)) +
   geom_density(bins = 20) +
-  geom_vline(xintercept = mean_CfInc,
+  geom_vline(xintercept = Cfinc_statistics$Mean,
              color = "blue",
              size = 1) +
-  geom_vline(xintercept = median_CfInc,
+  geom_vline(xintercept = Cfinc_statistics$Median,
              color = "green",
              size = 1)
 ```
@@ -930,8 +849,8 @@ essential, and there are no value ranges, only distinct category labels.
 
 ```{r}
 ggplot() +
-  geom_bar(data = census,
-           aes(x = LBR_FORC))
+  geom_bar(data = census_city,
+           aes(x = LBR_FORC_label, weight = CompW1))
 ```
 
 ## Bivariate plots
@@ -941,12 +860,12 @@ ggplot() +
 The scatterplot is a fundamental visualization method for exploring the
 relationship between two quantitative variables. It maps the values of
 these variables as points on the x- and y-axes, allowing for the
-examination of patterns, correlations, and trends between them.
+examination of patterns, correlations, and trends between them. To account with the weights, we will size the points based on the weight of the respondents. 
 
 ```{r}
-ggplot(data = census) +
-  geom_point(aes(x = PWDUR, # Commuting duration
-                 y = PWDist) ) # Distance (straight-line) from home to work
+ggplot(data = census_city) +
+  geom_point(aes(x = PWDUR, y = PWDist, size = CompW1),
+             alpha = 0.025)
 ```
 
 ### Two categorical variables
@@ -954,10 +873,12 @@ ggplot(data = census) +
 Two categorical variables can be explored by means of count plots:
 
 ```{r}
-census |>
-  ggplot() +
-  geom_count(aes(x = LBR_FORC, # province or territory of current residence
-               y = Pr)) # employed, unemployed or not in the labour force
+census %>%
+  group_by(LBR_FORC_label, Pr_label) %>%
+  summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>% 
+  ggplot(aes(x = LBR_FORC_label, y = Pr_label)) +
+  geom_point(aes(size = weighted_n), color = "steelblue", alpha = 0.6) + 
+  theme_minimal()
 ```
 
 Count plots are a visual alternative to a cross-tabulation.
@@ -974,12 +895,11 @@ mode) and visualized using `geom_col`(). This technique helps to clearly
 display differences and trends across categories.
 
 ```{r}
-census |>
-  group_by(PwMode) |>
-  summarize(mean_CfInc = mean(CfInc, 
-                                 rm.na = TRUE)) |>
+census_city |>
+  group_by(PwMode_label) |>
+  dplyr::summarize(mean_CfInc = Hmisc::wtd.mean(CfInc, weights = CompW1)) %>%  
   ggplot() +
-  geom_col(aes(x = PwMode, 
+  geom_col(aes(x = PwMode_label, 
                y = mean_CfInc)) + 
   scale_x_discrete(guide = guide_axis(angle = 90))
 ```
@@ -994,11 +914,19 @@ Extreme values beyond this range are depicted as individual dots. The
 median of the distribution is shown as a line within the box. In
 ggplot2, boxplots are created using `geom_boxplot()`.
 
+First, to consider the weights in the bloxpot, we will expand repeat each line of the census dataset according to their respective weights: 
+
 ```{r}
-ggplot(data = census) +
-  geom_boxplot(aes(x = PwMode, 
-               y = CfInc)) +
-  scale_x_discrete(guide = guide_axis(angle = 90))
+census_city_expanded <- census_city %>% 
+  uncount(weights = round(CompW1))
+```
+
+Now, we can visualize the bloxpot of the duration by the type of transportation mode: 
+```{r}
+ census_city_expanded %>%
+   ggplot(aes(x = PwMode_label, y = PWDUR)) +
+   geom_boxplot() +
+   theme_bw()
 ```
 
 The boxplot does obscure some of the detail of the underlying
@@ -1006,9 +934,8 @@ distribution of values. Ridge plots address this by plotting the density
 of the distribution instead:
 
 ```{r}
-ggplot(data = census) +
-  geom_density_ridges(aes(x = CfInc, 
-                 y = PwMode)) 
+ggplot(data = census_city_expanded) +
+  geom_density_ridges(aes(x = CfInc, y = PwMode_label)) 
 ```
 
 ## Multivariate description
@@ -1019,10 +946,10 @@ recreates the boxplot of `PwMode` and `CfInc`, and further maps
 `LBR_FORC` to color:
 
 ```{r}
-ggplot(data = census) +
-  geom_boxplot(aes(x = PwMode, 
+ggplot(data = census_city_expanded) +
+  geom_boxplot(aes(x = PwMode_label, 
                  y = CfInc, 
-                 color = LBR_FORC)) + 
+                 color = LBR_FORC_label)) + 
 scale_x_discrete(guide = guide_axis(angle = 90))
 ```
 
@@ -1037,12 +964,12 @@ that we did before, but now adds `PwMode` to plot, encoded to color and
 shape:
 
 ```{r}
-ggplot(data = census) +
+ggplot(data = census_city) +
   geom_point(aes(x = PWDUR,
                  y = PWDist,
-                 color = PwMode,
-                 shape = PwMode), 
-             size = 2)
+                 color = PwMode_label,
+                 size = CompW1),
+             alpha = 0.35)
 ```
 
 The linear relation displayed in the scatter plot between the variables `PWDUR` and `PwMode` occurs because this data was generated synthetically. 

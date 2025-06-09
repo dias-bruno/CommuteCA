@@ -21,7 +21,8 @@ dir.create(pkg_dir, showWarnings = FALSE)
 main_pkgs <- c("dplyr", "fitdistrplus", "scales", "here", "corrr",
                "janitor", "ggplot2", "ggridges", "readr", "skimr",
                "RColorBrewer", "sf", "tmap", "widgetframe", "tidyr",
-               "rmarkdown", "knitr", "tufte")
+               "rmarkdown", "knitr", "tufte", "DescTools", "poliscidata",
+               "Hmisc", "weights")
 
 pkgs_needed <- pkgDep(main_pkgs, suggests = FALSE, enhances = FALSE)
 

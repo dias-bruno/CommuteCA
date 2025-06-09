@@ -1,6 +1,6 @@
 Package: CommuteCA
 Title: Standardized Methods for Accessibility Analysis in Canadian Research
-Version: 3.1
+Version: 3.2
 Authors@R: 
     c(person("Bruno", "Dos Santos", , "dossanb@mcmaster.ca", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-6748-2038")),
