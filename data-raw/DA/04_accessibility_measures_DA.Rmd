@@ -857,7 +857,8 @@ par(mfrow = c(1, 1))
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm_file <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/ttm.csv")
+ttm_folder <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/")
+ttm_file <- paste0(ttm_folder,"ttm.csv")
 
 ttm <- read.csv(ttm_file) # Travel time table address
 ```
@@ -942,8 +943,40 @@ for(pcd in unique(ttm$PCD)){
 
       best_mode_function <- test_distributions(x = ttm_pcd_mode$travel_time, 
                                                         weights = ttm_pcd_mode$weights)
-
-      ttm_pcd_mode$dist <- best_mode_function$distname
+      if(best_mode_function$distname == "lnorm"){
+             fname <-  best_mode_function$distname
+             estimate_1 <- best_mode_function$estimate[1]
+             estimate_2 <- best_mode_function$estimate[2]
+            }
+            
+            # Unif impedance 
+            else if(best_mode_function$distname == "unif") {
+             fname <-  best_mode_function$distname
+             estimate_1 <- 0
+             estimate_2 <- best_mode_function$estimate[2]
+             
+            # Exponential impedance 
+            } else if(best_mode_function$distname == "exp") {
+             fname <-  best_mode_function$distname
+             estimate_1 <- best_mode_function$estimate
+             estimate_2 <- 0 
+             
+                # Gamma impedance 
+            } else if (best_mode_function$distname == "gamma"){  
+             fname <-  best_mode_function$distname
+             estimate_1 <- best_mode_function$estimate[1]
+             estimate_2 <- best_mode_function$estimate[2]
+             
+            # Norm impedance 
+            } else if (best_mode_function$distname == "norm"){
+             fname <-  best_mode_function$distname
+             estimate_1 <- best_mode_function$estimate[1]
+             estimate_2 <- best_mode_function$estimate[2]
+            }
+      
+      ttm_pcd_mode$dist <- fname
+      ttm_pcd_mode$est_1 <- estimate_1
+      ttm_pcd_mode$est_2 <- estimate_2
 
       ttm_pcd_mode$f <- generate_impedance(mode_function = best_mode_function,
                                            travel_cost = ttm_pcd_mode$travel_time)
@@ -1131,7 +1164,7 @@ accessibility_table %>%
 
 ```{r cleaning-env}
 # List of objects required for the next steps
-keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "ttm_f","accessibility_table", "code")
+keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "code")
 all_objects <- ls()
 
 # Remove all objects except the ones in the keep list
@@ -1412,6 +1445,12 @@ write.csv(SA_mode_support, paste0(diretorio_export, "SA_mode_support.csv"), row.
 
 ```{r export-SA_ij_mode}
 # write.csv(SA_ij_mode, paste0(diretorio_export, "SA_ij_mode.csv"), row.names=FALSE)
+```
+
+Exporting the ttm_f table (not for release):
+
+```{r export-ttm_f}
+write.csv(ttm_f, paste0(ttm_folder, "ttm_f.csv"), row.names=FALSE)
 ```
 
 Legend for th exported files: 
