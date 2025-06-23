@@ -1,0 +1,766 @@
+---
+title: "Calculating the accessibility and spatial availability of jobs (_Dissemination area_ level)"
+runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
+This package was created in conjunction with the office of the
+[*Research Data Center* at *McMaster
+University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
+Scholarship*](https://scds.ca/) and the [*Mobilizing
+Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+
+Considering the number of workers and employment opportunities obtained
+from the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+this R markdown aims to create a methodology to obtain Hansen-type
+accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
+for all Canadian provinces and territories, considering different modes
+of travel.
+
+## Suggested Readings
+
+-   Soukhov, Anastasia, Antonio Paez, Christopher D Higgins, and Moataz
+    Mohamed. 2023."Introducing Spatial Availability, a
+    Singly-Constrained Measure of Competitive Accessibility." *Plos One*
+    18 (1): e0278468.
+-   Soukhov, A., Páez, A. (2024). Accessibility analysis for planning
+    applications (Report No. MJ-A2-0002). Mobilizing Justice.
+    <https://github.com/soukhova/MJ-Accessibility-Blogs>
+-   Pereira, Rafael H. M.; Herszenhut, Daniel. Introduction to urban
+    accessibility: a practical guide with R. Rio de Janeiro: Ipea, 2023.
+    152 p. ISBN: 978-65-5635-065-3. DOI:
+    <http://dx.doi.org/9786556350653>.
+
+## Data
+
+The dataset used in this demonstration is test data produced to
+replicate the variables available in the original Census of Population.
+The test data contains 200,000 rows and 17 columns. As in the original census data,
+each row refers to a respondent and each column refers to a
+variable[^2].\
+The creation of test data was necessary because the surveys
+provided by Statistics Canada are confidential and cannot be accessed
+outside of a Research Data Center.
+
+[^2]: You can check out more information about the Census on the
+    [Dictionary
+    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+
+If you want to work with the original Census dataset, the process for
+obtaining the accessibility measures will be the same as for the
+test data, except that you will have to update the address of the
+file in the chunk[^3] called *load-census-data*.
+
+[^3]: A code chunk is an executable part of the R code
+
+For this R markdown, we'll use the following variables[^4]:
+
+[^4]: The explanation of each variable can be found in the [*2021 Census
+    of Population's
+    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+
+|              |                                                                                                                                 |
+|------------------------|------------------------------------------------|
+| **Variable** | **Description**                                                                                                                 |
+| PRCDDA       | Refers to the dissemination area (DA) of current residence.                                                                     |
+| Pr           | Refers to the province or territory of current residence.                                                                       |
+| CMA          | Census metropolitan area or census agglomeration of current residence.                                                          |
+| PCD          | Census division of current residence.                                                                                           |
+| CompW1       | Weight for the households and dwellings universes.                                                                              |
+| LBR_FORC     | This variable refers to whether a person was employed, unemployed or not in the labour force.                                   |
+| PWDA         | Place of work dissemination area.                                                                                               |
+| PWPR         | Place of work province.                                                                                                         |
+| PWCMA        | Census metropolitan area or census agglomeration of place of work.                                                              |
+| PWCD         | Place of work census division.                                                                                                  |
+| PWDUR        | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
+| PwMode       | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
+
+: Census variables used in this R markdown.
+
+A dissemination area (DA) is a small, relatively stable geographic unit
+composed of one or more adjacent dissemination blocks. It is the
+smallest standard geographic area for which all census data are
+disseminated. DAs cover all Canadian territory.
+
+We will also use the travel time table created in the previous step, in
+the R markdown called *03_travel_times.Rmd*.[^5].
+
+[^5]: Although we have provided test census data for all Canadian
+    provinces and territories, we have produced a travel table only for
+    the city of Toronto. So if you want to test the methodology for
+    other cities or regions, you'll have to generate a travel time for
+    the corresponding study area with *01_travel_times.Rmd*
+
+The travel times table has the following variables:
+
+| **Variable** | **Description**                                                                   |
+|----------------|--------------------------------------------------------|
+| PRCDDA       | Refers to the DA defined as the origin.                                           |
+| CMAUID       | Census metropolitan area or census agglomeration of the DA defined as the origin. |
+| PWDA         | Refers to the DA defined as the destination.                                      |
+| travel_time  | Estimated travel time in minutes from origin to destination.                      |
+| PwMode       | Transportation mode used to calculate the travel time.                            |
+
+: Travel time table variables used in this R markdown.
+
+# Let's code!
+
+<!-- The methodology for obtaining the accessibility measures using the Canadian -->
+<!-- Census consists of the following steps: -->
+
+<!-- 1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of dissemination areas of the selected study area. The methodology used to obtain the travel time table is in the *01_travel_times.Rmd*.  -->
+
+<!-- 2.  After this, we extract the commute time to work declared by the Census respondents, in order to calibrate the impedance functions for each transportation mode. -->
+
+<!-- 3.  We then apply the impedance functions to the travel time table. -->
+
+<!-- 4.  Next, we create a land use table. This table contains the labour force population and the number of job opportunities for each dissemination area. -->
+
+<!-- 5.  We join the travel time and labour force tables, creating the accessibility table. This last table has all the data needed to carry out the accessibility analysis.  -->
+
+<!-- 6.  Finally, we perform the Hansen accessibility type and the spatial availability. -->
+
+Load the packages:
+
+```{r load-packages}
+library(CommuteCA)
+library(dplyr)# A Grammar of Data Manipulation 
+library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
+library(scales) # Scale data column-wise in a computationally efficient way
+library(here) # enable easy file referencing in project-oriented workflows
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(RColorBrewer) # color schemes for maps (and other graphics) designed
+library(sf) # support for simple features, a standardized way to encode spatial vector data
+library(tmap) # thematic maps
+library(tidyr) # tidying data
+library(matlib) # To get the eigenvectors  
+library(Hmisc) # To considerate weights when calculate the median
+library(sf) # support for simple features, a standardized way to encode spatial vector data
+library(spdep) # Construct neighbours list from polygon list
+```
+
+## Reading files
+
+### Census 
+
+Reading census data and creating a R data frame[^1]:
+
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all
+    locations in Canada, *update* the address in the chunk.
+    
+```{r}
+# For the original Census data set
+files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto.csv") # insert-the-RDC-address!!!
+census <- read.csv(files_address, header = TRUE)
+```
+
+If the original Census dataset available in the RDC is not in .csv (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
+
+```{r load-census-data}
+# data("census_test_toronto")
+# census <- census_test_toronto
+```
+
+| ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+
+It's possible to filter the data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations)[^10]. The chunk below shows how to make this
+procedure:
+
+[^10]: As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
+
+```{r filter-boundaries}
+code <- 3520 # census division of Toronto
+
+# Filtering by census division
+ census_filtered <- census %>%
+                    filter(PCD == code) # Only select respondents who live in  Toronto
+ 
+census <- census %>%
+                    filter(PCD == code) # Only select respondents who live in  Toronto
+```
+
+```{r select-variables-census}
+census_filtered <- census_filtered %>% 
+          dplyr::select("PRCDDA",
+                        "PCD",
+                        "CompW1",
+                        "PwMode",
+                        "PWDist",
+                        "PWDUR",
+                        "PWDA",
+                        "PWCD")
+```
+
+According to the census code book, the variable 'PwMode' has the
+following possible values:
+
+-   -3: Not applicable.
+-   1: Car, truck or van - as a driver.
+-   2: Car, truck or van - as a passenger.
+-   3: Bus.
+-   4: Subway or elevated rail.
+-   5: Light rail, streetcar or commuter train.
+-   6: Passenger ferry.
+-   7: Walked.
+-   8: Bicycle.
+-   9: Motorcycle, scooter or moped.
+-   10: Other method.
+
+We'll rename the travel modes to facilitate the readability of the data.
+Additionally, we'll remove from our analysis travel modes signed as
+'Other methods':
+
+```{r rename-PwMode}
+census_filtered <- census_filtered  %>% 
+                   filter(PwMode < 10) %>% 
+                   mutate(PwMode = case_when(PwMode > 0 & PwMode <= 2 ~ "Car/motor",
+                                             PwMode == 9 ~ "Car/motor",
+                            PwMode >= 3 & PwMode <= 6  ~ "Transit",
+                            PwMode == 7  ~ "Walk",
+                            PwMode == 8  ~ "Bike"),
+         
+         PwMode = factor(PwMode, levels = c("Bike", "Walk", "Car/motor", "Transit"))) %>%
+  filter(PwMode %in% c("Bike", "Walk", "Car/motor", "Transit"))
+
+census <- census  %>% 
+                   mutate(PwMode = case_when(PwMode > 0 & PwMode <= 2 ~ "Car/motor",
+                                             PwMode == 9 ~ "Car/motor",
+                            PwMode >= 3 & PwMode <= 6  ~ "Transit",
+                            PwMode == 7  ~ "Walk",
+                            PwMode == 8  ~ "Bike"),
+         
+         PwMode = factor(PwMode, levels = c("Bike", "Walk", "Car/motor", "Transit")))
+```
+
+```{r}
+census_workers <- census_filtered %>% 
+  filter(PCD == code  & PWCD == code)
+```
+
+```{r}
+census_expanded <- expand.grid(PRCDDA = unique(census_filtered$PRCDDA),
+                               PwMode = unique(census_filtered$PwMode))
+```
+
+### Accessibility measures 
+
+Setting the folder with the accessibility measures: 
+
+```{r read-accessibility}
+# Folder with the accessibility files 
+measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/accessibility-measures/")
+
+# Read file job spatial availability by mode
+SA <- read.csv(paste0(measures_folder, "SA_mode_original_RDC.csv"))
+```
+
+Preparing the accessibility file: 
+
+```{r}
+SA_mode <- census_expanded %>% 
+  left_join(SA, by = c("PRCDDA","PwMode")) %>%
+  mutate(SA_im = replace_na(SA_im, 0))
+```
+
+### Travel time matrix 
+
+Reading the travel time table with the impedance measures:
+
+```{r read-ttm_f}
+# Folder  
+ttm_folder <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/") # Update it if necessary 
+
+# Read file
+ttm_f <- read.csv(paste0(ttm_folder, "ttm_f.csv"))
+```
+
+### Spatial files 
+
+Reading the dissemination areas spatial file:
+
+```{r read-ttm_f}
+# Folder  
+directory_spatial_files <- paste0(here(),"/data-raw/output/PCD3520/spatial-files/") # Update it if necessary 
+
+# Read file
+da_file <- st_read(paste0(directory_spatial_files, "dissemination_areas.shp"))
+```
+
+## Creating folder to save files
+
+Creating a directory to export the figures and tables:
+
+```{r directory-export}
+diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD3520/DA/spatial-filter-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_figures)){
+  dir.create(diretorio_export_figures, recursive = TRUE)}
+
+diretorio_export_tables <- paste0(here(),"/data-raw/output/PCD3520/DA/spatial-filter-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_tables)){
+  dir.create(diretorio_export_tables, recursive = TRUE)}
+```
+
+# Spatial filters 
+
+## Spatial filter based on the commute distance (straight-line) 
+
+```{r}
+mtx_distance_binary <- spdep::nb2mat(spdep::poly2nb(da_file), style = "B", zero.policy = TRUE)
+```
+
+```{r}
+diag(mtx_distance_binary) <- 1
+
+rownames(mtx_distance_binary) <- da_file$DAUID
+colnames(mtx_distance_binary) <- da_file$DAUID
+```
+
+```{r}
+# Calculo and values eigenvectors
+ev_dist <- eigen(mtx_distance_binary)
+
+# Pego so os vectors e crio um dataframe 
+eigv_df <- as.data.frame(Re(ev_dist$vectors))
+
+# altero o nome das colunas 
+colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
+
+# adiciono nesse df de vectors o id do PRCDDA 
+weight_matrix_eigv_dist <- cbind(eigv_df, PRCDDA = as.numeric(rownames(mtx_distance_binary)))
+```
+
+
+```{r sf-all-modes}
+modes <- unique(census_workers$PwMode)
+
+mode_results_dist <- list()
+
+for (mode in modes) {
+  cat("Creating the spatial filter (distance) for the transportation mode:", mode, "\n")
+
+  # Creating a df with the accessibility values
+  y <- SA_mode %>%
+    filter(PwMode == mode) %>%
+    left_join(weight_matrix_eigv_dist, by = c("PRCDDA" = "PRCDDA")) %>%
+    mutate(x = 1, Sf_dist = 0)
+  
+  # Creating the spatial filter (Sf_dist)
+  for (ev_name in names(y)[startsWith(names(y), "EV")]) {
+    formula <- as.formula(paste("SA_im ~ x + Sf_dist +", ev_name))
+    model <- lm(formula, data = y)
+    coefs <- summary(model)$coefficients
+
+    if (ev_name %in% rownames(coefs)) {
+      p_value <- coefs[ev_name, "Pr(>|t|)"]
+      B_value <- coefs[ev_name, "Estimate"]
+
+      if (!is.na(p_value) && p_value < 0.05) {
+        y$Sf_dist <- y$Sf_dist + B_value * y[[ev_name]]
+      }
+    }
+  }
+ 
+ mode_results_dist[[mode]] <- y
+}
+```
+
+Visualizing creating a data frame with all spatial filters and accessibility:
+
+```{r sf_dist-df}
+spatial_filter_dist <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMode")) %>%
+  dplyr::select(PRCDDA, PwMode, SA_im, Sf_dist)
+```
+
+Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+
+```{r sf-correlations}
+correlations <- spatial_filter_dist %>%
+  group_by(PwMode) %>%
+  summarise(correlation = cor(SA_im, Sf_dist, use = "complete.obs")) 
+
+correlations
+```
+
+Creating a scatter plot figure: 
+
+```{r sf-dist-plot}
+r2_labels <- spatial_filter_dist %>%
+  group_by(PwMode) %>%
+  summarise(r2 = summary(lm(Sf_dist ~ SA_im))$r.squared) %>%
+  mutate(label = paste0("R² = ", round(r2, 3)))
+
+spatial_filter_dist_fig <- ggplot(spatial_filter_dist, aes(x = SA_im, y = Sf_dist)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "#4b84db", linewidth = 0.55) +
+  geom_text(data = r2_labels, 
+            aes(x = -Inf, y = Inf, label = label), 
+            hjust = -0.1, vjust = 1.1, inherit.aes = FALSE) +
+  facet_wrap(~ PwMode, scales = "free") +
+  theme_minimal() +
+  labs(x = "Job spatial availability", y = "Spatial filter based on spatial contiguity") + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.jpg"), 
+       plot = spatial_filter_dist_fig,
+       width = 16, 
+       height = 9, 
+       units = "cm", 
+       dpi = 300)
+```
+
+
+```{r sf-dist-figure}
+knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.jpg"))
+```
+
+## Spatial filter based on the commute duration  
+
+### Median commmute time
+
+Medians:
+
+```{r distance-medians}
+dur_medians <- census_workers %>%
+  filter(PwMode %in% c("Bike", "Walk", "Car/motor", "Transit")) %>% 
+  group_by(PwMode) %>% 
+  dplyr::summarise("Median" =  Hmisc::wtd.quantile(PWDUR, weights = CompW1, probs = 0.5),
+            .groups = "drop")
+
+dur_medians
+```
+After visualizing the creation of a spatial filter for the bike mode, we will generate the spatial filter for each transportation mode:
+
+```{r sf-all-modes}
+mode_results <- list()
+
+for (mode in modes) {
+  cat("Creating the spatial filter (median duration based) for the transportation mode:", mode, "\n")
+  
+  # Mode weight matrix
+  weight_matrix <- ttm_f %>%
+    filter(PwMode == mode) %>% 
+    mutate(threshold = 
+             case_when(travel_time <= as.numeric(dur_medians$Median[dur_medians$PwMode == mode]) ~ 1,
+                       TRUE ~ 0)) %>% 
+    dplyr::select(from_id, to_id, threshold) %>% 
+    pivot_wider(names_from = to_id, values_from = threshold, values_fill = 0) %>%
+    as.data.frame()
+  
+  # Compute eigenvectors
+  mat <- as.matrix(weight_matrix[, -1])
+  ev <- eigen(mat)
+  eigv_df <- as.data.frame(Re(ev$vectors))
+  colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
+  
+  weight_matrix_eigv <- cbind(from_id = weight_matrix$from_id, eigv_df)
+
+  # Creating a df with the accessibility values
+  y <- SA_mode %>%
+    filter(PwMode == mode) %>%
+    left_join(weight_matrix_eigv, by = c("PRCDDA" = "from_id")) %>%
+    mutate(x = 1, Sf = 0)
+  
+  # Creating the spatial filter (Sf)
+  for (ev_name in names(y)[startsWith(names(y), "EV")]) {
+    formula <- as.formula(paste("SA_im ~ x + Sf +", ev_name))
+    model <- lm(formula, data = y)
+    coefs <- summary(model)$coefficients
+
+    if (ev_name %in% rownames(coefs)) {
+      p_value <- coefs[ev_name, "Pr(>|t|)"]
+      B_value <- coefs[ev_name, "Estimate"]
+
+      if (!is.na(p_value) && p_value < 0.05) {
+        y$Sf <- y$Sf + B_value * y[[ev_name]]
+      }
+    }
+  }
+ 
+ mode_results[[mode]] <- y
+}
+```
+
+Visualizing creating a data frame with all spatial filters and job accessibility:
+
+```{r sf-df}
+spatial_filter_dur_medians <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
+  dplyr::select(PRCDDA, PwMode, SA_im, Sf) %>% 
+  rename(Sf_median_dur = Sf)
+```
+
+Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+
+```{r sf-correlations}
+correlations <- spatial_filter_dur_medians %>%
+  group_by(PwMode) %>%
+  summarise(correlation = cor(SA_im, Sf_median_dur, use = "complete.obs")) 
+
+correlations
+```
+
+Creating a scatter plot figure: 
+
+```{r sf-plot}
+r2_labels <- spatial_filter_dur_medians %>%
+  group_by(PwMode) %>%
+  summarise(r2 = summary(lm(Sf_median_dur ~ SA_im))$r.squared) %>%
+  mutate(label = paste0("R² = ", round(r2, 3)))
+
+spatial_filter_dur_medians_fig <- ggplot(spatial_filter_dur_medians, aes(x = SA_im, y = Sf_median_dur)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "#dbb52c", linewidth = 0.55) +
+  geom_text(data = r2_labels, 
+            aes(x = -Inf, y = Inf, label = label), 
+            hjust = -0.1, vjust = 1.1, inherit.aes = FALSE) +
+  facet_wrap(~ PwMode, scales = "free") +
+  theme_minimal() +
+  labs(x = "Job spatial availability", y = "Spatial filter based on median commute duration") + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatterplot.jpg"), 
+       plot = spatial_filter_dur_medians_fig,
+       width = 16, 
+       height = 9, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r sf-figure}
+knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatterplot.jpg"))
+```
+
+### Duration impedance values 
+
+After visualizing the creation of a spatial filter for the bike mode, we will generate the spatial filter for each transportation mode:
+
+```{r sf-all-modes}
+mode_results <- list()
+
+for (mode in modes) {
+  cat("Creating the spatial filter (duration impedance based) for the transportation mode:", mode, "\n")
+  
+  # Mode weight matrix
+  weight_matrix <- ttm_f %>%
+    filter(PwMode == mode) %>% 
+    dplyr::select(from_id, to_id, f) %>% 
+    pivot_wider(names_from = to_id, values_from = f, values_fill = 0) %>%
+    as.data.frame()
+  
+  # Compute eigenvectors
+  mat <- as.matrix(weight_matrix[, -1])
+  ev <- eigen(mat)
+  eigv_df <- as.data.frame(Re(ev$vectors))
+  colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
+  
+  weight_matrix_eigv <- cbind(from_id = weight_matrix$from_id, eigv_df)
+
+  # Creating a df with the accessibility values
+  y <- SA_mode %>%
+    filter(PwMode == mode) %>%
+    left_join(weight_matrix_eigv, by = c("PRCDDA" = "from_id")) %>%
+    mutate(x = 1, Sf_imp_dur = 0)
+  
+  # Creating the spatial filter (Sf)
+  for (ev_name in names(y)[startsWith(names(y), "EV")]) {
+    formula <- as.formula(paste("SA_im ~ x + Sf_imp_dur +", ev_name))
+    model <- lm(formula, data = y)
+    coefs <- summary(model)$coefficients
+
+    if (ev_name %in% rownames(coefs)) {
+      p_value <- coefs[ev_name, "Pr(>|t|)"]
+      B_value <- coefs[ev_name, "Estimate"]
+
+      if (!is.na(p_value) && p_value < 0.05) {
+        y$Sf_imp_dur <- y$Sf_imp_dur + B_value * y[[ev_name]]
+      }
+    }
+  }
+ 
+ mode_results[[mode]] <- y
+}
+```
+
+Visualizing creating a data frame with all spatial filters and accessibilities:
+
+```{r sf-df}
+spatial_filter_imp_dur <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
+  dplyr::select(PRCDDA, PwMode, SA_im, Sf_imp_dur)
+```
+
+Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+
+```{r sf-correlations}
+correlations <- spatial_filter_imp_dur %>%
+  group_by(PwMode) %>%
+  summarise(correlation = cor(SA_im, Sf_imp_dur, use = "complete.obs")) 
+
+correlations
+```
+
+Creating a scatter plot figure: 
+
+```{r sf-plot}
+r2_labels <- spatial_filter_imp_dur %>%
+  group_by(PwMode) %>%
+  summarise(r2 = summary(lm(Sf_imp_dur ~ SA_im))$r.squared) %>%
+  mutate(label = paste0("R² = ", round(r2, 3)))
+
+spatial_filter_imp_dur_fig <- ggplot(spatial_filter_imp_dur, aes(x = SA_im, y = Sf_imp_dur)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "#db4f2c", linewidth = 0.55) +
+  geom_text(data = r2_labels, 
+            aes(x = -Inf, y = Inf, label = label), 
+            hjust = -0.1, vjust = 1.1, inherit.aes = FALSE) +
+  facet_wrap(~ PwMode, scales = "free") +
+  theme_minimal() +
+  labs(x = "Job spatial availability", y = "Spatial filter based on commute durantion impedance") + 
+theme_minimal()
+
+# Saving figure
+ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_imp_dur_scatterplot.jpg"), 
+       plot = spatial_filter_imp_dur_fig,
+       width = 16, 
+       height = 9, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r sf-figure}
+knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_imp_dur_scatterplot.jpg"))
+```
+
+# Data export
+
+Creating a unique file with all spatial filters (distance, median commute duration, and impedance):
+
+```{r}
+spatial_filter <- spatial_filter_dist %>%
+  left_join(spatial_filter_dur_medians[,c(1,2,4)], by = c("PRCDDA" = "PRCDDA", "PwMode" = "PwMode")) %>% 
+  left_join(spatial_filter_imp_dur[,c(1,2,4)], by = c("PRCDDA" = "PRCDDA", "PwMode" = "PwMode")) 
+```
+
+Exporting the spatial filters (original file):
+
+```{r export-spatial-filter-original}
+write.csv(spatial_filter, paste0(diretorio_export_tables, "spatial_filter_original.csv"), row.names=FALSE)
+```
+
+If you are interested in manipulating the spatial filters outside a RDC Office, the following codes will create a release version that it is in accordance to the confidentiality vetting rules: 
+
+## Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be released by the Research Data Center to ensure that confidentiality risks for StatCan respondents are minimized. 
+
+The following rules apply to our results:
+
+- *Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$)*.	Statistics must not be released for identifiable areas with less than 40 persons. This condition is usually met with geography levels used at the RDCs. The population threshold can be applied to the (long form) weighted population estimate. 
+
+The block above checks the total population of each DA:
+
+```{r da-vetting}
+vetting_da_mode <- census %>%
+  group_by(PRCDDA, PwMode) %>%
+  dplyr::summarize(Weighted_pop_mode = sum(CompW1)) %>% 
+         dplyr::select(PRCDDA, PwMode, Weighted_pop_mode)
+```
+
+Creating new files with the DA population:
+
+```{r creating-release}
+spatial_filter_support <- spatial_filter %>% 
+  left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode'))
+```
+
+Apply the rules to avoid confidentiality risks for the accessibility tables: 
+
+```{r filter-support}
+spatial_filter_support <- spatial_filter_support %>%
+  filter(Weighted_pop_mode >= 40) 
+
+spatial_filter_release <- spatial_filter_support %>%
+  filter(Weighted_pop_mode >= 40) %>% 
+  dplyr::select(-Weighted_pop_mode)
+```
+
+To finalize the methodology of this R markdown, we will export the
+processed data.
+
+```{r export-release-data}
+write.csv(spatial_filter_support, paste0(diretorio_export_tables, "spatial_filter_support.csv"), row.names=FALSE)
+
+write.csv(spatial_filter_release, paste0(diretorio_export_tables, "spatial_filter_release.csv"), row.names=FALSE)
+```

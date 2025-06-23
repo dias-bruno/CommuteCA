@@ -1164,7 +1164,7 @@ accessibility_table %>%
 
 ```{r cleaning-env}
 # List of objects required for the next steps
-keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "code")
+keep <- c("census", "commuters", "census_labour_force", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "ttm_folder", "code")
 all_objects <- ls()
 
 # Remove all objects except the ones in the keep list

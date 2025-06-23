@@ -1,0 +1,646 @@
+---
+title: "Calculating the accessibility and spatial availability of jobs (_Dissemination area_ level)"
+runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
+This package was created in conjunction with the office of the
+[*Research Data Center* at *McMaster
+University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
+Scholarship*](https://scds.ca/) and the [*Mobilizing
+Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+
+Considering the number of workers and employment opportunities obtained
+from the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+this R markdown aims to create a methodology to obtain Hansen-type
+accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
+for all Canadian provinces and territories, considering different modes
+of travel.
+
+## Suggested Readings
+
+-   Soukhov, Anastasia, Antonio Paez, Christopher D Higgins, and Moataz
+    Mohamed. 2023."Introducing Spatial Availability, a
+    Singly-Constrained Measure of Competitive Accessibility." *Plos One*
+    18 (1): e0278468.
+-   Soukhov, A., Páez, A. (2024). Accessibility analysis for planning
+    applications (Report No. MJ-A2-0002). Mobilizing Justice.
+    <https://github.com/soukhova/MJ-Accessibility-Blogs>
+-   Pereira, Rafael H. M.; Herszenhut, Daniel. Introduction to urban
+    accessibility: a practical guide with R. Rio de Janeiro: Ipea, 2023.
+    152 p. ISBN: 978-65-5635-065-3. DOI:
+    <http://dx.doi.org/9786556350653>.
+
+## Data
+
+The dataset used in this demonstration is test data produced to
+replicate the variables available in the original Census of Population.
+The test data contains 200,000 rows and 17 columns. As in the original census data,
+each row refers to a respondent and each column refers to a
+variable[^2].\
+The creation of test data was necessary because the surveys
+provided by Statistics Canada are confidential and cannot be accessed
+outside of a Research Data Center.
+
+[^2]: You can check out more information about the Census on the
+    [Dictionary
+    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+
+If you want to work with the original Census dataset, the process for
+obtaining the accessibility measures will be the same as for the
+test data, except that you will have to update the address of the
+file in the chunk[^3] called *load-census-data*.
+
+[^3]: A code chunk is an executable part of the R code
+
+For this R markdown, we'll use the following variables[^4]:
+
+[^4]: The explanation of each variable can be found in the [*2021 Census
+    of Population's
+    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+
+|              |                                                                                                                                 |
+|------------------------|------------------------------------------------|
+| **Variable** | **Description**                                                                                                                 |
+| PRCDDA       | Refers to the dissemination area (DA) of current residence.                                                                     |
+| Pr           | Refers to the province or territory of current residence.                                                                       |
+| CMA          | Census metropolitan area or census agglomeration of current residence.                                                          |
+| PCD          | Census division of current residence.                                                                                           |
+| CompW1       | Weight for the households and dwellings universes.                                                                              |
+| LBR_FORC     | This variable refers to whether a person was employed, unemployed or not in the labour force.                                   |
+| PWDA         | Place of work dissemination area.                                                                                               |
+| PWPR         | Place of work province.                                                                                                         |
+| PWCMA        | Census metropolitan area or census agglomeration of place of work.                                                              |
+| PWCD         | Place of work census division.                                                                                                  |
+| PWDUR        | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
+| PwMode       | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
+
+: Census variables used in this R markdown.
+
+A dissemination area (DA) is a small, relatively stable geographic unit
+composed of one or more adjacent dissemination blocks. It is the
+smallest standard geographic area for which all census data are
+disseminated. DAs cover all Canadian territory.
+
+We will also use the travel time table created in the previous step, in
+the R markdown called *03_travel_times.Rmd*.[^5].
+
+[^5]: Although we have provided test census data for all Canadian
+    provinces and territories, we have produced a travel table only for
+    the city of Toronto. So if you want to test the methodology for
+    other cities or regions, you'll have to generate a travel time for
+    the corresponding study area with *01_travel_times.Rmd*
+
+The travel times table has the following variables:
+
+| **Variable** | **Description**                                                                   |
+|----------------|--------------------------------------------------------|
+| PRCDDA       | Refers to the DA defined as the origin.                                           |
+| CMAUID       | Census metropolitan area or census agglomeration of the DA defined as the origin. |
+| PWDA         | Refers to the DA defined as the destination.                                      |
+| travel_time  | Estimated travel time in minutes from origin to destination.                      |
+| PwMode       | Transportation mode used to calculate the travel time.                            |
+
+: Travel time table variables used in this R markdown.
+
+# Spatial filter 
+
+# Let's code!
+
+<!-- The methodology for obtaining the accessibility measures using the Canadian -->
+<!-- Census consists of the following steps: -->
+
+<!-- 1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of dissemination areas of the selected study area. The methodology used to obtain the travel time table is in the *01_travel_times.Rmd*.  -->
+
+<!-- 2.  After this, we extract the commute time to work declared by the Census respondents, in order to calibrate the impedance functions for each transportation mode. -->
+
+<!-- 3.  We then apply the impedance functions to the travel time table. -->
+
+<!-- 4.  Next, we create a land use table. This table contains the labour force population and the number of job opportunities for each dissemination area. -->
+
+<!-- 5.  We join the travel time and labour force tables, creating the accessibility table. This last table has all the data needed to carry out the accessibility analysis.  -->
+
+<!-- 6.  Finally, we perform the Hansen accessibility type and the spatial availability. -->
+
+Load the packages:
+
+```{r load-packages}
+library(CommuteCA)
+library(dplyr)# A Grammar of Data Manipulation 
+library(here) # enable easy file referencing in project-oriented workflows
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(RColorBrewer) # color schemes for maps (and other graphics) designed
+library(sf) # support for simple features, a standardized way to encode spatial vector data
+library(tmap) # thematic maps
+library(tidyr) # tidying data
+library(purrr) # Filter data 
+```
+
+## Reading and processing the census file
+
+Reading census data and creating a R data frame[^1]:
+
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all
+    locations in Canada, *update* the address in the chunk.
+    
+```{r}
+# For the original Census data set
+files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto.csv") # insert-the-RDC-address!!!
+census <- read.csv(files_address, header = TRUE)
+```
+
+If the original Census dataset available in the RDC is not in .csv (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
+
+```{r load-census-data}
+# data("census_test_toronto")
+# census <- census_test_toronto
+```
+
+| ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+
+It's possible to filter the data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations)[^10]. The chunk below shows how to make this
+procedure:
+
+[^10]: As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
+
+```{r filter-boundaries}
+code <- 3520 # census division of Toronto
+
+# Filtering by census division
+ census_filtered <- census %>%
+                    filter(PCD == code) # Only select respondents who live in  Toronto
+```
+
+According to the census code book, the variable 'PwMode' has the
+following possible values:
+
+-   -3: Not applicable.
+-   1: Car, truck or van - as a driver.
+-   2: Car, truck or van - as a passenger.
+-   3: Bus.
+-   4: Subway or elevated rail.
+-   5: Light rail, streetcar or commuter train.
+-   6: Passenger ferry.
+-   7: Walked.
+-   8: Bicycle.
+-   9: Motorcycle, scooter or moped.
+-   10: Other method.
+
+We'll rename the travel modes to facilitate the readability of the data.
+Additionally, we'll remove from our analysis travel modes signed as
+'Other methods':
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^11]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^11]: Those who, during the reference period: (a) Did any work at all
+    at a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force
+
+```{r lf-selection}
+census_filtered <- census_filtered %>% 
+                   filter(LBR_FORC == 1 | LBR_FORC == 2)
+```
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^6]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^6]: Those who, during the reference period: (a) Did any work at all at
+    a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years (already previously excluded from
+    our dataset)
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force (already previously excluded from our
+    dataset)
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:[^7]
+
+[^7]: Given that the non-binary population is small, data aggregation to
+    a two-category gender variable is sometimes necessary to protect the
+    confidentiality of responses provided. In these cases, individuals
+    in the category “non-binary persons” are distributed into the other
+    two gender categories and are denoted by the “+” symbol.
+
+-   1: Woman+.
+-   2: Man+.
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Concept not applicable (territories or reserves) - not in low
+    income
+-   4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LOLICOA' has the
+following possible values:[\^]
+
+[\^] Refers to the income situation of a person in relation to the
+Low-income cut-offs, after-tax (LICO-AT). Persons with income that is
+below this low-income line are considered to be in low income.
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Concept not applicable (territories or reserves) - not in low
+    income
+-   4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LoLIMA' has the
+following possible values:[\^]
+
+[\^] Refers to the income situation of a person in relation to the
+Low-income measure, after-tax (LIM-AT). Persons with income that is
+below this low-income line are considered to be in low income.
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Not in low income (territories or reserves)
+-   4: In low income (territories or reserves)
+-   5: Concept not applicable (collective households) - not in low
+    income
+-   6: Concept not applicable (collective households) - in low income
+
+We will use the variable *ACTLMFLG - Activities of daily living: Flag*
+as an indicative of disability, because the Census of Population does
+not have a variable regarding disability. The question on activities of
+daily living refers to difficulties a person may have doing certain
+activities as a result of physical, cognitive, mental, or other
+health-related conditions or problems. We will select all those
+respondents who affirm to have frequent (always) difficulties to develop
+regular activities. According to the census code book, the variable
+'ACTLMFLG' has the following possible values:
+
+-   -2: Not stated
+-   1: Yes, always
+-   2: Yes, often
+-   3: Yes, sometimes
+-   4: No
+
+According to the census code book, the variable 'CFAMSTSIMPLE' has the
+following possible values:
+
+-   1: Married spouse or common-law partner
+-   2: Parent in a one-parent family
+-   3: Child
+-   4: Person not in a census family
+
+According to the census code book, the variable 'IMMCAT5' has the
+following possible values:
+
+-   1: Non-immigrants
+-   2: Non-permanent residents3 Immigrants admitted before 1980
+-   100010: Economic immigrants - Principal applicants
+-   100020: Economic immigrants - Secondary applicants
+-   200000: Immigrants sponsored by family
+-   300000: Refugees
+-   400000: Other immigrants
+
+According to the census code book, "Visible minority" refers to whether
+a person is a visible minority as defined by the Employment Equity Act.
+The Employment Equity Act defines visible minorities as "persons, other
+than Aboriginal peoples, who are non-Caucasian in race or non-white in
+colour." The visible minority population consists mainly of the
+following groups: South Asian, Chinese, Black, Filipino, Arab, Latin
+American, Southeast Asian, West Asian, Korean and Japanese. The variable
+'DVisMin' has the following possible values:
+
+-   1: Other (not a visible minority)
+-   2: South Asian
+-   3: Chinese
+-   4: Black
+-   5: Filipino
+-   6: Arab
+-   7: Latin American
+-   8: Southeast Asian
+-   9: West Asian
+-   10: Korean
+-   11: Japanese
+-   12: Visible minority, n.i.e.
+-   13: Multiple visible minorities
+-   14: Indigenous peoples
+
+In the next chunk, we will rename the travel modes to facilitate the
+readability of the data.
+
+```{r labelling-variables}
+census_filtered_labeled <- census_filtered %>%
+                   mutate( # Labour force
+                     LBR_FORC_label = 
+                            case_when(LBR_FORC == 1 ~ "Employed",
+                                      LBR_FORC == 2 ~ "Unemployed"),
+                          LBR_FORC_label = factor(LBR_FORC_label), 
+                     # FPTim: Labour: Full-time or part-time weeks worked in 2020
+                     FPTim_label = 
+                            case_when(FPTim == -5 ~ "Unemployed",
+                                      FPTim == 1 ~ "Full-time worker",
+                                      FPTim == 2 ~ "Part-time worker"),
+                          FPTim_label = factor(FPTim_label, levels = c("Full-time worker", "Part-time worker", "Unemployed")), 
+                     # Gender 
+                          GENDER_BINARY_label = 
+                            case_when(GENDER_BINARY == 1 ~ "Woman+",
+                                      GENDER_BINARY == 2 ~ "Man+"),
+                          GENDER_BINARY_label = factor(GENDER_BINARY_label, levels = c("Man+", "Woman+")),
+                     # Low income population - LOLICOA
+                     LOLICOA_label = 
+                       case_when(LOLICOA == -3 ~ "Not in low income", 
+                                 LOLICOA == 1 ~ "Not in low income",
+                                 LOLICOA == 2 ~ "In low income",
+                                 LOLICOA == 3 ~ "Not in low income",
+                                 LOLICOA == 4 ~ "In low income"),
+                     LOLICOA_label = factor(LOLICOA_label), 
+                    LoLIMA_label = 
+                       case_when(LoLIMA == -3 ~ "Not in low income", 
+                                 LoLIMA == 1 ~ "Not in low income",
+                                 LoLIMA == 2 ~ "In low income",
+                                 LoLIMA == 3 ~ "Not in low income",
+                                 LoLIMA == 4 ~ "In low income",
+                                 LoLIMA == 5 ~ "Not in low income",
+                                 LoLIMA == 6 ~ "In low income"),
+                     LoLIMA_label = factor(LoLIMA_label), 
+                    Low_Income_label = 
+                      case_when(LoLIMA_label == "In low income" | LOLICOA_label == "In low income" ~ "In low income",
+                                TRUE ~ "Not in low income"), 
+                    Low_Income_label = factor(Low_Income_label), 
+                    # Disability
+                    ACTLMFLG_label = 
+                       case_when(ACTLMFLG == -2 ~ "Without frequent difficulties", 
+                                 ACTLMFLG == 1 ~ "With frequent difficulties",
+                                 ACTLMFLG == 2 ~ "Without frequent difficulties",
+                                 ACTLMFLG == 3 ~ "Without frequent difficulties",
+                                 ACTLMFLG == 4 ~ "Without frequent difficulties"),
+                    ACTLMFLG_label = factor(ACTLMFLG_label, levels = c("Without frequent difficulties", "With frequent difficulties")), 
+                    # Single-parent family
+                    CFAMSTSIMPLE_label = 
+                       case_when(CFAMSTSIMPLE == 1 ~ "Non single-parent family",
+                                 CFAMSTSIMPLE == 2 ~ "Single-parent family",
+                                 CFAMSTSIMPLE == 3 ~ "Non single-parent family",
+                                 CFAMSTSIMPLE == 4 ~ "Non single-parent family"),
+                     CFAMSTSIMPLE_label = factor(CFAMSTSIMPLE_label, levels = c("Non single-parent family", "Single-parent family")), 
+                    # Refugees
+                    IMMCAT5_label = 
+                       case_when(IMMCAT5 == 300000 ~ "Refugee",
+                                 IMMCAT5 != 300000 ~ "Not a refugee"),
+                     IMMCAT5_label = factor(IMMCAT5_label), 
+                    # New immigrant
+                    PerImmA_label = 
+                       case_when(PerImmA == 10 ~ "New immigrant",
+                                 PerImmA != 10 ~ "Not a new immigrant"),
+                     PerImmA_label = factor(PerImmA_label),
+                    # Visible Minority (binary)
+                    DVisMin_binary_label = 
+                       case_when(DVisMin == 1 ~ "Not a visible minority",
+                                 DVisMin != 1 ~ "Visible minority"),
+                     DVisMin_binary_label = factor(DVisMin_binary_label, 
+                                                   levels = c("Not a visible minority","Visible minority")), 
+                    # Visible Minority (full-group)
+                    DVisMin_label = 
+                      case_when(DVisMin == 1  ~ "Other (not a visible minority)",
+                                DVisMin == 2  ~ "South Asian",
+                                DVisMin == 3  ~ "Chinese",
+                                DVisMin == 4  ~ "Black",
+                                DVisMin == 5  ~ "Filipino",
+                                DVisMin == 6  ~ "Arab",
+                                DVisMin == 7  ~ "Latin American",
+                                DVisMin == 8  ~ "Southeast Asian",
+                                DVisMin == 9  ~ "West Asian",
+                                DVisMin == 10 ~ "Korean",
+                                DVisMin == 11 ~ "Japanese",
+                                DVisMin == 12 ~ "Visible minority, n.i.e.",
+                                DVisMin == 13 ~ "Multiple visible minorities",
+                                DVisMin == 14 ~ "Indigenous peoples"),
+                    DVisMin_label = factor(DVisMin_label),
+                    # AGE
+                    AGE_label = 
+                      case_when(AGE <= 24 ~ "Youth",
+                                TRUE  ~ "Adult"),
+                    AGE_label = factor(AGE_label), 
+                    # Number of weeks worked in 2020 
+                    WEEKS = 
+                      case_when(WEEKS < 0 ~ 0, 
+                                TRUE ~ WEEKS), 
+                    # Low educated 
+                    HCDD_label =
+                      case_when(HCDD == 1 ~ "Low educated", 
+                                TRUE ~ "High-school diploma"),
+                    HCDD_label = factor(HCDD_label, levels = c("High-school diploma", 
+                                                               "Low educated")),
+                    # Looked for paid work in the previous month 
+                    LOKWK = 
+                      case_when(LOKWK == -5 ~ "Employed",
+                                LOKWK == 1 ~  "No",
+                                LOKWK == 2 ~  "Yes (for full-time work)",
+                                LOKWK == 3 ~ "Yes (for part-time work)"),
+                    LOKWK = factor(LOKWK, levels = c("Yes (for full-time work)",
+                                                     "Yes (for part-time work)", 
+                                                     "No", 
+                                                     "Employed")))
+```
+
+View summary statistics from the data frame:
+
+```{r census-summary}
+summary(census_filtered_labeled)
+```
+
+## Reading the job accessibility and spatial filter indicators 
+
+Setting the folder with the accessibility measures and spatial filter: 
+
+```{r read-accessibility}
+# Folder  
+measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/spatial-filter-measures/")
+
+# Read file
+SA_mode <- read.csv(paste0(measures_folder, "spatial_filter_original.csv"))
+```
+
+```{r}
+SA_mode_wide <- SA_mode %>% 
+  rename(SA = SA_im) %>%
+  pivot_wider(id_cols = PRCDDA,
+              names_from = PwMode,
+              values_from = c(SA, Sf),
+              names_sep = "_")
+```
+
+
+## Reading the tables with the disadvantaged population groups 
+
+Setting the folder with the disadvantaged population groups: 
+
+```{r read-disadvantaged-files}
+# Folder  
+measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/disadvantaged-tables/")
+
+# Read file
+dpg_pvalues <- read.csv(paste0(measures_folder, "pvalue_table_release.csv"))
+dpg_table <- read.csv(paste0(measures_folder, "summary_pop_table_release.csv"))
+dvm_table <- read.csv(paste0(measures_folder, "summary_vmin_table_release.csv"))
+```
+
+Defining if the respondent is part a disadvantaged group: 
+
+```{r creating-equity-variable}
+significant_dpg <- dpg_pvalues %>%
+  filter(Significance == 'Significant', 
+         Variable != "DVisMin_binary_label")
+
+real_dvm <- dvm_table %>% 
+  filter(Equity == "Disadvantaged", 
+         Median_rate < 1)
+
+logic_matrix <- map2(significant_dpg$Variable,
+                     significant_dpg$Disadvantaged,
+                     ~ census_filtered_labeled[[.x]] == .y)
+
+logic_df <- as.data.frame(logic_matrix)
+
+census_filtered_labeled <- census_filtered_labeled %>%
+  mutate(Equity = if_else(
+    apply(logic_df, 1, any),
+    "Disadvantaged",
+    "Non-disadvantaged"
+  ))
+
+# For visible minorities, we will select only those groups that in fact are disadvantaged (not necessarily all groups within the visible minority group is considered as disadvantaged)
+
+if ("DVisMin_binary_label" %in% dpg_pvalues$Variable) {
+
+    logic_matrix <- map2(
+    real_dvm$Variable,
+    real_dvm$Category,
+    ~ census_filtered_labeled[[.x]] == .y
+  )
+
+  logic_df <- as.data.frame(logic_matrix)
+
+  census_filtered_labeled <- census_filtered_labeled %>%
+    mutate(Equity = if_else(
+      apply(logic_df, 1, any),
+      "Disadvantaged",
+      "Non-disadvantaged"
+    ))
+}
+```
+
+## Creating the tables to build the regression models
+
+```{r respondents}
+respondents <- census_filtered_labeled %>%
+  left_join(SA_mode_wide, by = "PRCDDA")
+```
+
+```{r dis-nondis}
+disadvantaged <- respondents %>%
+  filter(Equity == "Disadvantaged")
+
+non_disadvantaged <- respondents %>%
+  filter(Equity == "Non-disadvantaged")
+```  

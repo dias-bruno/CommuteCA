@@ -573,7 +573,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -658,7 +658,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -740,7 +740,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -822,7 +822,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -905,7 +905,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -986,7 +986,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -1068,7 +1068,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -1150,7 +1150,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -1232,7 +1232,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -1313,7 +1313,7 @@ for (group in dvismin_groups) {
       Median_rate = ifelse(Equity == "Disadvantaged", medr_ad, medr_disad),
       Mean_rate   = ifelse(Equity == "Disadvantaged", meanr_ad, meanr_disad)
     ) %>%
-	select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+	dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
   summary_dvismin_table <- bind_rows(summary_dvismin_table, df)
 }
@@ -1362,7 +1362,7 @@ census_accessibility_long <- census_accessibility %>%
   pivot_longer(cols = all_of(label_columns),
                names_to = "Variable",
                values_to = "Category") %>%
-  select(Frame_ID, CompW1, Total_SA, Variable, Category) %>% 
+  dplyr::select(Frame_ID, CompW1, Total_SA, Variable, Category) %>% 
   left_join(summary_pop_table, by = c("Variable" = "Variable", 
                                       "Category" = "Category"))
 
@@ -1863,7 +1863,7 @@ df <- df %>%
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
 
 
 summary_pop_table <- bind_rows(summary_pop_table, df) 
@@ -1889,7 +1889,7 @@ df_general_pop <- census_accessibility %>%
     "Median_rate" = NA, 
     "Mean_rate" = NA,
     .groups = "drop") %>% 
-  select(names(summary_pop_table))
+  dplyr::select(names(summary_pop_table))
 
 summary_pop_table <- bind_rows(summary_pop_table, df_general_pop) 
 ```
@@ -1944,7 +1944,7 @@ pvalue_table_support <- pvalue_table %>%
   left_join(aux_pop_table, by = "Description") %>%
   mutate(PCD = code_pcd) %>% 
   left_join(census_pcd_vetting, by = "PCD") %>% 
-  dplyr::select(Variable, Description, Population_Group, Respondents_Group, P_value, Significance, PCD, Population_PCD, Respondents_PCD)
+  dplyr::select(Variable, Description, Disadvantaged, Population_Group, Respondents_Group, P_value, Significance, PCD, Population_PCD, Respondents_PCD)
 ```
 
 # Data export
@@ -1971,7 +1971,7 @@ write.csv(summary_dvismin_table_support, paste0(diretorio_export_tables, "summar
 Export of p-values tables:
 
 ```{r export-summary-tab}
-write.csv(pvalue_table_support[,c("Variable", "Description", "P_value",  "Significance")], paste0(diretorio_export_tables, "pvalue_table_release.csv"), row.names=FALSE)
+write.csv(pvalue_table_support[,c("Variable", "Description", "Disadvantaged", "P_value",  "Significance")], paste0(diretorio_export_tables, "pvalue_table_release.csv"), row.names=FALSE)
 
 write.csv(pvalue_table_support, paste0(diretorio_export_tables, "pvalue_table_support.csv"), row.names=FALSE)
 ```
