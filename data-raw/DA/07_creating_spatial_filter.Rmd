@@ -1,6 +1,5 @@
 ---
-title: "Calculating the accessibility and spatial availability of jobs (_Dissemination area_ level)"
-runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+title: "Creating synthetic instrumental variables from spatial filtering"
 subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
@@ -35,138 +34,200 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 # Introduction
 
 This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
-[^1]: The Mobilizing Justice project is a multidisciplinary and
-    multi-sector collaboration with the objective of understand and
-    address transportation poverty in Canada and to improve the
-    well-being of Canadians at risk of transport poverty. The Social
-    Sciences and Humanities Research Council (SSRHC) has provided
-    funding for the project, which was created by an unprecedented
-    alliance of academics from various Canadian provinces and
-    institutions, transportation firms, and nonprofit organizations
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
 
-The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
-package was created to develop standardized methods for transport
-analysis in research, particularly for analysis using the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
-which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
 
-Considering the number of workers and employment opportunities obtained
-from the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
-this R markdown aims to create a methodology to obtain Hansen-type
-accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
-for all Canadian provinces and territories, considering different modes
-of travel.
+After identifying disadvantaged populations in terms of job
+accessibility, we will now advance our analysis by developing regression
+models to explore the relationship between job accessibility and
+individual outcomes. These models examine the connection between a
+dependent variable (an outcome) and predictor variables (job
+accessibility indicators and other socioeconomic information). They
+estimate the probability of the dependent variable, conditional on a
+linear combination of the predictor variables.
+
+In social science, it is well understood that "correlation does not
+imply causality" [@cunningham2021]. Therefore, it is important to
+evaluate the actual impact of a predictor variable (the cause) on the
+outcome (the effect). This requires studying the process that determines
+the cause-and-effect relationship between variables, a process known as
+*causal inference*.
+
+Including causal inference in our modeling approach means we must
+account for the possible (and indeed likely) presence of *endogeneity*.
+Endogeneity arises when the effect of an independent variable on a
+dependent variable cannot be interpreted causally, often due to omitted
+variables that lead to biased (i.e., inconsistent) estimates
+[@antonakis2010]. ndefinedThere are various ways to address endogeneity.
+In our case, we propose using an instrumental variable.
+
+In this section, we will create synthetic instrumental variables
+obtained after applying a spatial filtering to the spatial availability
+variables created in the previous sections, in a methodology created by
+Gallo and Páez [-@legallo2013].
 
 ## Suggested Readings
 
--   Soukhov, Anastasia, Antonio Paez, Christopher D Higgins, and Moataz
-    Mohamed. 2023."Introducing Spatial Availability, a
-    Singly-Constrained Measure of Competitive Accessibility." *Plos One*
-    18 (1): e0278468.
--   Soukhov, A., Páez, A. (2024). Accessibility analysis for planning
-    applications (Report No. MJ-A2-0002). Mobilizing Justice.
-    <https://github.com/soukhova/MJ-Accessibility-Blogs>
--   Pereira, Rafael H. M.; Herszenhut, Daniel. Introduction to urban
-    accessibility: a practical guide with R. Rio de Janeiro: Ipea, 2023.
-    152 p. ISBN: 978-65-5635-065-3. DOI:
-    <http://dx.doi.org/9786556350653>.
+-   Le Gallo, J., & Páez, A. (2013). Using synthetic variables in
+    instrumental variable estimation of spatial series models.
+    *Environment and Planning A*, *45*(9), 2227-2242.
+-   Cunningham, S. (2021). *Causal inference: The mixtape*. Yale
+    university press.
 
-## Data
+# Instrumental variables
 
-The dataset used in this demonstration is test data produced to
-replicate the variables available in the original Census of Population.
-The test data contains 200,000 rows and 17 columns. As in the original census data,
-each row refers to a respondent and each column refers to a
-variable[^2].\
-The creation of test data was necessary because the surveys
-provided by Statistics Canada are confidential and cannot be accessed
-outside of a Research Data Center.
+A fundamental assumption in regression analysis is the absence of
+correlation between the explanatory variables and the error terms
+[@legallo2013]. Endogeneity occurs when an independent variable
+correlates with the regression error term. To predict outcomes from the
+2021 Census of Population, we propose to address endogeneity by applying
+an instrumental variable technique. When an endogenous variable is
+included in a regression model, the consistency of the estimators is
+compromised, affecting the results and hindering the ability to
+establish a cause-effect relationship between the explanatory and
+dependent variables.
 
-[^2]: You can check out more information about the Census on the
-    [Dictionary
-    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+An instrumental variable Z must satisfy the following criteria
+([@cunningham2021; @luz2022]):
 
-If you want to work with the original Census dataset, the process for
-obtaining the accessibility measures will be the same as for the
-test data, except that you will have to update the address of the
-file in the chunk[^3] called *load-census-data*.
+1.  Z must be highly correlated with and have a causal effect on the
+    endogenous variable D, or share a common cause with D.
 
-[^3]: A code chunk is an executable part of the R code
+2.  Z must affect the dependent variable Y only through D, with no
+    direct effect of Z on Y.
 
-For this R markdown, we'll use the following variables[^4]:
+3.  Z must not be correlated with the regression residuals of D on Y.
 
-[^4]: The explanation of each variable can be found in the [*2021 Census
-    of Population's
-    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+A good instrument for the proposed models must be highly correlated with
+and have a causal effect (or share a common cause) on the accessibility
+variable (the endogenous variable); affect employment outcomes only
+through accessibility; and not share common causes with employment
+outcomes. In simpler terms, the instrument must be correlated with
+employment outcomes only through accessibility.
 
-|              |                                                                                                                                 |
-|------------------------|------------------------------------------------|
-| **Variable** | **Description**                                                                                                                 |
-| PRCDDA       | Refers to the dissemination area (DA) of current residence.                                                                     |
-| Pr           | Refers to the province or territory of current residence.                                                                       |
-| CMA          | Census metropolitan area or census agglomeration of current residence.                                                          |
-| PCD          | Census division of current residence.                                                                                           |
-| CompW1       | Weight for the households and dwellings universes.                                                                              |
-| LBR_FORC     | This variable refers to whether a person was employed, unemployed or not in the labour force.                                   |
-| PWDA         | Place of work dissemination area.                                                                                               |
-| PWPR         | Place of work province.                                                                                                         |
-| PWCMA        | Census metropolitan area or census agglomeration of place of work.                                                              |
-| PWCD         | Place of work census division.                                                                                                  |
-| PWDUR        | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
-| PwMode       | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
+Examples of instrumental variables used in studies analyzing the
+relationship between employment outcomes and job accessibility include
+Euclidean distance from the spatial unit centroid to the nearest major
+road or employment subcenter ([@delmelle2021; @jin2018]), share of
+no-vehicle households ([@hu2017]), transit accessibility and car
+unavailability ([@johnson2017]), distance to rivers ([@duarte2023]), and
+population density ([@bastiaanssen2021]).
 
-: Census variables used in this R markdown.
+However, two important challenges arise in the search for relevant
+instruments:
 
-A dissemination area (DA) is a small, relatively stable geographic unit
-composed of one or more adjacent dissemination blocks. It is the
-smallest standard geographic area for which all census data are
-disseminated. DAs cover all Canadian territory.
+1.   The likelihood that the instruments and error terms are correlated
+    increases as the correlation between the endogenous variable and the
+    instruments becomes stronger, which can render the instruments
+    invalid.
 
-We will also use the travel time table created in the previous step, in
-the R markdown called *03_travel_times.Rmd*.[^5].
+2.  Instruments that are only weakly correlated with the endogenous
+    variable may be ineffective and perform poorly.
 
-[^5]: Although we have provided test census data for all Canadian
-    provinces and territories, we have produced a travel table only for
-    the city of Toronto. So if you want to test the methodology for
-    other cities or regions, you'll have to generate a travel time for
-    the corresponding study area with *01_travel_times.Rmd*
+In response to these challenges, Le Gallo and Páez ([-@legallo2013])
+developed an alternative, cutting-edge approach that relies on synthetic
+instrumental variables when the model involves spatial data. The
+researchers demonstrated that synthetic variables can be generated using
+spatial filtering, a technique that removes spatial residual
+autocorrelation to improve regression analysis. They propose the use of
+an eigenvector-based technique, in which transforms a projection of the
+contiguity matrix into latent map patterns through eigenvector
+structural analysis. These latent patterns, included in the spatial
+structure of the system, are then used to generate synthetic variables,
+which serve as instruments in IV estimation. Since they are derived from
+the spatial structure of the system, these synthetic instruments are
+exogenous, thereby fulfilling the core requirement of IV estimation.
 
-The travel times table has the following variables:
+We have chosen to use this technique because, given our aim to create a
+methodology that can be applied to any Canadian city, there are no
+universally applicable candidates for instrumentation that could be
+obtained in every context.
 
-| **Variable** | **Description**                                                                   |
-|----------------|--------------------------------------------------------|
-| PRCDDA       | Refers to the DA defined as the origin.                                           |
-| CMAUID       | Census metropolitan area or census agglomeration of the DA defined as the origin. |
-| PWDA         | Refers to the DA defined as the destination.                                      |
-| travel_time  | Estimated travel time in minutes from origin to destination.                      |
-| PwMode       | Transportation mode used to calculate the travel time.                            |
+# Spatial Filtering
 
-: Travel time table variables used in this R markdown.
+According to Le Gallo and Páez [-@legallo2013], spatial filtering is a
+method to deal with, or filter from the residuals, spatial
+autocorrelation present during regression analysis. Spatial
+autocorrelation is the degree of similarity among neighboring
+observation. Usually, the definition of the neighboring (ie, spatial
+structure) is made by the use of spatial weight matrix W, with
+individual values represented by:
+
+$$
+w_{ij} = \begin{cases}    w_{ij} > 0, & \text{if i and j are neighbors},\\    w_{ij} = 0, & \text{otherwise.}\end{cases}
+$$
+
+Neighborhood can be defined on the basis of contiguity, distance, or
+length of shared edge, among other criteria. So, having a weighted
+matrix that represents the spatial structure, the steps to generate a
+filter can be defined as follows:
+
+1.  Build a spatial weights matrix to capture the distances between all
+    pairs of spatial units (in our case, Dissemination Areas, or DAs)
+    under analysis.
+2.  Select a distance threshold to identify neighbors for each DA. This
+    process usually results in a binary spatial contiguity matrix. There
+    is no clear theoretical guidance on the optimal distance threshold
+    for constructing the binary contiguity matrix.
+3.  Compute all eigenvectors associated with the contiguity matrix.
+    These eigenvectors are orthogonal to one another and each represents
+    a portion of the variance in the spatial contiguity matrix. Each
+    independent variable will have its own set of associated
+    eigenvectors.
+4.  Construct the spatial filter as a linear combination of a subset of
+    these eigenvectors. The spatial filter for each independent variable
+    is typically obtained by regressing the independent variable on the
+    subset of eigenvectors with p-values below a specified threshold
+    (for instance, p ≤ 0.05), and then using the predicted values of the
+    independent variable as the synthetic instrument.
+
+The pseudo-code to build the spatial filter is as follows:
+
+-   Initialize an index value $i = 1$, an empty vector for the spatial
+    filter $S = 0$, and a constant vector $X = 1$ .
+-   In a for-loop and for every $i <= n$, with $n$ being number of
+    eigenvectors, select the eigenvector $E_i$ obtained from the
+    weighted matrix as a candidate for inclusion in the spatial filter,
+    and estimate the model $ Y = \theta X + \\beta E_i + \epsilon $
+    using Ordinary Least Squares (OLS), where $\theta$ and $\beta$
+    are vectors of coefficients, and $\epsilon$ is a vector of error
+    terms.
+-   If coefficient $i$ is significant at a pre-determined level (eg,
+    $p-value <= 0.05$), then synthesize the eigenvector and the existing
+    filter: $S = S + \beta E_i$.
+-   The spatial filter $S$ is the synthetic instrumental variable.
+
+In summary, a spatial filter will be created to generate a synthetic
+counterpart that accurately reproduces a spatial random variable. To
+explore the potential of using eigenvectors to build synthetic
+instrumental variables, we will not only construct a spatial filter
+based on the contiguity matrix but also create additional filters based
+on commuting duration. Specifically, we will use a travel time matrix -
+since commute duration also depends on the spatial structure and
+represents an explicit space-time relationship. Additionally, we will
+develop a spatial filter based on commuting time impedance values that
+were derived after applying impedance functions (calculated from spatial
+accessibility) to the travel time matrix.
 
 # Let's code!
-
-<!-- The methodology for obtaining the accessibility measures using the Canadian -->
-<!-- Census consists of the following steps: -->
-
-<!-- 1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of dissemination areas of the selected study area. The methodology used to obtain the travel time table is in the *01_travel_times.Rmd*.  -->
-
-<!-- 2.  After this, we extract the commute time to work declared by the Census respondents, in order to calibrate the impedance functions for each transportation mode. -->
-
-<!-- 3.  We then apply the impedance functions to the travel time table. -->
-
-<!-- 4.  Next, we create a land use table. This table contains the labour force population and the number of job opportunities for each dissemination area. -->
-
-<!-- 5.  We join the travel time and labour force tables, creating the accessibility table. This last table has all the data needed to carry out the accessibility analysis.  -->
-
-<!-- 6.  Finally, we perform the Hansen accessibility type and the spatial availability. -->
 
 Load the packages:
 
@@ -187,24 +248,98 @@ library(sf) # support for simple features, a standardized way to encode spatial 
 library(spdep) # Construct neighbours list from polygon list
 ```
 
+## Data
+
+The dataset used in this demonstration is test data produced to
+replicate the variables available in the original Census of Population
+for the City of Toronto. The test data contains 52,650 rows and 31
+columns. As in the original census data, each row refers to a respondent
+and each column refers to a variable[^2]. The creation of test data was
+necessary because the surveys provided by Statistics Canada are
+confidential and cannot be accessed outside of a Research Data Center.
+
+[^2]: You can check out more information about the Census on the
+    [Dictionary
+    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+
+If you want to work with the original Census dataset, the process for
+obtaining the accessibility measures will be the same as for the test
+data, except that you will have to update the address of the file in the
+chunk[^3] called *load-census-data*.
+
+[^3]: A code chunk is an executable part of the R code
+
+For this R markdown, we'll use the following variables[^4]:
+
+[^4]: The explanation of each variable can be found in the [*2021 Census
+    of Population's
+    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+
+|  |  |
+|-------------------------|-----------------------------------------------|
+| **Variable** | **Description** |
+| PRCDDA | Refers to the dissemination area (DA) of current residence. |
+| PCD | Census division of current residence. |
+| CompW1 | Weight for the households and dwellings universes. |
+| PWDA | Place of work dissemination area. |
+| PWCD | Place of work census division. |
+| PWDUR | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
+| PwMode | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work. |
+| PWDist | The straight-line distance, in kilometres, between a person's residence and his or her usual place of work. |
+
+: Census variables used in this R markdown.
+
+A dissemination area (DA) is a small, relatively stable geographic unit
+composed of one or more adjacent dissemination blocks. It is the
+smallest standard geographic area for which all census data are
+disseminated. DAs cover all Canadian territory.
+
+We will also use the travel time table with the impedance values,
+created and exported during the modelling of job accessibility. We are
+interested in the following variables of the travel time matrix:
+
+| **Variable** | **Description** |
+|-------------------|-----------------------------------------------------|
+| from_id | Refers to the DA defined as the origin. |
+| to_id | Refers to the DA defined as the destination. |
+| travel_time | Estimated travel time in minutes from origin to destination. |
+| PwMode | Transportation mode used to calculate the travel time. |
+| f | The impedance value obtained for the travel time in `travel_time` column. |
+
+: Travel time table variables used in this R markdown.
+
+Also, we will use the job spatial availability measures, also obtained
+after generating the accessibility models. The job spatial availability
+file has the following variables:
+
+| **Variable** | **Description**                                        |
+|--------------|--------------------------------------------------------|
+| PRCDDA       | Refers to the DA defined as the origin.                |
+| PwMode       | Transportation mode used to calculate the travel time. |
+| SA_im        | Job spatial availability for the DA.                   |
+
+
 ## Reading files
 
-### Census 
+### Census
 
-Reading census data and creating a R data frame[^1]:
+Reading census data and creating a R data frame[^5]:
 
-[^1]: For this demonstration, we will use the case of the city of
+[^5]: For this demonstration, we will use the case of the city of
     Toronto. If you want to use the other options, the original data
-    from the Census in an RDC office or the test data for all
-    locations in Canada, *update* the address in the chunk.
-    
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
 ```{r}
 # For the original Census data set
 files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto.csv") # insert-the-RDC-address!!!
 census <- read.csv(files_address, header = TRUE)
 ```
 
-If the original Census dataset available in the RDC is not in .csv (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+If the original Census dataset available in the RDC is not in .csv
+(comma-separated values) format but is instead provided in other formats
+such as SPSS, SAS, or SAS Data, you can use the foreign package (a
+built-in R library) to import it:
 
 ```{r}
 # library(foreign)
@@ -220,14 +355,14 @@ Or if you have installed *CommuteCA*, you can access the *test* data:
 # census <- census_test_toronto
 ```
 
-| ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+| ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
 
 It's possible to filter the data frame by administrative (province
 and/or census division) and/or statistical (census metropolitan areas
-and census agglomerations)[^10]. The chunk below shows how to make this
+and census agglomerations)[^6]. The chunk below shows how to make this
 procedure:
 
-[^10]: As said before, we will perform our analysis for the city of
+[^6]: As said before, we will perform our analysis for the city of
     Toronto. If you want to select a specific area to work, uncomment
     the code above that applies to your case and select the apropriate
     code of your interest unit. Please, check the dictionary to have
@@ -312,9 +447,9 @@ census_expanded <- expand.grid(PRCDDA = unique(census_filtered$PRCDDA),
                                PwMode = unique(census_filtered$PwMode))
 ```
 
-### Accessibility measures 
+### Accessibility measures
 
-Setting the folder with the accessibility measures: 
+Setting the folder with the accessibility measures:
 
 ```{r read-accessibility}
 # Folder with the accessibility files 
@@ -324,7 +459,7 @@ measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/accessibilit
 SA <- read.csv(paste0(measures_folder, "SA_mode_original_RDC.csv"))
 ```
 
-Preparing the accessibility file: 
+Preparing the accessibility file:
 
 ```{r}
 SA_mode <- census_expanded %>% 
@@ -332,7 +467,7 @@ SA_mode <- census_expanded %>%
   mutate(SA_im = replace_na(SA_im, 0))
 ```
 
-### Travel time matrix 
+### Travel time matrix
 
 Reading the travel time table with the impedance measures:
 
@@ -344,7 +479,7 @@ ttm_folder <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/") # Updat
 ttm_f <- read.csv(paste0(ttm_folder, "ttm_f.csv"))
 ```
 
-### Spatial files 
+### Spatial files
 
 Reading the dissemination areas spatial file:
 
@@ -372,9 +507,9 @@ if(!dir.exists(diretorio_export_tables)){
   dir.create(diretorio_export_tables, recursive = TRUE)}
 ```
 
-# Spatial filters 
+# Spatial filters
 
-## Spatial filter based on the commute distance (straight-line) 
+## Spatial filter based on the commute distance (straight-line)
 
 ```{r}
 mtx_distance_binary <- spdep::nb2mat(spdep::poly2nb(da_file), style = "B", zero.policy = TRUE)
@@ -400,7 +535,6 @@ colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
 # adiciono nesse df de vectors o id do PRCDDA 
 weight_matrix_eigv_dist <- cbind(eigv_df, PRCDDA = as.numeric(rownames(mtx_distance_binary)))
 ```
-
 
 ```{r sf-all-modes}
 modes <- unique(census_workers$PwMode)
@@ -436,14 +570,16 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and accessibility:
+Visualizing creating a data frame with all spatial filters and
+accessibility:
 
 ```{r sf_dist-df}
 spatial_filter_dist <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMode")) %>%
   dplyr::select(PRCDDA, PwMode, SA_im, Sf_dist)
 ```
 
-Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+Pearson correlation between job spatial availability and spatial filter
+by transportation mode:
 
 ```{r sf-correlations}
 correlations <- spatial_filter_dist %>%
@@ -453,7 +589,7 @@ correlations <- spatial_filter_dist %>%
 correlations
 ```
 
-Creating a scatter plot figure: 
+Creating a scatter plot figure:
 
 ```{r sf-dist-plot}
 r2_labels <- spatial_filter_dist %>%
@@ -481,12 +617,11 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.
        dpi = 300)
 ```
 
-
 ```{r sf-dist-figure}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.jpg"))
 ```
 
-## Spatial filter based on the commute duration  
+## Spatial filter based on the commute duration
 
 ### Median commmute time
 
@@ -501,7 +636,9 @@ dur_medians <- census_workers %>%
 
 dur_medians
 ```
-After visualizing the creation of a spatial filter for the bike mode, we will generate the spatial filter for each transportation mode:
+
+After visualizing the creation of a spatial filter for the bike mode, we
+will generate the spatial filter for each transportation mode:
 
 ```{r sf-all-modes}
 mode_results <- list()
@@ -553,7 +690,8 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and job accessibility:
+Visualizing creating a data frame with all spatial filters and job
+accessibility:
 
 ```{r sf-df}
 spatial_filter_dur_medians <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
@@ -561,7 +699,8 @@ spatial_filter_dur_medians <- as.data.frame(bind_rows(mode_results, .id = "PwMod
   rename(Sf_median_dur = Sf)
 ```
 
-Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+Pearson correlation between job spatial availability and spatial filter
+by transportation mode:
 
 ```{r sf-correlations}
 correlations <- spatial_filter_dur_medians %>%
@@ -571,7 +710,7 @@ correlations <- spatial_filter_dur_medians %>%
 correlations
 ```
 
-Creating a scatter plot figure: 
+Creating a scatter plot figure:
 
 ```{r sf-plot}
 r2_labels <- spatial_filter_dur_medians %>%
@@ -603,9 +742,10 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatte
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatterplot.jpg"))
 ```
 
-### Duration impedance values 
+### Duration impedance values
 
-After visualizing the creation of a spatial filter for the bike mode, we will generate the spatial filter for each transportation mode:
+After visualizing the creation of a spatial filter for the bike mode, we
+will generate the spatial filter for each transportation mode:
 
 ```{r sf-all-modes}
 mode_results <- list()
@@ -654,14 +794,16 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and accessibilities:
+Visualizing creating a data frame with all spatial filters and
+accessibilities:
 
 ```{r sf-df}
 spatial_filter_imp_dur <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
   dplyr::select(PRCDDA, PwMode, SA_im, Sf_imp_dur)
 ```
 
-Pearson  correlation between job spatial availability and spatial filter by transportation mode: 
+Pearson correlation between job spatial availability and spatial filter
+by transportation mode:
 
 ```{r sf-correlations}
 correlations <- spatial_filter_imp_dur %>%
@@ -671,7 +813,7 @@ correlations <- spatial_filter_imp_dur %>%
 correlations
 ```
 
-Creating a scatter plot figure: 
+Creating a scatter plot figure:
 
 ```{r sf-plot}
 r2_labels <- spatial_filter_imp_dur %>%
@@ -705,7 +847,8 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_imp_dur
 
 # Data export
 
-Creating a unique file with all spatial filters (distance, median commute duration, and impedance):
+Creating a unique file with all spatial filters (distance, median
+commute duration, and impedance):
 
 ```{r}
 spatial_filter <- spatial_filter_dist %>%
@@ -719,15 +862,24 @@ Exporting the spatial filters (original file):
 write.csv(spatial_filter, paste0(diretorio_export_tables, "spatial_filter_original.csv"), row.names=FALSE)
 ```
 
-If you are interested in manipulating the spatial filters outside a RDC Office, the following codes will create a release version that it is in accordance to the confidentiality vetting rules: 
+If you are interested in manipulating the spatial filters outside a RDC
+Office, the following codes will create a release version that it is in
+accordance to the confidentiality vetting rules:
 
 ## Confidentiality vetting
 
-Confidentiality vetting is the process of reviewing the results to be released by the Research Data Center to ensure that confidentiality risks for StatCan respondents are minimized. 
+Confidentiality vetting is the process of reviewing the results to be
+released by the Research Data Center to ensure that confidentiality
+risks for StatCan respondents are minimized.
 
 The following rules apply to our results:
 
-- *Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$)*.	Statistics must not be released for identifiable areas with less than 40 persons. This condition is usually met with geography levels used at the RDCs. The population threshold can be applied to the (long form) weighted population estimate. 
+-   *Statistics must not be released for identifiable areas with less
+    than 40 persons (*$\sum{CompW1} ≥ 40$). Statistics must not be
+    released for identifiable areas with less than 40 persons. This
+    condition is usually met with geography levels used at the RDCs. The
+    population threshold can be applied to the (long form) weighted
+    population estimate.
 
 The block above checks the total population of each DA:
 
@@ -745,7 +897,8 @@ spatial_filter_support <- spatial_filter %>%
   left_join(vetting_da_mode, by = c('PRCDDA' = 'PRCDDA','PwMode' = 'PwMode'))
 ```
 
-Apply the rules to avoid confidentiality risks for the accessibility tables: 
+Apply the rules to avoid confidentiality risks for the accessibility
+tables:
 
 ```{r filter-support}
 spatial_filter_support <- spatial_filter_support %>%

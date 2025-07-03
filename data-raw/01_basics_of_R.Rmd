@@ -1,20 +1,20 @@
 ---
-title: "Basics of `R` and Data"
+title: "Basics of R and Data"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
 bibliography: skeleton.bib
 link-citations: yes
 editor_options: 
   markdown: 
-    wrap: 72
+    wrap: sentence 
 ---
 
 ```{r setup, include=FALSE}
@@ -23,8 +23,6 @@ library(tufte)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 options(htmltools.dir.version = FALSE)
 ```
-
-# Introduction
 
 This Rmarkdown file is part of the
 [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
@@ -48,6 +46,8 @@ package was created to develop standardized methods for transport
 analysis in research, particularly for analysis using the [*2021 Census of
 Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
 which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+
+# Introduction
 
 This R markdown aims to provide a brief introduction of `R` language and
 the concepts of data. This notebook[^2] is an updated and reduced
@@ -629,7 +629,7 @@ summary(df2)
 
 Function `summary()` uses appropriate methods for the data.
 
-# Data manipulation with `dplyr`
+# Data manipulation with dplyr
 
 A package is a shareable code unit that enhances `R` capabilities.
 Packages are commonly installed from
