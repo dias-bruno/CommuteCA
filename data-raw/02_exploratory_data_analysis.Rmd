@@ -57,6 +57,8 @@ Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-50
 which provides valuable variables and information on commuting for the
 Canadian population aged 15 and older living in private households.
 
+# Section objectives
+
 This R markdown aims to provide a brief introduction to exploratory data
 analysis (EDA). This notebook is an updated and reduced version of the
 computational notebooks available in the

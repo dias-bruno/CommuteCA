@@ -1,6 +1,6 @@
 ---
 title: "Basics of R and Data"
-author: "Bruno Santos & Antonio Paez"
+author: "Bruno Santos & Antonio Páez"
 date: "`r Sys.Date()`"
 output:
   tufte::tufte_book:
@@ -47,7 +47,7 @@ analysis in research, particularly for analysis using the [*2021 Census of
 Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
 which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
 
-# Introduction
+# Section objectives
 
 This R markdown aims to provide a brief introduction of `R` language and
 the concepts of data. This notebook[^2] is an updated and reduced
@@ -105,13 +105,13 @@ available for fresh starts.
 It's good practice to clear the working memory in RStudio before
 starting new work. This ensures no extraneous information is in memory
 that might confuse your tasks. Use the rm command in R to clear the
-workspace by removing items. To clear all objects, run:
+work space by removing items. To clear all objects, run:
 
 ```{r}
 rm(list = ls())
 ```
 
-Here, ls() lists all objects in the workspace. Alternatively, click the
+Here, ls() lists all objects in the work space. Alternatively, click the
 broom icon in the 'Environment' tab in RStudio.
 
 # Data objects and basic operations
@@ -151,7 +151,7 @@ software.
 
 Data frames can hold large amounts of information (up to several billion
 items, depending on your computer's memory). They can include numeric,
-alphanumeric (characters), logical (TRUE/FALSE) data, etc. Each cell has
+alphanumeric (characters), logical (`TRUE`/`FALSE`) data, etc. Each cell has
 an address identified by its row and column, allowing R to perform
 mathematical operations. R typically labels columns alphabetically and
 rows numerically.
@@ -166,40 +166,18 @@ workers (in April 2021); and finally, there is a vector with the area of
 the province in square kilometers:
 
 ```{r}
-province_name <- c("Alberta",
-                  "British Columbia",
-                  "Ontario",
-                  "Quebec",
-                  "Newfoundland and Labrador",
-                  "Manitoba",
+province_name <- c("Alberta", "British Columbia","Ontario",
+                  "Quebec","Newfoundland and Labrador","Manitoba",
                   "Saskatchewan")
-population <- c(4262635,
-                5000879,
-                14223942,
-                8501833,
-                510550,
-                1342153,
+population <- c(4262635,5000879,14223942,
+                8501833,510550, 1342153,
                 1132505)
-population_change  <- c(4.8,
-                     7.6,
-                    5.8,
-                    4.1,
-                    -1.8,
-                    5.0,
-                    3.1)
-workers <- c(1897337,
-               2263247,
-               6279827,
-               3693457,
-               209649,
-               599534,
-               470931)
-area_km2 <- c(634658.27,
-              920686.55,
-              892411.76,
-              1298599.75,
-              358170.37,
-              540310.19,
+population_change  <- c(4.8, 7.6, 5.8,
+                        4.1, -1.8, 5.0, 3.1)
+workers <- c(1897337, 2263247, 6279827,
+             3693457, 209649, 599534, 470931)
+area_km2 <- c(634658.27, 920686.55, 892411.76,
+              1298599.75, 358170.37, 540310.19,
               577060.40)
 ```
 
@@ -566,7 +544,8 @@ To properly code modes and safe as factors:
 modes <- factor(modes, levels = c("bus", "car", "walk"))
 safe <- factor(safe,
                levels = c(1, 2, 3, 4, 5),
-               labels = c("Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"),
+               labels = c("Strongly Disagree", "Disagree", 
+                          "Neutral", "Agree", "Strongly Agree"),
                ordered = TRUE)
 ```
 
