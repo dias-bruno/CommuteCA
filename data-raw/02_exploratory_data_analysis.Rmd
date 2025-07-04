@@ -32,12 +32,11 @@ options(htmltools.dir.version = FALSE)
 # Introduction
 
 This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
 [^1]: The Mobilizing Justice project is a multidisciplinary and
     multi-sector collaboration with the objective of understand and
@@ -48,11 +47,15 @@ Justice*](https://mobilizingjustice.ca/)[^1].
     alliance of academics from various Canadian provinces and
     institutions, transportation firms, and nonprofit organizations
 
-The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
-package was created to develop standardized methods for transport
-analysis in research, particularly for analysis using the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
-which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
 
 This R markdown aims to provide a brief introduction to exploratory data
 analysis (EDA). This notebook is an updated and reduced version of the
@@ -99,20 +102,23 @@ library(weights) # Weights in R
 ```
 
 We will also load the following data frames for this session. The
-dataset used in this demonstration is test data produced to
-replicate the variables available in the original Census of Population.
-The test data contains 200,000 rows and 17 columns. As in the
-original census data, each row refers to a respondent and each column
-refers to a variable[^2].\
-The creation of test data was necessary because the surveys
-provided by Statistics Canada are confidential and cannot be accessed
-outside of a Research Data Center.
+dataset used in this demonstration is test data produced to replicate
+the variables available in the original Census of Population. The test
+data contains 200,000 rows and 17 columns. As in the original census
+data, each row refers to a respondent and each column refers to a
+variable[^2].\
+The creation of test data was necessary because the surveys provided by
+Statistics Canada are confidential and cannot be accessed outside of a
+Research Data Center.
 
 [^2]: You can check out more information about the Census on the
     [Dictionary
     website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
 
-If you want to work with the original Census dataset, the process for performing exploratory data analysis will be the same as for the test data, except that you will have to update the address of the file in the chunk[^3] called *load-census-data*.
+If you want to work with the original Census dataset, the process for
+performing exploratory data analysis will be the same as for the test
+data, except that you will have to update the address of the file in the
+chunk[^3] called *load-census-data*.
 
 [^3]: A code chunk is an executable part of the R code.
 
@@ -122,42 +128,42 @@ For this R markdown, we'll use the following variables[^4]:
     of Population's
     website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
 
-|                    |                                                                                                                                 |
-|-------------------------|----------------------------------------------|
-| **Variable**       | **Description**                                                                                                                 |
-| PRCDDA             | Refers to the dissemination area (DA) of current residence.                                                                     |
-| Pr                 | Refers to the province or territory of current residence.                                                                       |
-| CMA                | Census metropolitan area or census agglomeration of current residence.                                                          |
-| PCD                | Census division of current residence.                                                                                           |
-| CompW1             | Weight for the households and dwellings universes.                                                                              |
-| LBR_FORC           | This variable refers to whether a person was employed, unemployed or not in the labour force.                                   |
-| CfInc              | Total income of census family (sum of the total incomes of all members of that family).                                         |
-| CFCNT              | Census family size (numbers of persons).                                                                                        |
-| CF_PnCF_NumEarners | Number of earners in census family.                                                                                             |
-| PWDA               | Place of work dissemination area.                                                                                               |
-| PWPR               | Place of work province.                                                                                                         |
-| PWCMA              | Census metropolitan area or census agglomeration of place of work.                                                              |
-| PWCD               | Place of work census division.                                                                                                  |
-| PWDUR              | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
-| PWDist             | Distance (straight-line) from home to work.                                                                                     |
-| PwMode             | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
+|  |  |
+|--------------------------|----------------------------------------------|
+| **Variable** | **Description** |
+| PRCDDA | Refers to the dissemination area (DA) of current residence. |
+| Pr | Refers to the province or territory of current residence. |
+| CMA | Census metropolitan area or census agglomeration of current residence. |
+| PCD | Census division of current residence. |
+| CompW1 | Weight for the households and dwellings universes. |
+| LBR_FORC | This variable refers to whether a person was employed, unemployed or not in the labour force. |
+| CfInc | Total income of census family (sum of the total incomes of all members of that family). |
+| CFCNT | Census family size (numbers of persons). |
+| CF_PnCF_NumEarners | Number of earners in census family. |
+| PWDA | Place of work dissemination area. |
+| PWPR | Place of work province. |
+| PWCMA | Census metropolitan area or census agglomeration of place of work. |
+| PWCD | Place of work census division. |
+| PWDUR | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
+| PWDist | Distance (straight-line) from home to work. |
+| PwMode | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work. |
 
 We will use the function `read_csv()`to read the sheets in the format
 .csv . This is one of the format used by Research Data Centres to store
 their surveys.[^5]
 
-[^5]: \``Other formats also used are: `SAS`, `Stata` and `SPSS`. For this
+[^5]: \``Other formats also used are:`SAS`,`Stata`and`SPSS\`. For this
     case, use the
     {[foreign](https://cran.r-project.org/web/packages/foreign/index.html)}
     package.
 
 The next chunk assigns the file address of the survey to the
-`census_address` variable. As mentioned before, for this demonstration we
-will use the test version of the survey. If you want to use the
+`census_address` variable. As mentioned before, for this demonstration
+we will use the test version of the survey. If you want to use the
 original survey, please remember to ***update*** the address in the
 chunk below. You may also need to update the file address if you opened
-this R markdown in another project or if the test data is stored in
-a different folder that does not follow the pattern of the `COMMUCECA21`
+this R markdown in another project or if the test data is stored in a
+different folder that does not follow the pattern of the `COMMUCECA21`
 package.
 
 ```{r census-file-address}
@@ -178,7 +184,8 @@ Exploratory Data Analysis (EDA) involves examining data to uncover its
 inherent features without relying on preconceived assumptions. [John W.
 Tukey](https://en.wikipedia.org/wiki/John_Tukey) described EDA as
 detective work, where the goal is to discover key evidence and patterns
-before testing hypotheses, similar to the confirmation of evidence in a trial.
+before testing hypotheses, similar to the confirmation of evidence in a
+trial.
 
 Effective EDA focuses on:
 
@@ -233,7 +240,9 @@ know.
 
 ## Pre-processing data
 
-Some of the variables should have been read as a factor variable. According to the census code book, the variable `PwMode` has the following possible values:
+Some of the variables should have been read as a factor variable.
+According to the census code book, the variable `PwMode` has the
+following possible values:
 
 -   -3: Not applicable.
 -   1: Car, truck or van - as a driver.
@@ -333,14 +342,19 @@ Visualizing the summary statistics:
 summary(census)
 ```
 
-Considering that the original census dataset is a very large data file, it can be interesting to filter respondents based on where they live. In this demonstration, we will filter the dataset to include only respondents from the city of Toronto. We can get the information about the city of origin from the `PCD` variable. The `PCD` code for the city of Toronto is `3520`:
+Considering that the original census dataset is a very large data file,
+it can be interesting to filter respondents based on where they live. In
+this demonstration, we will filter the dataset to include only
+respondents from the city of Toronto. We can get the information about
+the city of origin from the `PCD` variable. The `PCD` code for the city
+of Toronto is `3520`:
 
 ```{r}
 census_city <- census %>% 
   filter(PCD == 3520)
 ```
 
-## Appropriate summary statistics by scale of measurement
+# Appropriate summary statistics by scale of measurement
 
 Recall from the previous session that not all operations are defined for
 all scales of measurement. For example, variables in the nominal scale
@@ -353,7 +367,7 @@ This has implications for the kind of statistics that are appropriate by
 scale of measurement.
 
 Consider a commonly used summary statistic: the mean of a variable. The
-mean is defined as follows: 
+mean is defined as follows:
 
 $$\bar{x} = \frac{x_1 + x_2 + \cdots + x_n}{n} = \frac{1}{n}\sum_{i-1}^n x_i$$
 
@@ -364,13 +378,13 @@ To understand which summary statistics are appropriate, we must know
 what various summary statistics aim to represent, and how they are
 calculated.
 
-### Central tendency
+## Central tendency
 
 Summary statistics help in reducing information and provide different
 perspectives on data. *Central tendency* measures summarize a
-distribution by identifying a "typical" value, as finding the
-center of mass of the data. For instance, given a sequence of
-quantitative values, such as:
+distribution by identifying a "typical" value, as finding the center of
+mass of the data. For instance, given a sequence of quantitative values,
+such as:
 
 ```{r}
 example_list <- c(20, 30, 32, 34, 41, 41, 45, 46, 48, 51, 53, 54, 54, 56, 57, 58, 58, 59, 
@@ -398,20 +412,24 @@ For nominal variables, where categories lack a meaningful order, the
 concept of central tendency still applies, though the methods differ
 from those used for ordered or quantitative data.
 
-### Mode
+## Mode
 
 The mode is the most frequent value in a distribution and is useful for
 both nominal and ordinal variables. To find the mode, we can count the
-occurrences of each value. We can obtain the mode of the `example_list` by executing the Mode function of the DescTools library:
+occurrences of each value. We can obtain the mode of the `example_list`
+by executing the Mode function of the DescTools library:
 
 ```{r}
 DescTools::Mode(example_list)
 ```
-The chunk above shows that the `example_list` contains 4 values as the most frequent, each of them being repeated 2 times: `41`, `54`, `58`, and `65`. 
 
-Using the `tabyl()` function from
-the {[janitor](http://sfirke.github.io/janitor/)} package, which
-facilitates pipe-friendly tabulations, we could easily determine the mode of the
+The chunk above shows that the `example_list` contains 4 values as the
+most frequent, each of them being repeated 2 times: `41`, `54`, `58`,
+and `65`.
+
+Using the `tabyl()` function from the
+{[janitor](http://sfirke.github.io/janitor/)} package, which facilitates
+pipe-friendly tabulations, we could easily determine the mode of the
 variable `LBR_FORC` in census table:
 
 ```{r}
@@ -420,38 +438,47 @@ census_city |>
 ```
 
 The output shows that the `Employed` category is the mode of the
-`LBR_FORC` variable (considering the test data), representing
-around 75% of the cases. *However*, it is important to remember that the census survey contains the weight of each respondent, described by the variable `Compw1`. This means that all the statistics made for the general population need to consider that person's weight. To do this, we will use the `wtd.mode` function from the R package `poliscidata`: 
+`LBR_FORC` variable (considering the test data), representing around 75%
+of the cases. *However*, it is important to remember that the census
+survey contains the weight of each respondent, described by the variable
+`Compw1`. This means that all the statistics made for the general
+population need to consider that person's weight. To do this, we will
+use the `wtd.mode` function from the R package `poliscidata`:
 
 ```{r}
 poliscidata::wtd.mode(census_city$LBR_FORC_label, weights = census_city$CompW1)
 ```
 
-### Median
+## Median
 
 The median is the quantile that splits a quantitative variables in two
 parts of equal size, the bottom 50% and the top 50% of values.
 
-To check the median value of total income of the family considering the weights, we can use the `Hmisc` library: 
+To check the median value of total income of the family considering the
+weights, we can use the `Hmisc` library:
 
 ```{r}
 census_city %>% 
   dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5))
 ```
 
-This value is slightly different (but needs to be considered!) than the regular median without considering the weights: 
+This value is slightly different (but needs to be considered!) than the
+regular median without considering the weights:
 
 ```{r}
 median(census_city$CfInc) # WRONG! You need to consider the weights! 
 ```
-### Mean
+
+## Mean
 
 The mean is probably the best known measure of central tendency, and it
 is defined as the sum of the values divided by the number of
 observations. Since it involves arithmetic operations it is not
-appropriate for categorical variables. 
+appropriate for categorical variables.
 
-To check the average value of a regular data set (without weights), we can use the `mean()` built-in function. In our case, to consider the weights of the respondents, we can again apply the `Hmisc` library:
+To check the average value of a regular data set (without weights), we
+can use the `mean()` built-in function. In our case, to consider the
+weights of the respondents, we can again apply the `Hmisc` library:
 
 ```{r}
 #mean(census$CfInc) # WRONG! You need to consider the weights! 
@@ -459,14 +486,16 @@ To check the average value of a regular data set (without weights), we can use t
 census_city %>% 
   dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1))
 ```
-Another way of considering the weights to obtain the mean is to apply the weighted average. The mean value in both methods is the same: 
+
+Another way of considering the weights to obtain the mean is to apply
+the weighted average. The mean value in both methods is the same:
 
 ```{r}
 census_city %>% 
   dplyr::summarise(Mean = sum(CfInc * CompW1)/sum(CompW1))
 ```
 
-### Spread
+## Spread
 
 Another important property of a distribution of values is how wide or
 compact it is. Compare the two steam-and-leaf tables below.
@@ -499,7 +528,7 @@ The first stem-and-leaf table is more "compact": the tails of the
 distribution are closer together and the center of mass is "heavier",
 compared to the second table, that has a wider spread.
 
-### Minimum and maximum
+## Minimum and maximum
 
 The minimum and maximum values give an idea of how spread the
 distribution is. In the first of the preceding tables the minimum is
@@ -512,9 +541,10 @@ maximum and the minimum:
 107 - 14
 ```
 
-The second distribution is more spread. Both the minimum and maximum can be obtained without considering the weights of the population. 
+The second distribution is more spread. Both the minimum and maximum can
+be obtained without considering the weights of the population.
 
-### Inter-quartile range
+## Inter-quartile range
 
 The inter-quartile range is similar to the range, but instead of being
 calculated using the minimum and maximum values of the distribution, it
@@ -525,7 +555,12 @@ second quantile represents the value that separates the lowest 25% of
 the sample from the remaining 75%, and the third quantile is the value
 that splits the highest 25% of the sample from the lowest 75%.
 
-Previously, we used the `Hmisc` library to obtain the median value of `CfInc`. In fact, we applied the quantile function to obtain the median value considering the weights, because the median is the value that divides the values into two quantiles, those below and those above the median value. Now, we will obtain the values for the second and third quantiles by running the chunk below: 
+Previously, we used the `Hmisc` library to obtain the median value of
+`CfInc`. In fact, we applied the quantile function to obtain the median
+value considering the weights, because the median is the value that
+divides the values into two quantiles, those below and those above the
+median value. Now, we will obtain the values for the second and third
+quantiles by running the chunk below:
 
 ```{r}
 census_city %>% 
@@ -534,8 +569,8 @@ census_city %>%
                    Third_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.75))
 ```
 
-
-To obtain the inter-quantile range (IQR) we just need to subtract the second quantile from the third quantile: 
+To obtain the inter-quantile range (IQR) we just need to subtract the
+second quantile from the third quantile:
 
 ```{r}
 census_city %>% 
@@ -548,10 +583,10 @@ census_city %>%
 The inter-quartile range involves an arithmetic operation, which is why
 it is not an appropriate statistic for categorical variables.
 
-### Variance and standard deviation
+## Variance and standard deviation
 
 The variance is another widely used measure of the spread of a
-distribution. It is defined as: 
+distribution. It is defined as:
 
 $$
 \sigma^2 = \frac{1}{n}\sum_{i=1}^n(x_i - \bar{x})^2
@@ -566,14 +601,16 @@ z_i = (x_i - \bar{x})^2
 $$
 
 It is easy to see that the variance is actually the mean of the square
-of the deviations from the mean: 
+of the deviations from the mean:
 
 $$
 \sigma^2 = \frac{1}{n}\sum_{i=1}^nz_i
 $$
 
 The standard deviation is simply the square root of the variance and
-returns the variance to the same units as the original variable. To consider the weights in the calculation of the variance and standard deviation, you can execute the chunk bellow:
+returns the variance to the same units as the original variable. To
+consider the weights in the calculation of the variance and standard
+deviation, you can execute the chunk bellow:
 
 ```{r}
 census_city %>% 
@@ -582,7 +619,7 @@ census_city %>%
                    SD = sqrt(Variance))
 ```
 
-## Univariate description
+# Univariate description
 
 Summary statistics of central tendency and spread refer to a single
 variable and are appropriately called univariate descriptors. These
@@ -604,10 +641,10 @@ Cfinc_statistics <- census_city %>%
 ```
 
 The maximum average income of the person responsible for the household
-in the test data set for city of Toronto was R\$ $259,872.70$. Just how common or unusual is this
-value? That depends on how close (or far away) from the mean of the
-distribution this is, as well as on the spread of the distribution. The
-deviation from the mean is:
+in the test data set for city of Toronto was R\$ $259,872.70$. Just how
+common or unusual is this value? That depends on how close (or far away)
+from the mean of the distribution this is, as well as on the spread of
+the distribution. The deviation from the mean is:
 
 ```{r}
 Cfinc_statistics$Max - Cfinc_statistics$Mean
@@ -622,11 +659,10 @@ mean in the sample was about R\$ $62,009$! Now, calculating:
 
 This tells us that the census tract with the highest total family income
 receives almost three times more than the average total family income.
-This observation is indeed quite unusual. 
+This observation is indeed quite unusual.
 
-How unusual was the census
-tract with the lowest average income? Let us retrieve the minimum
-duration:
+How unusual was the census tract with the lowest average income? Let us
+retrieve the minimum duration:
 
 ```{r}
 Cfinc_statistics$Min
@@ -642,18 +678,20 @@ the sample was R\$ $62,009$! So, calculating:
 The census tract with the lowest average income is closer to the mean,
 and approximately one and half standard deviation below the mean.
 Univariate description is a powerful way to get to know our data before
-doing any more sophisticated explorations or analysis. 
+doing any more sophisticated explorations or analysis.
 
-## Bivariate description
+# Bivariate description
 
 Moving on from univariate description, understanding how two variables
 relate to one another is another key aspect of EDA.
 
-### Categorical variables: cross-tabulations
+## Categorical variables: cross-tabulations
 
 Univariate description of a categorical variable involves tabulating the
 number of instances of each response. This can be expanded to
-simultaneously tabulating two categorical variables. We will summarise the variables `Pr` (Province) and `PwMode` (mode of transport), summing all weights for each combination:
+simultaneously tabulating two categorical variables. We will summarise
+the variables `Pr` (Province) and `PwMode` (mode of transport), summing
+all weights for each combination:
 
 ```{r}
 census %>%
@@ -661,7 +699,8 @@ census %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") 
 ```
 
-To facilitate the visualization, we will apply a pivot technique, turning the long table into a wide one like a contingency table:
+To facilitate the visualization, we will apply a pivot technique,
+turning the long table into a wide one like a contingency table:
 
 ```{r}
 census_city %>%
@@ -670,7 +709,8 @@ census_city %>%
   pivot_wider(names_from = PwMode_label, values_from = weighted_n, values_fill = 0)
 ```
 
-What do we learn from this table? The output of the previous chunk can be *adorned*, which can improve the readability of the table. The
+What do we learn from this table? The output of the previous chunk can
+be *adorned*, which can improve the readability of the table. The
 following table gives the total sum of the columns as a row at the
 bottom of the table:
 
@@ -696,24 +736,24 @@ deviations from the mean of two variables:
 
 $$
 C(x,y) = \frac{1}{n}\sum_i(x_i - \bar{x})(y_i - \bar{y})
-$$ 
+$$
 
-Here, $\bar{x}$ and $\bar{y}$ are the means of the variables.
-Positive or negative deviations result in positive covariance, while
-opposing deviations result in negative covariance. Like-like deviations
-(both positive or negative) increase covariance, while opposite
-deviations decrease it. Covariance can be normalized by dividing it by
-the product of the variables' standard deviations, resulting in the
-correlation coefficient:
+Here, $\bar{x}$ and $\bar{y}$ are the means of the variables. Positive
+or negative deviations result in positive covariance, while opposing
+deviations result in negative covariance. Like-like deviations (both
+positive or negative) increase covariance, while opposite deviations
+decrease it. Covariance can be normalized by dividing it by the product
+of the variables' standard deviations, resulting in the correlation
+coefficient:
 
 $$
 r(x, y) = \frac{C(x, y)}{\sigma_x\cdot\sigma_y}
-$$ 
+$$
 
-The correlation coefficient ranges between -1 and 1, where 0
-indicates no covariance. Correlations can be calculated using the
-`wtd.cor` function from the {[weights](https://corrr.tidymodels.org/)}
-package in a pipe-friendly manner:
+The correlation coefficient ranges between -1 and 1, where 0 indicates
+no covariance. Correlations can be calculated using the `wtd.cor`
+function from the {[weights](https://corrr.tidymodels.org/)} package in
+a pipe-friendly manner:
 
 ```{r}
 # PWDUR: Commuting duration
@@ -758,9 +798,10 @@ census |>
 ```
 
 To make matters more difficult, this is only a small part of the full
-table (only ten rows and six columns). Additionally, the summary does not account the weights of the respondents. The task of identifying patterns
-becomes increasingly complicated as the number of observations and the
-number of variables grow.
+table (only ten rows and six columns). Additionally, the summary does
+not account the weights of the respondents. The task of identifying
+patterns becomes increasingly complicated as the number of observations
+and the number of variables grow.
 
 The grammar of graphics, formalized by [Leland
 Wilkinson](https://en.wikipedia.org/wiki/Leland_Wilkinson) in his
@@ -842,8 +883,8 @@ distribution's lack of symmetry. The mean is influenced by extreme
 values or outliers, making it less robust compared to the median, which
 is more stable as it is not affected by unusual values.
 
-For categorical variables, a bar chart, implemented with `geom_bar()`, is
-the appropriate geometric object. While bar charts may resemble
+For categorical variables, a bar chart, implemented with `geom_bar()`,
+is the appropriate geometric object. While bar charts may resemble
 histograms, they differ in two key ways: the order of categories is not
 essential, and there are no value ranges, only distinct category labels.
 
@@ -855,12 +896,14 @@ ggplot() +
 
 ## Bivariate plots
 
-### Two quantitative variables
+-   Two quantitative variables
 
 The scatterplot is a fundamental visualization method for exploring the
 relationship between two quantitative variables. It maps the values of
 these variables as points on the x- and y-axes, allowing for the
-examination of patterns, correlations, and trends between them. To account with the weights, we will size the points based on the weight of the respondents. 
+examination of patterns, correlations, and trends between them. To
+account with the weights, we will size the points based on the weight of
+the respondents.
 
 ```{r}
 ggplot(data = census_city) +
@@ -868,7 +911,7 @@ ggplot(data = census_city) +
              alpha = 0.025)
 ```
 
-### Two categorical variables
+## Two categorical variables
 
 Two categorical variables can be explored by means of count plots:
 
@@ -883,7 +926,7 @@ census %>%
 
 Count plots are a visual alternative to a cross-tabulation.
 
-### One categorical and one quantitative variable
+## One categorical and one quantitative variable
 
 Visualization techniques can accommodate combinations of one categorical
 and one quantitative variable, allowing for more nuanced exploration of
@@ -914,14 +957,17 @@ Extreme values beyond this range are depicted as individual dots. The
 median of the distribution is shown as a line within the box. In
 ggplot2, boxplots are created using `geom_boxplot()`.
 
-First, to consider the weights in the bloxpot, we will expand repeat each line of the census dataset according to their respective weights: 
+First, to consider the weights in the bloxpot, we will expand repeat
+each line of the census dataset according to their respective weights:
 
 ```{r}
 census_city_expanded <- census_city %>% 
   uncount(weights = round(CompW1))
 ```
 
-Now, we can visualize the bloxpot of the duration by the type of transportation mode: 
+Now, we can visualize the bloxpot of the duration by the type of
+transportation mode:
+
 ```{r}
  census_city_expanded %>%
    ggplot(aes(x = PwMode_label, y = PWDUR)) +
@@ -972,4 +1018,6 @@ ggplot(data = census_city) +
              alpha = 0.35)
 ```
 
-The linear relation displayed in the scatter plot between the variables `PWDUR` and `PwMode` occurs because this data was generated synthetically. 
+The linear relation displayed in the scatter plot between the variables
+`PWDUR` and `PwMode` occurs because this data was generated
+synthetically.

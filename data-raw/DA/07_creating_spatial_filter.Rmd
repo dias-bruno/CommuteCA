@@ -1,16 +1,16 @@
 ---
-title: "Creating synthetic instrumental variables from spatial filtering"
+title: "Creating synthetic instrumental variables from spatial filters"
 subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
 bibliography: skeleton.bib
 link-citations: yes
 editor_options: 
@@ -30,8 +30,6 @@ library(knitr)
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
-
-# Introduction
 
 This Rmarkdown file is part of the
 [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
@@ -55,6 +53,8 @@ Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-50
 which provides valuable variables and information on commuting for the
 Canadian population aged 15 and older living in private households.
 
+# Section objectives
+
 After identifying disadvantaged populations in terms of job
 accessibility, we will now advance our analysis by developing regression
 models to explore the relationship between job accessibility and
@@ -73,11 +73,11 @@ the cause-and-effect relationship between variables, a process known as
 
 Including causal inference in our modeling approach means we must
 account for the possible (and indeed likely) presence of *endogeneity*.
-Endogeneity arises when the effect of an independent variable on a
+Endogeneity occurs when the effect of an independent variable on a
 dependent variable cannot be interpreted causally, often due to omitted
 variables that lead to biased (i.e., inconsistent) estimates
-[@antonakis2010]. ndefinedThere are various ways to address endogeneity.
-In our case, we propose using an instrumental variable.
+[@antonakis2010]. There are various ways to address endogeneity. In our
+case, we propose using an instrumental variable.
 
 In this section, we will create synthetic instrumental variables
 obtained after applying a spatial filtering to the spatial availability
@@ -134,7 +134,7 @@ population density ([@bastiaanssen2021]).
 However, two important challenges arise in the search for relevant
 instruments:
 
-1.   The likelihood that the instruments and error terms are correlated
+1.  The likelihood that the instruments and error terms are correlated
     increases as the correlation between the endogenous variable and the
     instruments becomes stronger, which can render the instruments
     invalid.
@@ -206,10 +206,14 @@ The pseudo-code to build the spatial filter is as follows:
 -   In a for-loop and for every $i <= n$, with $n$ being number of
     eigenvectors, select the eigenvector $E_i$ obtained from the
     weighted matrix as a candidate for inclusion in the spatial filter,
-    and estimate the model $ Y = \theta X + \\beta E_i + \epsilon $
-    using Ordinary Least Squares (OLS), where $\theta$ and $\beta$
-    are vectors of coefficients, and $\epsilon$ is a vector of error
-    terms.
+    and estimate the following model using Ordinary Least Squares (OLS),
+    where $\theta$ and $\beta$ are vectors of coefficients, and
+    $\epsilon$ is a vector of error terms.
+
+$$
+Y = \theta X + \beta E_i + \epsilon
+$$
+
 -   If coefficient $i$ is significant at a pre-determined level (eg,
     $p-value <= 0.05$), then synthesize the eigenvector and the existing
     filter: $S = S + \beta E_i$.
@@ -263,20 +267,18 @@ confidential and cannot be accessed outside of a Research Data Center.
     website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
 
 If you want to work with the original Census dataset, the process for
-obtaining the accessibility measures will be the same as for the test
-data, except that you will have to update the address of the file in the
-chunk[^3] called *load-census-data*.
+obtaining the spatial filters will be the same as for the test data,
+except that you will have to update the address of the file in the chunk
+called *load-census-data*.
 
-[^3]: A code chunk is an executable part of the R code
+For this R markdown, we'll use the following variables[^3]:
 
-For this R markdown, we'll use the following variables[^4]:
-
-[^4]: The explanation of each variable can be found in the [*2021 Census
+[^3]: The explanation of each variable can be found in the [*2021 Census
     of Population's
     website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
 
 |  |  |
-|-------------------------|-----------------------------------------------|
+|--------------------------|----------------------------------------------|
 | **Variable** | **Description** |
 | PRCDDA | Refers to the dissemination area (DA) of current residence. |
 | PCD | Census division of current residence. |
@@ -285,32 +287,11 @@ For this R markdown, we'll use the following variables[^4]:
 | PWCD | Place of work census division. |
 | PWDUR | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
 | PwMode | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work. |
-| PWDist | The straight-line distance, in kilometres, between a person's residence and his or her usual place of work. |
 
-: Census variables used in this R markdown.
+: Census variables used in this section.
 
-A dissemination area (DA) is a small, relatively stable geographic unit
-composed of one or more adjacent dissemination blocks. It is the
-smallest standard geographic area for which all census data are
-disseminated. DAs cover all Canadian territory.
-
-We will also use the travel time table with the impedance values,
-created and exported during the modelling of job accessibility. We are
-interested in the following variables of the travel time matrix:
-
-| **Variable** | **Description** |
-|-------------------|-----------------------------------------------------|
-| from_id | Refers to the DA defined as the origin. |
-| to_id | Refers to the DA defined as the destination. |
-| travel_time | Estimated travel time in minutes from origin to destination. |
-| PwMode | Transportation mode used to calculate the travel time. |
-| f | The impedance value obtained for the travel time in `travel_time` column. |
-
-: Travel time table variables used in this R markdown.
-
-Also, we will use the job spatial availability measures, also obtained
-after generating the accessibility models. The job spatial availability
-file has the following variables:
+We will use the job spatial availability measures. The job spatial
+availability file has the following variables:
 
 | **Variable** | **Description**                                        |
 |--------------|--------------------------------------------------------|
@@ -318,22 +299,39 @@ file has the following variables:
 | PwMode       | Transportation mode used to calculate the travel time. |
 | SA_im        | Job spatial availability for the DA.                   |
 
+: Job spatial availability variables.
 
-## Reading files
+To build the distance matrix, we will use the dissemination areas
+spatial file, previously downloaded using the `cancensus` package.
+Finally, we will explore the production of other spatial filters using
+the travel time matrix with the impedance values, created and exported
+after modelling job accessibilities. We are interested in the following
+variables of the travel time matrix:
 
-### Census
+| **Variable** | **Description** |
+|----------------------|--------------------------------------------------|
+| from_id | Refers to the DA defined as the origin. |
+| to_id | Refers to the DA defined as the destination. |
+| travel_time | Estimated travel time in minutes from origin to destination. |
+| PwMode | Transportation mode used to calculate the travel time. |
+| f | The impedance value obtained for the travel time in `travel_time` column. |
 
-Reading census data and creating a R data frame[^5]:
+: Travel time table variables used in this section.
 
-[^5]: For this demonstration, we will use the case of the city of
+## Read and preprocess the files
+
+- Census
+
+Reading census data and creating a R data frame[^4]:
+
+[^4]: For this demonstration, we will use the case of the city of
     Toronto. If you want to use the other options, the original data
     from the Census in an RDC office or the test data for all locations
     in Canada, *update* the address in the chunk.
 
-```{r}
-# For the original Census data set
-files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto.csv") # insert-the-RDC-address!!!
-census <- read.csv(files_address, header = TRUE)
+```{r load-census-data}
+data("census_test_toronto")
+census <- census_test_toronto
 ```
 
 If the original Census dataset available in the RDC is not in .csv
@@ -348,21 +346,12 @@ built-in R library) to import it:
 # There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
 ```
 
-Or if you have installed *CommuteCA*, you can access the *test* data:
-
-```{r load-census-data}
-# data("census_test_toronto")
-# census <- census_test_toronto
-```
-
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
 
-It's possible to filter the data frame by administrative (province
-and/or census division) and/or statistical (census metropolitan areas
-and census agglomerations)[^6]. The chunk below shows how to make this
-procedure:
+We will filter the data frame by census division[^5]. The chunk below
+shows how to make this procedure:
 
-[^6]: As said before, we will perform our analysis for the city of
+[^5]: As said before, we will perform our analysis for the city of
     Toronto. If you want to select a specific area to work, uncomment
     the code above that applies to your case and select the apropriate
     code of your interest unit. Please, check the dictionary to have
@@ -384,13 +373,14 @@ census <- census %>%
                     filter(PCD == code) # Only select respondents who live in  Toronto
 ```
 
+Select only the variables that we will use to build the spatial filters:
+
 ```{r select-variables-census}
 census_filtered <- census_filtered %>% 
           dplyr::select("PRCDDA",
                         "PCD",
                         "CompW1",
                         "PwMode",
-                        "PWDist",
                         "PWDUR",
                         "PWDA",
                         "PWCD")
@@ -437,17 +427,23 @@ census <- census  %>%
          PwMode = factor(PwMode, levels = c("Bike", "Walk", "Car/motor", "Transit")))
 ```
 
-```{r}
+Creating a Data Frame with workers who live and work in the city under
+study:
+
+```{r census-workers}
 census_workers <- census_filtered %>% 
   filter(PCD == code  & PWCD == code)
 ```
 
-```{r}
+Create a new Data Frame with all possible combinations of DA code and
+transportation modes:
+
+```{r census-exp}
 census_expanded <- expand.grid(PRCDDA = unique(census_filtered$PRCDDA),
                                PwMode = unique(census_filtered$PwMode))
 ```
 
-### Accessibility measures
+- Accessibility measures
 
 Setting the folder with the accessibility measures:
 
@@ -461,13 +457,13 @@ SA <- read.csv(paste0(measures_folder, "SA_mode_original_RDC.csv"))
 
 Preparing the accessibility file:
 
-```{r}
+```{r accessibility-process}
 SA_mode <- census_expanded %>% 
   left_join(SA, by = c("PRCDDA","PwMode")) %>%
   mutate(SA_im = replace_na(SA_im, 0))
 ```
 
-### Travel time matrix
+- Travel time matrix
 
 Reading the travel time table with the impedance measures:
 
@@ -479,16 +475,22 @@ ttm_folder <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/") # Updat
 ttm_f <- read.csv(paste0(ttm_folder, "ttm_f.csv"))
 ```
 
-### Spatial files
+- Spatial files
 
 Reading the dissemination areas spatial file:
 
-```{r read-ttm_f}
+```{r read-spatial-files}
 # Folder  
 directory_spatial_files <- paste0(here(),"/data-raw/output/PCD3520/spatial-files/") # Update it if necessary 
 
 # Read file
 da_file <- st_read(paste0(directory_spatial_files, "dissemination_areas.shp"))
+```
+
+Reading the census_divisions geometries:
+
+```{r census-div}
+census_divisions <-   st_read(paste0(directory_spatial_files, "census_divisions.shp"))
 ```
 
 ## Creating folder to save files
@@ -509,30 +511,38 @@ if(!dir.exists(diretorio_export_tables)){
 
 # Spatial filters
 
-## Spatial filter based on the commute distance (straight-line)
+## Spatial filter based on the contiguity
 
-```{r}
+The first spatial filter we will create is based on contiguity. This
+means that the weighted matrix will only have values of 0 or 1, where 0
+indicates that the DAs are not neighbors and 1 indicates that they are
+neighbors.
+
+First, we will create the contiguity matrix:
+
+```{r distance-matrix}
+# Contiguity matrix
 mtx_distance_binary <- spdep::nb2mat(spdep::poly2nb(da_file), style = "B", zero.policy = TRUE)
-```
 
-```{r}
+# Changing the diagonal column to 1
 diag(mtx_distance_binary) <- 1
 
+# Renaming the columns and row index so we can identify each DA
 rownames(mtx_distance_binary) <- da_file$DAUID
 colnames(mtx_distance_binary) <- da_file$DAUID
 ```
 
-```{r}
-# Calculo and values eigenvectors
+Calculating the contiguity matrix eigenvectors:
+
+```{r conti-eigen}
 ev_dist <- eigen(mtx_distance_binary)
 
-# Pego so os vectors e crio um dataframe 
+# Creating an Eigenvectors Data Frame 
 eigv_df <- as.data.frame(Re(ev_dist$vectors))
 
-# altero o nome das colunas 
 colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
 
-# adiciono nesse df de vectors o id do PRCDDA 
+# Adding the DA code to the Eigenvectors table 
 weight_matrix_eigv_dist <- cbind(eigv_df, PRCDDA = as.numeric(rownames(mtx_distance_binary)))
 ```
 
@@ -570,8 +580,7 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and
-accessibility:
+Creating a data frame with all spatial filters and accessibility:
 
 ```{r sf_dist-df}
 spatial_filter_dist <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMode")) %>%
@@ -621,13 +630,77 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot.jpg"))
 ```
 
-## Spatial filter based on the commute duration
+Visualizing the spatial filter in form of maps:
 
-### Median commmute time
+```{r sf-contiguity-map}
+spatial_filter_contiguity_spatial <- census_expanded %>%
+  filter(!is.na(PwMode)) %>% 
+  left_join(spatial_filter_dist, by = c("PRCDDA" = "PRCDDA",
+                                           "PwMode" = "PwMode")) %>% 
+  left_join(da_file %>% mutate(DAUID = as.numeric(DAUID)), by = c("PRCDDA" = "DAUID")) 
 
-Medians:
+spatial_filter_contiguity_spatial <- st_as_sf(spatial_filter_contiguity_spatial)
 
-```{r distance-medians}
+spatial_filter_contiguity_fig <- tm_shape(spatial_filter_contiguity_spatial) + 
+   tm_polygons("Sf_dist",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode") +       
+   tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_contiguity_fig, 
+          paste0(diretorio_export_figures,"contiguity_spatial_filter.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+
+spatial_filter_contiguity_fig2 <- tm_shape(spatial_filter_contiguity_spatial) + 
+   tm_polygons("Sf_dist",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode", free.scales = TRUE) +       
+  tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_contiguity_fig2, 
+          paste0(diretorio_export_figures,"contiguity_spatial_filter_2.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r sf-contiguity-map-fig}
+knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter.jpg"))
+```
+
+# Spatial filter based on the commute duration
+
+After creating the traditional spatial filter based on a contiguity
+matrix, we will now explore the potential of building a spatial filter
+based on a time matrix. First, we will create a binary matrix, where the
+values will be 0 if the commute duration is higher than the median
+duration, and 1 otherwise.
+
+Next, we will explore the possibility of building a spatial filter using
+the impedance values themselves. To do so, we will normalize the
+impedance values so they range from 0 to 1.
+
+## Median commute time
+
+Obtaining the median commute duration for each transportation mode:
+
+```{r duration-medians}
 dur_medians <- census_workers %>%
   filter(PwMode %in% c("Bike", "Walk", "Car/motor", "Transit")) %>% 
   group_by(PwMode) %>% 
@@ -637,10 +710,9 @@ dur_medians <- census_workers %>%
 dur_medians
 ```
 
-After visualizing the creation of a spatial filter for the bike mode, we
-will generate the spatial filter for each transportation mode:
+Creating the spatial filter for based on the median commute duration:
 
-```{r sf-all-modes}
+```{r sf-median-dur}
 mode_results <- list()
 
 for (mode in modes) {
@@ -690,10 +762,9 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and job
-accessibility:
+Creating a data frame with all spatial filters and job accessibility:
 
-```{r sf-df}
+```{r sf-median-df}
 spatial_filter_dur_medians <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
   dplyr::select(PRCDDA, PwMode, SA_im, Sf) %>% 
   rename(Sf_median_dur = Sf)
@@ -702,7 +773,7 @@ spatial_filter_dur_medians <- as.data.frame(bind_rows(mode_results, .id = "PwMod
 Pearson correlation between job spatial availability and spatial filter
 by transportation mode:
 
-```{r sf-correlations}
+```{r sf-median-correlations}
 correlations <- spatial_filter_dur_medians %>%
   group_by(PwMode) %>%
   summarise(correlation = cor(SA_im, Sf_median_dur, use = "complete.obs")) 
@@ -712,7 +783,7 @@ correlations
 
 Creating a scatter plot figure:
 
-```{r sf-plot}
+```{r sf-median-plot}
 r2_labels <- spatial_filter_dur_medians %>%
   group_by(PwMode) %>%
   summarise(r2 = summary(lm(Sf_median_dur ~ SA_im))$r.squared) %>%
@@ -738,16 +809,70 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatte
        dpi = 300)
 ```
 
-```{r sf-figure}
+```{r sf-median-figure}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dur_median_scatterplot.jpg"))
 ```
 
-### Duration impedance values
+Visualizing the spatial filter in form of maps:
 
-After visualizing the creation of a spatial filter for the bike mode, we
-will generate the spatial filter for each transportation mode:
+```{r sf-median-map}
+spatial_filter_dur_medians_spatial <- census_expanded %>%
+  filter(!is.na(PwMode)) %>% 
+  left_join(spatial_filter_dur_medians, by = c("PRCDDA" = "PRCDDA",
+                                           "PwMode" = "PwMode")) %>% 
+  left_join(da_file %>% mutate(DAUID = as.numeric(DAUID)), by = c("PRCDDA" = "DAUID")) 
 
-```{r sf-all-modes}
+spatial_filter_dur_medians_spatial <- st_as_sf(spatial_filter_dur_medians_spatial)
+
+spatial_filter_dur_medians_fig <- tm_shape(spatial_filter_dur_medians_spatial) + 
+   tm_polygons("Sf_median_dur",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode") +       
+   tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_dur_medians_fig, 
+          paste0(diretorio_export_figures,"median_duration_spatial_filter.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+
+spatial_filter_dur_medians_fig_2 <- tm_shape(spatial_filter_dur_medians_spatial) + 
+   tm_polygons("Sf_median_dur",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode", free.scales = TRUE) +       
+  tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_dur_medians_fig_2, 
+          paste0(diretorio_export_figures,"median_duration_spatial_filter_2.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r sf-median-dur-map-fig}
+knitr::include_graphics(paste0(diretorio_export_figures,"/median_duration_spatial_filter.jpg"))
+```
+
+## Commute duration impedance values
+
+Creating a spatial filter based on the commute duration impedance
+values:
+
+```{r sf-impedance}
 mode_results <- list()
 
 for (mode in modes) {
@@ -762,7 +887,8 @@ for (mode in modes) {
   
   # Compute eigenvectors
   mat <- as.matrix(weight_matrix[, -1])
-  ev <- eigen(mat)
+  mat_normalized <- (mat - min(mat)) / (max(mat) - min(mat))
+  ev <- eigen(mat_normalized)
   eigv_df <- as.data.frame(Re(ev$vectors))
   colnames(eigv_df) <- paste0("EV", seq_len(ncol(eigv_df)))
   
@@ -794,10 +920,9 @@ for (mode in modes) {
 }
 ```
 
-Visualizing creating a data frame with all spatial filters and
-accessibilities:
+Creating a data frame with all spatial filters and accessibilities:
 
-```{r sf-df}
+```{r sf-df-impedance}
 spatial_filter_imp_dur <- as.data.frame(bind_rows(mode_results, .id = "PwMode")) %>%
   dplyr::select(PRCDDA, PwMode, SA_im, Sf_imp_dur)
 ```
@@ -805,7 +930,7 @@ spatial_filter_imp_dur <- as.data.frame(bind_rows(mode_results, .id = "PwMode"))
 Pearson correlation between job spatial availability and spatial filter
 by transportation mode:
 
-```{r sf-correlations}
+```{r sf-impedance-correlations}
 correlations <- spatial_filter_imp_dur %>%
   group_by(PwMode) %>%
   summarise(correlation = cor(SA_im, Sf_imp_dur, use = "complete.obs")) 
@@ -815,7 +940,7 @@ correlations
 
 Creating a scatter plot figure:
 
-```{r sf-plot}
+```{r sf-impedance-plot}
 r2_labels <- spatial_filter_imp_dur %>%
   group_by(PwMode) %>%
   summarise(r2 = summary(lm(Sf_imp_dur ~ SA_im))$r.squared) %>%
@@ -836,19 +961,73 @@ theme_minimal()
 ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_imp_dur_scatterplot.jpg"), 
        plot = spatial_filter_imp_dur_fig,
        width = 16, 
-       height = 9, 
+       height = 10, 
        units = "cm", 
        dpi = 300)
 ```
 
-```{r sf-figure}
+```{r sf-impedance-figure}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_imp_dur_scatterplot.jpg"))
+```
+
+Visualizing the spatial filter in form of maps:
+
+```{r sf-imp-map}
+spatial_filter_imp_dur_spatial <- census_expanded %>%
+  filter(!is.na(PwMode)) %>% 
+  left_join(spatial_filter_imp_dur, by = c("PRCDDA" = "PRCDDA",
+                                           "PwMode" = "PwMode")) %>% 
+  left_join(da_file %>% mutate(DAUID = as.numeric(DAUID)), by = c("PRCDDA" = "DAUID")) 
+
+spatial_filter_imp_dur_spatial <- st_as_sf(spatial_filter_imp_dur_spatial)
+
+spatial_filter_imp_dur_fig <- tm_shape(spatial_filter_imp_dur_spatial) + 
+   tm_polygons("Sf_imp_dur",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode") +       
+   tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_imp_dur_fig, 
+          paste0(diretorio_export_figures,"impedance_spatial_filter.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+
+spatial_filter_imp_dur_fig_2 <- tm_shape(spatial_filter_imp_dur_spatial) + 
+   tm_polygons("Sf_imp_dur",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode", free.scales = TRUE) +       
+  tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(spatial_filter_imp_dur_fig_2, 
+          paste0(diretorio_export_figures,"impedance_spatial_filter_2.jpg"), 
+          width = 20, 
+          height = 18, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r sf-imp-map-fig}
+knitr::include_graphics(paste0(diretorio_export_figures,"/impedance_spatial_filter.jpg"))
 ```
 
 # Data export
 
-Creating a unique file with all spatial filters (distance, median
-commute duration, and impedance):
+Creating a unique file with all spatial filters (contiguity, median
+commute duration, and impedance values):
 
 ```{r}
 spatial_filter <- spatial_filter_dist %>%
@@ -862,11 +1041,11 @@ Exporting the spatial filters (original file):
 write.csv(spatial_filter, paste0(diretorio_export_tables, "spatial_filter_original.csv"), row.names=FALSE)
 ```
 
+## Confidentiality vetting
+
 If you are interested in manipulating the spatial filters outside a RDC
 Office, the following codes will create a release version that it is in
-accordance to the confidentiality vetting rules:
-
-## Confidentiality vetting
+accordance to the confidentiality vetting rules.
 
 Confidentiality vetting is the process of reviewing the results to be
 released by the Research Data Center to ensure that confidentiality
@@ -917,3 +1096,5 @@ write.csv(spatial_filter_support, paste0(diretorio_export_tables, "spatial_filte
 
 write.csv(spatial_filter_release, paste0(diretorio_export_tables, "spatial_filter_release.csv"), row.names=FALSE)
 ```
+
+# References {#references .unnumbered}

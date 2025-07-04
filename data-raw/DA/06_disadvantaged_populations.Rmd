@@ -1,5 +1,5 @@
 ---
-title: "Selecting disadvantaged population groups in terms of accessibility  (_Dissemination area_ level)"
+title: "Selecting disadvantaged population groups in terms of accessibility"
 runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
 subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
 author: "Bruno Santos & Antonio Paez"

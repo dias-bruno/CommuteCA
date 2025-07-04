@@ -1,12 +1,12 @@
 ---
-title: "Visualizing accessibility measures (_Dissemination area_ level)"
+title: "Visualizing accessibility measures (Dissemination area level)"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
@@ -18,7 +18,7 @@ editor_options:
 ---
 
 ```{r clean-workspace, include=FALSE}
-# cleaning objects from the workspace 
+# cleaning objects from the work space 
 rm(list = ls())
 ```
 
@@ -231,12 +231,13 @@ lf_jobs_DA <- tmap_arrange(labour_force_plot, jobs_plot, ncol = 2)
 
 tmap_save(lf_jobs_DA, 
           paste0(diretorio_export_figures,"lf_jobs_DA.jpg"), 
-          width = 20, 
+          width = 15, 
           height = 15, 
           units = "cm", 
           dpi = 300)
-
-lf_jobs_DA
+```
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_DA.jpg"))
 ```
 
 Plotting the accessibility measures:
@@ -274,12 +275,14 @@ HT_SA_DA <- tmap_arrange(ht_plot, sa_plot, ncol = 2)
 
 tmap_save(HT_SA_DA, 
           paste0(diretorio_export_figures,"HT_SA_DA.jpg"), 
-          width = 20, 
+          width = 15, 
           height = 15, 
           units = "cm", 
           dpi = 300)
+```
 
-HT_SA_DA
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_SA_DA.jpg"))
 ```
 
 Plotting the jobs per labour force, and the spatial availability per
@@ -337,12 +340,14 @@ jobs_SA_per_lf_DA <- tmap_arrange(jobs_per_labour_force, SA_per_labour_force, nc
 
 tmap_save(jobs_SA_per_lf_DA, 
           paste0(diretorio_export_figures,"jobs_SA_per_lf_DA.jpg"), 
-          width = 20, 
+          width = 15, 
           height = 15, 
           units = "cm", 
           dpi = 300)
+```
 
-jobs_SA_per_lf_DA
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/jobs_SA_per_lf_DA.jpg"))
 ```
 
 ## Visualizing the accessibility measures by transportation modes with maps
@@ -364,12 +369,39 @@ total_pop_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
 
 tmap_save(total_pop_by_mode_DA, 
           paste0(diretorio_export_figures,"total_pop_by_mode_DA.jpg"), 
-          width = 20, 
-          height = 20, 
+          width = 15, 
+          height= 15, 
           units = "cm", 
           dpi = 300)
+```
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_pop_by_mode_DA.jpg"))
+```
 
-total_pop_by_mode_DA
+Visualizing the total labour force by transportation mode (with independent legends for each facet):
+
+```{r}
+total_pop_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) + 
+  tm_polygons("labour_force",
+              style = "cont",
+              palette = "Reds",
+              title = " ",
+              border.col = NULL) +  
+  tm_facets(by = "PwMode", free.scales = TRUE) +       
+  tm_scale_bar(position = c("right", "bottom")) +
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(total_pop_by_mode_DA_2, 
+          paste0(diretorio_export_figures,"total_pop_by_mode_DA_2.jpg"), 
+          width = 15, 
+          height= 15, 
+          units = "cm", 
+          dpi = 300)
+```
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_pop_by_mode_DA_2.jpg"))
 ```
 
 Visualizing the Hansen-type accessibility by transportation mode:
@@ -389,12 +421,41 @@ HT_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
 
 tmap_save(HT_by_mode_DA, 
           paste0(diretorio_export_figures,"HT_by_mode_DA.jpg"), 
-          width = 20, 
-          height = 20, 
+          width = 15, 
+          height= 15, 
           units = "cm", 
           dpi = 300)
+```
 
-HT_by_mode_DA
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_by_mode_DA.jpg"))
+```
+
+Visualizing the Hansen-type accessibility by transportation mode (with independent legends for each facet):
+
+```{r}
+HT_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) + 
+   tm_polygons("HT_im",
+              style = "cont",
+              palette = "Purples",
+              title = " ",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_facets(by = "PwMode", free.scales = TRUE) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(HT_by_mode_DA_2, 
+          paste0(diretorio_export_figures,"HT_by_mode_DA_2.jpg"), 
+          width = 15, 
+          height = 15, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_by_mode_DA_2.jpg"))
 ```
 
 Visualizing the Spatial Availability by transportation mode:
@@ -414,12 +475,41 @@ SA_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
 
 tmap_save(SA_by_mode_DA, 
           paste0(diretorio_export_figures,"SA_by_mode_DA.jpg"), 
-          width = 20, 
-          height = 20, 
+          width = 15, 
+          height= 15, 
           units = "cm", 
           dpi = 300)
+```
 
-SA_by_mode_DA
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_by_mode_DA.jpg"))
+```
+
+Visualizing the Spatial Availability by transportation mode (with independent legends for each facet):
+
+```{r}
+SA_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) + 
+   tm_polygons("SA_im",
+              style = "cont",
+              palette = "Oranges",
+              title = " ",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_facets(by = "PwMode", free.scales = TRUE) + 
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(SA_by_mode_DA_2, 
+          paste0(diretorio_export_figures,"SA_by_mode_DA_2.jpg"), 
+          width = 15, 
+          height= 15, 
+          units = "cm", 
+          dpi = 300)
+``` 
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_by_mode_DA_2.jpg"))
 ```
 
 Computing of the labour force by transportation mode:
@@ -430,7 +520,7 @@ total_SA <- sum(mode_metrics_da$SA_im)
 
 modal_SA_percents <- mode_metrics_da %>% 
   group_by(PwMode) %>%
-  summarize(total_labour_fource = sum(labour_force),
+  dplyr::summarize(total_labour_fource = sum(labour_force),
             SA_meam = mean(SA_im),
             SA_sum = sum(SA_im),
             perc_SA = sum(SA_im)/total_SA, 
@@ -447,9 +537,9 @@ transportation mode:
 Pop_SA_by_mode_DA <- ggplot(modal_SA_long, 
       aes(x = perc, y = measure, fill = PwMode, label = measure %>% percent(accuracy = 0.1))) +
       scale_x_discrete(labels = c(
-      "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", round(total_SA), ")"),
-      "perc_pop" = paste("Population\n by Mode\n(Total: ", round(total_pop), ")") )) +
-  geom_col() + 
+      "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", formatC(total_SA, format = "f", digits = 0, big.mark = ","), ")"),
+      "perc_pop" = paste("Population\n by Mode\n(Total: ", formatC(total_pop, format = "f", digits = 0, big.mark = ","), ")") )) +
+  geom_col(width = 0.25) + 
   geom_text(position = position_stack(vjust=0.5), color="black") +
   theme_classic() +
   theme(axis.ticks = element_blank(),
@@ -464,9 +554,13 @@ Pop_SA_by_mode_DA <- ggplot(modal_SA_long,
 ggsave(file = paste0(diretorio_export_figures,"Pop_SA_by_mode_DA.jpg"), 
        plot = Pop_SA_by_mode_DA,
        width = 10, 
-       height = 10, 
+       height = 8, 
        units = "cm", 
        dpi = 300)
-
-Pop_SA_by_mode_DA
 ```
+
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_figures,"/Pop_SA_by_mode_DA.jpg"))
+```
+

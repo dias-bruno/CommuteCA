@@ -3,10 +3,10 @@ title: "Basics of R and Data"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_handout:
+  tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
-  tufte::tufte_book:
+  tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
   tufte::tufte_html: default
