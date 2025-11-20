@@ -85,6 +85,13 @@ results obtained through the synthetic or original census survey.
 Additionally, we will use the dissemination areas (DA) geometry,
 available in this package, to plot maps of the study area.
 
+# Vetting observations 
+
+Maps should follow the same rules for tabular output in that each geographic region in the map must contain the
+minimum number of respondents and meet all applicable vetting guidelines. Data users should check that there is no
+“geographical slivering” from omitted geographical areas that would result in a residual confidentiality issue (where the
+subtraction of all releasable geographic areas from the total would identify the omitted geographic areas). For this reason, we will only use already tables released by the RDC to produce all the following maps. 
+ 
 # Let's code!
 
 Load the packages:
@@ -110,12 +117,11 @@ measures_folder <- paste0(here::here(),"/data-raw/output/", code, "/DA/accessibi
 
 
 ```{r reading-tables}
-HT_mode <- read.csv(paste0(measures_folder, "HT_mode_original.csv"))
-HT <- read.csv(paste0(measures_folder, "HT_general_original.csv"))
-SA_mode <- read.csv(paste0(measures_folder, "SA_mode_original.csv"))
-SA <- read.csv(paste0(measures_folder, "SA_general_original.csv"), fileEncoding = "UTF-8-BOM")
-land_use_mode <- read.csv(paste0(measures_folder, "land_use_mode_original_DA.csv"))
-land_use_general <- read.csv(paste0(measures_folder, "land_use_general_original_DA.csv"))
+HT_mode <- read.csv(paste0(measures_folder, "HT_mode_release.csv"))
+HT <- read.csv(paste0(measures_folder, "HT_general_release.csv"))
+SA_mode <- read.csv(paste0(measures_folder, "SA_mode_release.csv"))
+SA <- read.csv(paste0(measures_folder, "SA_general_release.csv"), fileEncoding = "UTF-8-BOM")
+land_use_mode <- read.csv(paste0(measures_folder, "land_use_release.csv"))
 ```
 
 Reading the DA geometries:
@@ -136,19 +142,19 @@ Merging the dissemination_areas with the accessibility measures tables:
 names(dissemination_areas)[1] <- "PRCDDA"
 
 mode_metrics_da <- 
-  expand.grid(PRCDDA = unique(dissemination_areas$PRCDDA), PwMode = unique(HT_mode$PwMode)) %>%
+  expand.grid(PRCDDA = unique(dissemination_areas$PRCDDA), PwMode_label = unique(HT_mode$PwMode_label)) %>%
   full_join(dissemination_areas, by = "PRCDDA") %>%
   mutate(PRCDDA = as.numeric(PRCDDA)) %>%
-  full_join(HT_mode, by = c("PRCDDA", "PwMode")) %>%
-  full_join(SA_mode, by = c("PRCDDA", "PwMode")) %>% 
-  full_join(land_use_mode[,c("PRCDDA","PwMode","labour_force")], by = c("PRCDDA", "PwMode"))
+  full_join(HT_mode, by = c("PRCDDA", "PwMode_label")) %>%
+  full_join(SA_mode, by = c("PRCDDA", "PwMode_label")) %>% 
+  full_join(land_use_mode[,c("PRCDDA","PwMode_label","labour_force")], by = c("PRCDDA", "PwMode_label"))
 
-mode_metrics_da <- mode_metrics_da %>%
-  mutate(
-    HT_im = ifelse(is.na(HT_im), 0, HT_im),
-    SA_im = ifelse(is.na(SA_im), 0, SA_im),
-    labour_force = ifelse(is.na(labour_force), 0, labour_force)
-  )
+# mode_metrics_da <- mode_metrics_da %>%
+#   mutate(
+#     HT_im = ifelse(is.na(HT_im), 0, HT_im),
+#     SA_im = ifelse(is.na(SA_im), 0, SA_im),
+#     labour_force = ifelse(is.na(labour_force), 0, labour_force)
+#   )
 
 mode_metrics_da_sf <- st_as_sf(mode_metrics_da, crs = st_crs(dissemination_areas))
 ```
@@ -156,18 +162,24 @@ mode_metrics_da_sf <- st_as_sf(mode_metrics_da, crs = st_crs(dissemination_areas
 Preparing the tables to plot the maps:
 
 ```{r}
+# General land use
+land_use_general <- land_use_mode %>% 
+  group_by(PRCDDA) %>% 
+  summarise(labour_force = sum(labour_force, na.rm = TRUE), 
+            jobs = max(jobs_rounded, na.rm = TRUE))
+
 # Hansen
 HT_metrics_da <- dissemination_areas %>% 
   mutate(PRCDDA = as.numeric(PRCDDA)) %>%
   full_join(HT, by = "PRCDDA") %>%
   full_join(land_use_general, by ="PRCDDA")
 
-HT_metrics_da <- HT_metrics_da %>%
-  mutate(
-    HT_i = ifelse(is.na(HT_i), 0, HT_i),
-    labour_force = ifelse(is.na(labour_force), 0, labour_force),
-    jobs = ifelse(is.na(jobs), 0, jobs)
-  )
+# HT_metrics_da <- HT_metrics_da %>%
+#   mutate(
+#     HT_i = ifelse(is.na(HT_i), 0, HT_i),
+#     labour_force = ifelse(is.na(labour_force), 0, labour_force),
+#     jobs = ifelse(is.na(jobs), 0, jobs)
+#   )
 
 
 # Spatial Availability
@@ -176,12 +188,12 @@ SA_metrics_da <- dissemination_areas %>%
   full_join(SA, by = "PRCDDA") %>% 
   full_join(land_use_general, by ="PRCDDA")
 
-SA_metrics_da <- SA_metrics_da %>%
-  mutate(
-    SA_i = ifelse(is.na(SA_i), 0, SA_i),
-    labour_force = ifelse(is.na(labour_force), 0, labour_force),
-    jobs = ifelse(is.na(jobs), 0, jobs)
-  )
+# SA_metrics_da <- SA_metrics_da %>%
+#   mutate(
+#     SA_i = ifelse(is.na(SA_i), 0, SA_i),
+#     labour_force = ifelse(is.na(labour_force), 0, labour_force),
+#     jobs = ifelse(is.na(jobs), 0, jobs)
+#   )
 ```
 
 ## Visualizing the accessibility measures with maps
@@ -236,6 +248,8 @@ tmap_save(lf_jobs_DA,
           units = "cm", 
           dpi = 300)
 ```
+
+
 ```{r}
 knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_DA.jpg"))
 ```
@@ -299,8 +313,7 @@ HT_metrics_da <- HT_metrics_da %>%
 
 jobs_per_labour_force <- tm_shape(HT_metrics_da) + 
    tm_polygons("jobs_per_lf",
-              style = "fixed",
-              breaks = c(0, 0.5, 1, 2.5, 5, 10, Inf),
+              style = "cont",
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
@@ -310,7 +323,7 @@ jobs_per_labour_force <- tm_shape(HT_metrics_da) +
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_layout(legend.outside = FALSE,
             legend.position = c("left", "bottom"),
-            panel.labels = "Jobs per person in labour fource")
+            panel.labels = "Jobs per labour fource")
 
 SA_metrics_da$SA_per_lf <- SA_metrics_da$jobs / SA_metrics_da$labour_force
 
@@ -322,8 +335,7 @@ SA_metrics_da <- SA_metrics_da %>%
 
 SA_per_labour_force <- tm_shape(SA_metrics_da) + 
    tm_polygons("SA_per_lf",
-              style = "fixed",
-              breaks = c(0, 0.5, 1, 2.5, 5, 10, Inf),
+              style = "cont",
               palette = "RdYlGn",
               title = " ",
               border.col = NULL) + 
@@ -333,7 +345,7 @@ SA_per_labour_force <- tm_shape(SA_metrics_da) +
   tm_compass(position = c("left", "top"), size=1.0)  + 
   tm_layout(legend.outside = FALSE,
             legend.position = c("left", "bottom"),
-            panel.labels = "Spatial availability per person in labour force")
+            panel.labels = "Spatial availability per labour force")
 
 jobs_SA_per_lf_DA <- tmap_arrange(jobs_per_labour_force, SA_per_labour_force, ncol = 2)
 
@@ -361,7 +373,7 @@ total_pop_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
               palette = "Reds",
               title = " ",
               border.col = NULL) +  
-   tm_facets(by = "PwMode") +       
+   tm_facets(by = "PwMode_label") +       
    tm_scale_bar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
    tm_shape(census_divisions) +
@@ -374,6 +386,7 @@ tmap_save(total_pop_by_mode_DA,
           units = "cm", 
           dpi = 300)
 ```
+
 ```{r}
 knitr::include_graphics(paste0(diretorio_export_figures,"/total_pop_by_mode_DA.jpg"))
 ```
@@ -387,7 +400,7 @@ total_pop_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) +
               palette = "Reds",
               title = " ",
               border.col = NULL) +  
-  tm_facets(by = "PwMode", free.scales = TRUE) +       
+  tm_facets(by = "PwMode_label", free.scales = TRUE) +       
   tm_scale_bar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
    tm_shape(census_divisions) +
@@ -415,7 +428,7 @@ HT_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
               border.col = NULL) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
-  tm_facets(by="PwMode") + 
+  tm_facets(by="PwMode_label") + 
    tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
@@ -442,7 +455,7 @@ HT_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) +
               border.col = NULL) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
-  tm_facets(by = "PwMode", free.scales = TRUE) + 
+  tm_facets(by = "PwMode_label", free.scales = TRUE) + 
    tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
@@ -469,7 +482,7 @@ SA_by_mode_DA <- tm_shape(mode_metrics_da_sf) +
               border.col = NULL) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
-  tm_facets(by="PwMode") + 
+  tm_facets(by="PwMode_label") + 
    tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
@@ -496,7 +509,7 @@ SA_by_mode_DA_2 <- tm_shape(mode_metrics_da_sf) +
               border.col = NULL) + 
   tm_scale_bar(position = c("right", "bottom"))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
-  tm_facets(by = "PwMode", free.scales = TRUE) + 
+  tm_facets(by = "PwMode_label", free.scales = TRUE) + 
    tm_shape(census_divisions) +
    tm_borders("black", lwd=0.5)
 
@@ -515,16 +528,16 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/SA_by_mode_DA_2.jpg"))
 Computing of the labour force by transportation mode:
 
 ```{r}
-total_pop <- sum(land_use_mode$labour_force)
-total_SA <- sum(mode_metrics_da$SA_im)
+total_pop <- sum(land_use_mode$labour_force, na.rm = TRUE)
+total_SA <- sum(mode_metrics_da$SA_im, na.rm = TRUE)
 
 modal_SA_percents <- mode_metrics_da %>% 
-  group_by(PwMode) %>%
-  dplyr::summarize(total_labour_fource = sum(labour_force),
-            SA_meam = mean(SA_im),
-            SA_sum = sum(SA_im),
-            perc_SA = sum(SA_im)/total_SA, 
-            perc_pop= sum(labour_force)/total_pop)
+  group_by(PwMode_label) %>%
+  dplyr::summarize(total_labour_fource = sum(labour_force, na.rm = TRUE),
+            SA_meam = mean(SA_im, na.rm = TRUE),
+            SA_sum = sum(SA_im, na.rm = TRUE),
+            perc_SA = sum(SA_im, na.rm = TRUE)/total_SA, 
+            perc_pop= sum(labour_force, na.rm = TRUE)/total_pop)
 
 modal_SA_long <- modal_SA_percents %>%
   pivot_longer(cols = c(perc_SA, perc_pop), names_to = "perc", values_to = "measure")
@@ -535,12 +548,12 @@ transportation mode:
 
 ```{r}
 Pop_SA_by_mode_DA <- ggplot(modal_SA_long, 
-      aes(x = perc, y = measure, fill = PwMode, label = measure %>% percent(accuracy = 0.1))) +
+      aes(x = perc, y = measure, fill = PwMode_label, label = measure %>% percent(accuracy = 0.1))) +
       scale_x_discrete(labels = c(
       "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", formatC(total_SA, format = "f", digits = 0, big.mark = ","), ")"),
       "perc_pop" = paste("Population\n by Mode\n(Total: ", formatC(total_pop, format = "f", digits = 0, big.mark = ","), ")") )) +
   geom_col(width = 0.25) + 
-  geom_text(position = position_stack(vjust=0.5), color="black") +
+  geom_text(position = position_stack(vjust=0.5), color="black", size = 3) +
   theme_classic() +
   theme(axis.ticks = element_blank(),
         axis.title = element_blank(),

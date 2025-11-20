@@ -19,7 +19,7 @@ library('devtools') # Tools to Make Developing R Packages Easier
 ```{r}
 # reading file
 census_test_data <- read_csv(glue::glue(here::here(), 
-                                        "/data-ignore-inputs/census_test_v3.csv"))
+                                        "/data-ignore-inputs/census_test_v5.csv"))
 ```
 
 ```{r}
@@ -33,7 +33,7 @@ usethis::use_data(census_test_data,
 ```{r}
 # reading file
 census_test_toronto <- read_csv(glue::glue(here::here(), 
-                                        "/data-ignore-inputs/census_test_toronto.csv"))
+                                        "/data-ignore-inputs/census_test_toronto_v2.csv"))
 ```
 
 ```{r}
@@ -129,6 +129,7 @@ usethis::use_data(pcd_max_travel_times,
                   compress = "bzip2",
                   overwrite = TRUE)
 ```
+
 # Maximum Travel Times CMA
 
 ```{r}

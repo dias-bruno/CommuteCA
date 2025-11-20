@@ -18,11 +18,36 @@ pkg_dir <- paste0(here(), "/packages-to-install")
 dir.create(pkg_dir, showWarnings = FALSE)
 
 # 4. Defining the main libraries to install and checking their dependencies
-main_pkgs <- c("dplyr", "fitdistrplus", "scales", "here", "corrr",
-               "janitor", "ggplot2", "ggridges", "readr", "skimr",
-               "RColorBrewer", "sf", "tmap", "widgetframe", "tidyr",
-               "rmarkdown", "knitr", "tufte", "DescTools", "poliscidata",
-               "Hmisc", "weights")
+main_pkgs <- c("corrr",
+  "DescTools",
+  "dplyr",
+  "fitdistrplus",
+  "ggplot2",
+  "ggridges",
+  "here",
+  "Hmisc",
+  "janitor",
+  "knitr",
+  "matlib",
+  "poliscidata",
+  "psych",
+  "purrr",
+  "RColorBrewer",
+  "readr",
+  "rmarkdown",
+  "scales",
+  "sf",
+  "skimr",
+  "spdep",
+  "stringr",
+  "survey",
+  "tibble",
+  "tidyr",
+  "tmap",
+  "tufte",
+  "VGAM",
+  "weights",
+  "widgetframe")
 
 pkgs_needed <- pkgDep(main_pkgs, suggests = FALSE, enhances = FALSE)
 

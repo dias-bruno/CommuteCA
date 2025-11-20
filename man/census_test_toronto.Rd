@@ -5,7 +5,7 @@
 \alias{census_test_toronto}
 \title{2021 Census of Population Test Data for the City of Toronto}
 \format{
-A data frame object containing 56,650 rows and 26 variables; each row represents a unique (fake) respondent.
+A data frame object containing 52,274 rows and 32 variables; each row represents a unique (fake) respondent.
 \describe{
 \item{Frame_ID}{Unique identifier of the (fake) respondent.}
 \item{PRCDDA}{Refers to the dissemination area (DA) of current residence}
@@ -14,7 +14,7 @@ A data frame object containing 56,650 rows and 26 variables; each row represents
 \item{PCD}{Census division of current residence.}
 \item{CompW1}{Weight for the households and dwellings universes.}
 \item{LBR_FORC}{This variable refers to whether a person was employed, unemployed or not in the labour force.}
-\item{CfInc}{Total income of census family (sum of the total incomes of all members of that family).}
+\item{CfInc_AT}{Total income of census family (sum of the total incomes of all members of that family) after tax.}
 \item{CFCNT}{Census family size (numbers of persons).}
 \item{CF_PnCF_NumEarners}{Number of earners in census family.}
 \item{PWDA}{Place of work dissemination area.}
@@ -24,6 +24,7 @@ A data frame object containing 56,650 rows and 26 variables; each row represents
 \item{PWDUR}{Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work.}
 \item{PWDist}{Distance (straight line) from home to work.}
 \item{PwMode}{Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.}
+\item{Mob5}{Mobility Status - Place of residence 5 years ago (2016).}
 \item{AGE}{Age of the (fake) respondent.}
 \item{GENDER_BINARY}{Gender of (fake) person (binary).}
 \item{LOLICOA}{Low-income status based on LICO-AT (after tax).}
@@ -33,6 +34,11 @@ A data frame object containing 56,650 rows and 26 variables; each row represents
 \item{IMMCAT5}{Immigration: Admission category.}
 \item{PerImmA}{Immigration: Immigrant status and period of immigration (by five year group).}
 \item{DVisMin}{If the (fake) person is part of a visible minority group.}
+\item{HCDD}{Education: Highest certificate, diploma or degree.}
+\item{CFKID0T5}{Number of children in census family aged 0 to 5.}
+\item{WEEKS}{Weeks worked during the reference year.}
+\item{LOKWK}{Looked for paid work in past four weeks (full- or part-time work).}
+\item{GovtI_SocAssist}{ Income: Social assistance benefits.}
 }
 }
 \usage{

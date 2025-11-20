@@ -1,0 +1,111 @@
+---
+title: Short Paper
+author:
+  - name: Alice Anonymous
+    email: alice@example.com
+    affiliation: Some Institute of Technology
+    correspondingauthor: true
+    footnote: 1
+  - name: Bob Security
+    email: bob@example.com
+    affiliation: Another University
+  - name: Cat Memes
+    email: cat@example.com
+    affiliation: Another University
+    footnote: 2
+  - name: Derek Zoolander
+    email: derek@example.com
+    affiliation: Some Institute of Technology
+    footnote: 2
+address:
+  - code: Some Institute of Technology
+    organization: Big Wig University
+    addressline: 1 main street
+    city: Gotham
+    state: State
+    postcode: 123456
+    country: United States
+  - code: Another University
+    organization: Department
+    addressline: A street 29
+    postcode: 2054 NX
+    city: Manchester,
+    country: The Netherlands
+footnote:
+  - code: 1
+    text: "This is the first author footnote."
+  - code: 2
+    text: "Another author footnote."
+abstract: |
+  This is the abstract.
+
+  It consists of two paragraphs.
+keywords: 
+  - keyword1
+  - keyword2
+journal: "An awesome journal"
+date: "`r Sys.Date()`"
+linenumbers: false
+numbersections: true
+bibliography: mybibfile.bib
+biblio-style: elsarticle-harv # author year style for natbib - use 'elsarticle-num' or 'elsarticle-num-names' for numbered scheme
+classoption: preprint, 3p, authoryear # remove authoryear is not using `elsarticle-harv`
+# Use a CSL with `citation_package = "default"`
+# csl: https://www.zotero.org/styles/elsevier-harvard
+output: 
+  rticles::elsevier_article:
+    keep_tex: true
+    citation_package: natbib
+---
+
+# Introduction
+
+what impact has job accessibility on employment outcomes? how does this impact varies in terms of different transportation modes? how does this impact varies in term of an accessibility disadvantaged and non-disadvantaged population?
+
+# Theoretical background
+
+## Accessibility and employment outcomes
+
+Studies connecting employment outcomes to job accessibility date back to the 1960s, when John Kain (1968) proposed the spatial mismatch hypothesis while analyzing Detroit, Chicago, USA. Kain (1968) hypothesized that the low employment rates among Black Americans in inner cities resulted from employment decentralization and the difficulty faced by the Black population in moving out of these areas, primarily due to racial discrimination and segregation. Later, some other researchers observed that similar forces could affect poor white populations segregated in inner cities due to income rather than race (Bania et al., 2008).
+
+Studies linking employment outcomes and accessibility have produced varying results in terms of statistical significance and the impact of accessibility variables on the dependent variable. Starting with studies that did not identify a link between employment outcomes and accessibility, Bania et al. (2008) examined the relationship between job access and labour market outcomes (employment, earnings, hourly wage, and weekly hours worked) for women leaving welfare in Cuyahoga County, Ohio, USA. The study found no significant effect for job access variables. Instead, education levels and prior work history were consistently more important in explaining outcomes. Household context, such as the presence or absence of children or a spouse, children’s ages, and disability status, influenced with significance employment propensity, wages, or hours worked. The accessibility measure used in this study was a division of potential job accessibility (similar to Hansen’s measure, where job opportunities are weighted by a distance decay function with proximity as the decay variable) divided by a measure of proximity to labor market competitors to try to capture the competition.
+
+Delmelle et al., (2021) also found no significant relationship between accessibility and employment outcomes in the Metropolitan Area of Charlotte, North Carolina, USA. The authors developed three models for different population subsets (all households, low-income households, and high-income households) and found that changes in accessibility had no significant impact on employment rates. They suggested that the spatial separation between lower-wage workers and their workplaces might already be relatively small, which would explain the absence of significant relationship between accessibility on the analyzed employment outcome. However, this study only analyzed car-based job accessibility, justifying the motorized mode corresponds to more than 90% of the trips made. 
+
+In a Canadian context, Pis (2019) aimed to understand the extent to which job accessibility affects the probability of employment among immigrants in Montreal and Toronto when compared to the non-immigrant population. The author created different logistic regression models, starting with only a transit-accumulated job accessibility measure as an explanatory variable and, step by step, added new socioeconomic and demographic variables to the other models, increasing the complexity of the new models and isolating the effect of accessibility. The results show that job accessibility has a weak effect on the chances of employment in both cities, and increasing levels of job accumulated accessibility are associated with decreasing probabilities of employment. In Montreal, there is a downward slope of the marginal effects for all models, meaning that there is a generally inverse relationship between transit-based job accessibility and employment outcomes in the city, or there are unobserved factors that influence the probability of employment at different levels of accessibility. In the case of Toronto, even though accessibility is associated with positive employment probabilities in the more complex model, the marginal effect of accessibility depends on other spatial factors, and increased accessibility to employment is associated with lower employment probabilities for immigrants and non-immigrants. Furthermore, the two sets of subpopulations consistently exhibit almost parallel slopes in the models. The difference in employment probability between immigrants and non-immigrants persists at all levels of accessibility, suggesting that the cumulative measure of accessibility to employment does not explain the difference in employment probability between subpopulations. 
+
+Some studies have identified mixed effects of accessibility on employment outcomes. Hu (2017) separated the population of Los Angeles metropolitan area into six groups according to income level to analyze the effect of accessibility. Job accessibility had no statistically significant effect on the employment status of the lowest income (household income below \$ 25,000) or middle to high income (income above \$ 75,000) groups. The results corroborate the hypotheses that low-income groups cannot take advantage of proximity to employment and that high-income groups can overcome spatial barriers regardless of accessibility to employment. For the lowest income group (below \$ 25,000), having a car significantly increased the chances of employment, but job accessibility had no effect. However, job accessibility positively affected the employment situation of groups with household incomes between \$ 25,000 and \$ 75,000 (middle to low income). In this case, for middle-to low-income job seekers, living in areas with greater accessibility increases the likelihood of being employed. A one standard deviation change in job accessibility was associated with a 10.5% change in the probability of employment for the group earning between \$ 25,000 and $49,999, and an 11.2% change for people earning between \$ 50,000 and \$ 74,999. The author explains these differences in the effect of accessibility between income groups due to the spatial distribution of this subpopulation within the study area.  However, it is important to mention that Hu (2017) included accessibility to public transport only for the lowest income, since they rely more on cars than the other groups, with the other income groups being analyzed in terms of accessibility to the car. 
+
+Merlin and Hu (2017), also studying Los Angeles, compared four accessibility measures: two non-competitive (cumulative opportunity and gravity-based) and two competitive (Shen and doubly constrained gravity-based). They found that the statistical significance and coefficient size of accessibility variables increased with higher educational levels, suggesting that job accessibility has a stronger association with employment status for higher education groups. The reason why accessibility measures are less important for lower-educated groups may be that these groups are more limited by non-spatial factors that impede their employment opportunities, such as qualifications and social skills. On the other hand, for workers with a higher level of education, the time and monetary costs of spatial separation itself may play a relatively more important role, so accessibility measures may have a greater impact on their decision and ability to enter the labor market. In my opinion, good findings come from this study: they identified that competitive accessibility measures showed higher significance levels and better model fit than non-competitive measures. This result emphasizes the importance of using competitive measures when linking accessibility to employment outcomes. Competitive accessibility measures presented the strongest relationship with employment outcomes across all educational groups, while non-competitive measures in several cases do not have a statistically significant association with the employment of disadvantaged education groups.
+
+Another mixed effect was obtained by Boisjoly et al. (Boisjoly et al., 2017), when the authors explored the relationship between job informality and transit accessibility in the São Paulo Metropolitan Region. According to their results, for workers earning below the minimum wage, higher transit accessibility was associated with a lower likelihood of informal employment. For those earning above the minimum wage, car ownership was more relevant than transit accessibility in determining informal employment status (transit accessibility is not significant). The discrepancy in the statistical significance of accessibility to jobs by public transport is probably due to the fact that low-income workers are more dependent on public transport to get around. On the other hand, workers earning above the minimum wage are more likely to have other transportation options, i.e. access to a car, which makes them less dependent on public transportation. As a result, accessibility by public transport to jobs is not a significant indicator of informality for higher-income workers. 
+
+In contrast, (Bastiaanssen et al., 2021; Duarte et al., 2023; Jin & Paulsen, 2018; Johnson et al., 2017; Matas et al., 2010) found significant effects of job accessibility on employment outcomes. Johnson et al. (2017) found that shorter public transport times were associated with higher employment levels in England.  They found a statistically significant relationship, suggesting that, all else being equal, areas with shorter public transport times are associated with higher levels of employment. The highest values are found in London and dense urban areas, with the lowest value in rural areas. 
+
+Jin and Paulsen (2017) used a difference-in-differences model to compare changes in accessibility between 2010 and 2017 in the Chicago Metropolitan Area. They found that changes in job accessibility (Shen) indices were statistically significant in predicting changes in unemployment rates. Negative coefficients for overall, Black, and low-income accessibility indicated that increased job accessibility was associated with reduced unemployment rates.
+
+Bastiaanssen et al (2021) showed that better public transport accessibility (Hansen type) improved employment probabilities, particularly in metropolitan areas and low-income neighborhoods. Matas et al. (2010) found that public transport accessibility positively affected employment probability in Barcelona and Madrid, with the effect decreasing with higher educational attainment. Duarte et al (2023) found that found that job accessibility had a positive effect on participation in labour market for women, a negative effect for informal employment for women, and a positive effect for women and men in the probability of being employed.  
+
+<!-- After reading these papers, I believe that my research contributes to this debate in several ways. First, the 2021 Census of Population provides comprehensive socioeconomic and demographic data at the individual level, enabling the creation of job accessibility measures without relying on external datasets, which often differ in spatial and temporal scales. Second, the use of a competitive accessibility measure (spatial availability) instead of non-competitive alternatives, and the consideration of transit accessibility as the main indicator of accessibility to perform the models that link the employment outcomes. Third, the analysis is conducted at the individual level rather than aggregated spatial units, allowing for the evaluation of individual employment probabilities rather than area-level employment rates. Additionally, different from all the others cited works, my research adopts a non-binary variable (employed or not, within labor market or not) or continuous variables (rate of the spatial unit in labour market, employment rate) as dependent variable. This adds more complexity to the model recognizing different possible states for the respondents.   -->
+<!-- These variations can be explained  the absence of a measure of accessibility that considers competitions (AND/OR) the absence of accessibility to work via transit (AND/OR) the absence of variables at the individual level. -->
+
+# Data and Methodology 
+
+# Data 
+
+Census
+
+# Job accessibility 
+
+# Modelling employment status, job search engagement, and total family income 
+
+
+# Variables
+
+
+
+# Results 
+
+# Discussion
+
+# Conclusion

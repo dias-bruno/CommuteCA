@@ -3,10 +3,10 @@ title: "Exploratory Data Analysis"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
@@ -139,7 +139,7 @@ For this R markdown, we'll use the following variables[^4]:
 | PCD | Census division of current residence. |
 | CompW1 | Weight for the households and dwellings universes. |
 | LBR_FORC | This variable refers to whether a person was employed, unemployed or not in the labour force. |
-| CfInc | Total income of census family (sum of the total incomes of all members of that family). |
+| CfInc_AT | Total income of census family (sum of the total incomes of all members of that family), after tax. |
 | CFCNT | Census family size (numbers of persons). |
 | CF_PnCF_NumEarners | Number of earners in census family. |
 | PWDA | Place of work dissemination area. |
@@ -212,7 +212,7 @@ example, for our census table we have[^6]:
 
 ```{r}
 census <-  census %>% 
-  select("Frame_ID", "PRCDDA", "Pr","CMA","PCD","CompW1","LBR_FORC","CfInc","CFCNT","CF_PnCF_NumEarners","PWDA","PWPR","PWCD","PWCMA","PWDUR","PWDist","PwMode")
+  select("Frame_ID", "PRCDDA", "Pr","CMA","PCD","CompW1","LBR_FORC","CfInc_AT","CFCNT","CF_PnCF_NumEarners","PWDA","PWPR","PWCD","PWCMA","PWDUR","PWDist","PwMode")
   
 
 summary(census)
@@ -461,14 +461,14 @@ weights, we can use the `Hmisc` library:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5))
+  dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5))
 ```
 
 This value is slightly different (but needs to be considered!) than the
 regular median without considering the weights:
 
 ```{r}
-median(census_city$CfInc) # WRONG! You need to consider the weights! 
+median(census_city$CfInc_AT) # WRONG! You need to consider the weights! 
 ```
 
 ## Mean
@@ -483,10 +483,10 @@ can use the `mean()` built-in function. In our case, to consider the
 weights of the respondents, we can again apply the `Hmisc` library:
 
 ```{r}
-#mean(census$CfInc) # WRONG! You need to consider the weights! 
+#mean(census$CfInc_AT) # WRONG! You need to consider the weights! 
 
 census_city %>% 
-  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1))
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc_AT, weights = CompW1))
 ```
 
 Another way of considering the weights to obtain the mean is to apply
@@ -494,7 +494,7 @@ the weighted average. The mean value in both methods is the same:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Mean = sum(CfInc * CompW1)/sum(CompW1))
+  dplyr::summarise(Mean = sum(CfInc_AT * CompW1)/sum(CompW1))
 ```
 
 ## Spread
@@ -558,7 +558,7 @@ the sample from the remaining 75%, and the third quantile is the value
 that splits the highest 25% of the sample from the lowest 75%.
 
 Previously, we used the `Hmisc` library to obtain the median value of
-`CfInc`. In fact, we applied the quantile function to obtain the median
+`CfInc_AT`. In fact, we applied the quantile function to obtain the median
 value considering the weights, because the median is the value that
 divides the values into two quantiles, those below and those above the
 median value. Now, we will obtain the values for the second and third
@@ -566,9 +566,9 @@ quantiles by running the chunk below:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.25),
-                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5), 
-                   Third_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.75))
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.75))
 ```
 
 To obtain the inter-quantile range (IQR) we just need to subtract the
@@ -576,9 +576,9 @@ second quantile from the third quantile:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.25),
-                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5), 
-                   Third_Q = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.75),
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.75),
                    IQR = Third_Q - Second_Q)
 ```
 
@@ -616,8 +616,8 @@ deviation, you can execute the chunk bellow:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1),
-                   Variance = Hmisc::wtd.var(CfInc, weights = CompW1),
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc_AT, weights = CompW1),
+                   Variance = Hmisc::wtd.var(CfInc_AT, weights = CompW1),
                    SD = sqrt(Variance))
 ```
 
@@ -631,15 +631,15 @@ complete a data set is, how much variation is there, whether there are
 atypical or unusual values.
 
 As an example, let us calculate the mean, standard deviation, and
-maximum of `CfInc` (total income of census family):
+maximum of `CfInc_AT` (total income of census family):
 
 ```{r}
-Cfinc_statistics <- census_city %>% 
-  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc, weights = CompW1),
-                   Median = Hmisc::wtd.quantile(CfInc, weights = CompW1, probs = 0.5),
-                   SD = sqrt(Hmisc::wtd.var(CfInc, weights = CompW1)), 
-                   Max = max(CfInc),
-                   Min = min(CfInc))
+CfInc_AT_statistics <- census_city %>% 
+  dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc_AT, weights = CompW1),
+                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5),
+                   SD = sqrt(Hmisc::wtd.var(CfInc_AT, weights = CompW1)), 
+                   Max = max(CfInc_AT),
+                   Min = min(CfInc_AT))
 ```
 
 The maximum average income of the person responsible for the household
@@ -649,14 +649,14 @@ from the mean of the distribution this is, as well as on the spread of
 the distribution. The deviation from the mean is:
 
 ```{r}
-Cfinc_statistics$Max - Cfinc_statistics$Mean
+CfInc_AT_statistics$Max - CfInc_AT_statistics$Mean
 ```
 
 That is, approximately R\$ $159,762$. But the typical deviation from the
 mean in the sample was about R\$ $62,009$! Now, calculating:
 
 ```{r}
-(Cfinc_statistics$Max - Cfinc_statistics$Mean)/Cfinc_statistics$SD
+(CfInc_AT_statistics$Max - CfInc_AT_statistics$Mean)/CfInc_AT_statistics$SD
 ```
 
 This tells us that the census tract with the highest total family income
@@ -667,14 +667,14 @@ How unusual was the census tract with the lowest average income? Let us
 retrieve the minimum duration:
 
 ```{r}
-Cfinc_statistics$Min
+CfInc_AT_statistics$Min
 ```
 
 That is, around \$ $3001$. Again, the typical deviation from the mean in
 the sample was R\$ $62,009$! So, calculating:
 
 ```{r}
-(Cfinc_statistics$Min - Cfinc_statistics$Mean)/Cfinc_statistics$SD
+(CfInc_AT_statistics$Min - CfInc_AT_statistics$Mean)/CfInc_AT_statistics$SD
 ```
 
 The census tract with the lowest average income is closer to the mean,
@@ -784,9 +784,9 @@ exceptional ability to process visual information, overcoming the
 limitations of short-term memory retention when handling alphanumeric
 data.
 
-What is the central tendency of `CfInc` (total income of census family )
+What is the central tendency of `CfInc_AT` (total income of census family )
 taking into account only the numbers shown? Is the `PWDist` more or less
-spread than the `CfInc` (distance (straight-line) from home to work)?
+spread than the `CfInc_AT` (distance (straight-line) from home to work)?
 These properties of the data are not readily evident from a quick visual
 scan of the numbers. Summary statistics retrieve the desired information
 for us by "flattening" the data:
@@ -794,7 +794,7 @@ for us by "flattening" the data:
 ```{r}
 census |>
   filter(PWDist != -3) |>
-  dplyr::select(CfInc, PWDist) |>
+  dplyr::select(CfInc_AT, PWDist) |>
   slice_head(n = 10) |>
   summary()
 ```
@@ -827,24 +827,24 @@ categorical or quantitative.
 Univariate description involves exploring the main attributes of a
 single variable, typically its central tendency and spread. For
 quantitative variables, an appropriate geometric object is a histogram,
-implemented as `geom_hist()`. Using the variable `CfInc` (total income
+implemented as `geom_hist()`. Using the variable `CfInc_AT` (total income
 of census family), we have:
 
 ```{r}
 ggplot(data = census_city,
-       aes(x = CfInc, weight = CompW1)) +
+       aes(x = CfInc_AT, weight = CompW1)) +
   geom_histogram()
 ```
 
 A histogram is the number of cases (the *count* of cases) by ranges of
 values. We only need to encode a single variable (in the example above
-the `CfInc`), because the "count" on the y-axis is a computed statistic.
+the `CfInc_AT`), because the "count" on the y-axis is a computed statistic.
 The default number of bins in `geom_hist()` is 30, but this can be
 adjusted:
 
 ```{r}
 ggplot(data = census_city,
-       aes(x = CfInc, weight = CompW1)) +
+       aes(x = CfInc_AT, weight = CompW1)) +
   geom_histogram(bins = 20)
 ```
 
@@ -852,7 +852,7 @@ An alternative geometric object is a frequency polygon, as shown here:
 
 ```{r}
 ggplot(data = census_city,
-       aes(x = CfInc, weight = CompW1)) +
+       aes(x = CfInc_AT, weight = CompW1)) +
   geom_freqpoly(bins = 20)
 ```
 
@@ -860,9 +860,9 @@ A density plot is a smoother version of a frequency polygon:
 
 ```{r}
 ggplot(data = census_city,
-       aes(x = CfInc, weight = CompW1)) +
+       aes(x = CfInc_AT, weight = CompW1)) +
   geom_density(bins = 20) + 
- scale_x_continuous(breaks=seq(0,max(census_city$CfInc),50000))
+ scale_x_continuous(breaks=seq(0,max(census_city$CfInc_AT),50000))
 ```
 
 We can use `geom_vline()` to draw vertical lines in the plot (the mean
@@ -870,12 +870,12 @@ in blue, the median in green):
 
 ```{r}
 ggplot(data = census_city,
-       aes(x = CfInc)) +
+       aes(x = CfInc_AT)) +
   geom_density(bins = 20) +
-  geom_vline(xintercept = Cfinc_statistics$Mean,
+  geom_vline(xintercept = CfInc_AT_statistics$Mean,
              color = "blue",
              size = 1) +
-  geom_vline(xintercept = Cfinc_statistics$Median,
+  geom_vline(xintercept = CfInc_AT_statistics$Median,
              color = "green",
              size = 1)
 ```
@@ -934,7 +934,7 @@ Visualization techniques can accommodate combinations of one categorical
 and one quantitative variable, allowing for more nuanced exploration of
 data. For instance, column plots can map a categorical variable to one
 axis and a quantitative variable to the other. In this approach, summary
-statistics like the mean of a quantitative variable (e.g., `CfInc`) are
+statistics like the mean of a quantitative variable (e.g., `CfInc_AT`) are
 calculated for each category of a categorical variable (e.g., commute
 mode) and visualized using `geom_col`(). This technique helps to clearly
 display differences and trends across categories.
@@ -942,10 +942,10 @@ display differences and trends across categories.
 ```{r}
 census_city |>
   group_by(PwMode_label) |>
-  dplyr::summarize(mean_CfInc = Hmisc::wtd.mean(CfInc, weights = CompW1)) %>%  
+  dplyr::summarize(mean_CfInc_AT = Hmisc::wtd.mean(CfInc_AT, weights = CompW1)) %>%  
   ggplot() +
   geom_col(aes(x = PwMode_label, 
-               y = mean_CfInc)) + 
+               y = mean_CfInc_AT)) + 
   scale_x_discrete(guide = guide_axis(angle = 90))
 ```
 
@@ -983,20 +983,20 @@ of the distribution instead:
 
 ```{r}
 ggplot(data = census_city_expanded) +
-  geom_density_ridges(aes(x = CfInc, y = PwMode_label)) 
+  geom_density_ridges(aes(x = CfInc_AT, y = PwMode_label)) 
 ```
 
 ## Multivariate description
 
 Higher dimensional visualization can be created by encoding additional
 variables using available aesthetics. The following chunk of code
-recreates the boxplot of `PwMode` and `CfInc`, and further maps
+recreates the boxplot of `PwMode` and `CfInc_AT`, and further maps
 `LBR_FORC` to color:
 
 ```{r}
 ggplot(data = census_city_expanded) +
   geom_boxplot(aes(x = PwMode_label, 
-                 y = CfInc, 
+                 y = CfInc_AT, 
                  color = LBR_FORC_label)) + 
 scale_x_discrete(guide = guide_axis(angle = 90))
 ```

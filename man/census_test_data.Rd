@@ -5,7 +5,7 @@
 \alias{census_test_data}
 \title{2021 Census of Population Test Data}
 \format{
-A data frame object containing 200,000 rows and 17 variables; each row represents a unique (fake) respondent.
+A data frame object containing 250,000 rows and 17 variables; each row represents a unique (fake) respondent.
 \describe{
 \item{Frame_ID}{Unique identifier of the (fake) respondent.}
 \item{PRCDDA}{Refers to the dissemination area (DA) of current residence}
@@ -14,7 +14,7 @@ A data frame object containing 200,000 rows and 17 variables; each row represent
 \item{PCD}{Census division of current residence.}
 \item{CompW1}{Weight for the households and dwellings universes.}
 \item{LBR_FORC}{This variable refers to whether a person was employed, unemployed or not in the labour force.}
-\item{CfInc}{Total income of census family (sum of the total incomes of all members of that family).}
+\item{CfInc_AT}{Total income of census family (sum of the total incomes of all members of that family), after tax.}
 \item{CFCNT}{Census family size (numbers of persons).}
 \item{CF_PnCF_NumEarners}{Number of earners in census family.}
 \item{PWDA}{Place of work dissemination area.}

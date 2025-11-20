@@ -3,10 +3,10 @@ title: "Obtaining census spatial files"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
@@ -32,12 +32,11 @@ options(htmltools.dir.version = FALSE)
 # Introduction
 
 This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
 [^1]: The Mobilizing Justice project is a multidisciplinary and
     multi-sector collaboration with the objective of understand and
@@ -48,46 +47,83 @@ Justice*](https://mobilizingjustice.ca/)[^1].
     alliance of academics from various Canadian provinces and
     institutions, transportation firms, and nonprofit organizations
 
-The main objective of the *CommuteCA* package is to develop
-standardized methods for transport analysis in research, especially for
-studies using Statistics Canada surveys. Among the available surveys, we
-focused our efforts on the [*2021 Census of
+The main objective of the *CommuteCA* package is to develop standardized
+methods for transport analysis in research, especially for studies using
+Statistics Canada surveys. Among the available surveys, we focused our
+efforts on the [*2021 Census of
 Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
 which contain valuable variables for transportation research.
 
-After learning the basics of `R`, the concepts of data and performing some exploratory data analysis, we moved on to the next steps to perform accessibility analysis. This R markdown aims to organize the census spatial data files required to perform our analysis. In this Rmarkdown, we'll demonstrate how to obtain the census spatial data files from the [`cancensus`](https://mountainmath.github.io/cancensus/) library.
+After learning the basics of `R`, the concepts of data and performing
+some exploratory data analysis, we moved on to the next steps to perform
+accessibility analysis. This R markdown aims to organize the census
+spatial data files required to perform our analysis. In this Rmarkdown,
+we'll demonstrate how to obtain the census spatial data files from the
+[`cancensus`](https://mountainmath.github.io/cancensus/) library.
 
 ## Data
 
-To perform the next steps of our accessibility analysis, we need to download/obtain the census spatial files. More specifically, we need to have the following data sets:
+To perform the next steps of our accessibility analysis, we need to
+download/obtain the census spatial files. More specifically, we need to
+have the following data sets:
 
-- [Census Divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008): Census division (CD) is the general term for provincially legislated areas (such as county, municipalité régionale de comté (MRC) and regional district) or their equivalents in Canada. Census divisions are intermediate geographic areas between the province/territory level and the municipality (census subdivision).
-- [Dissemination areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo021): A dissemination area (DA) is a small, relatively stable geographic unit composed of one or more adjacent dissemination blocks with an average population of 400 to 700 persons based on data from the previous Census of Population Program. It is the smallest standard geographic area for which all census data are disseminated. *Only for analysis at the Dissemination area's level.* 
-- [Census tracts](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo013): Census tracts (CTs) are small, relatively stable geographic areas that usually have a population of fewer than 7,500 persons, based on data from the previous Census of Population Program. They are located in census metropolitan areas (CMAs) and in census agglomerations (CAs) that had a core population of 50,000 or more in the previous census.
+-   [Census
+    Divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008):
+    Census division (CD) is the general term for provincially legislated
+    areas (such as county, municipalité régionale de comté (MRC) and
+    regional district) or their equivalents in Canada. Census divisions
+    are intermediate geographic areas between the province/territory
+    level and the municipality (census subdivision).
+-   [Dissemination
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo021):
+    A dissemination area (DA) is a small, relatively stable geographic
+    unit composed of one or more adjacent dissemination blocks with an
+    average population of 400 to 700 persons based on data from the
+    previous Census of Population Program. It is the smallest standard
+    geographic area for which all census data are disseminated. *Only
+    for analysis at the Dissemination area's level.*
+-   [Census
+    tracts](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo013):
+    Census tracts (CTs) are small, relatively stable geographic areas
+    that usually have a population of fewer than 7,500 persons, based on
+    data from the previous Census of Population Program. They are
+    located in census metropolitan areas (CMAs) and in census
+    agglomerations (CAs) that had a core population of 50,000 or more in
+    the previous census.
 
-There are two ways to obtain these data sets: by downloading the shapefile directly from the [2021 Census of Population's website](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21), or by accessing through the [`cancensus`](https://mountainmath.github.io/cancensus/) library.  
+There are two ways to obtain these data sets: by downloading the
+shapefile directly from the [2021 Census of Population's
+website](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21),
+or by accessing through the
+[`cancensus`](https://mountainmath.github.io/cancensus/) library.
 
-We will prepare our data set using the [`cancensus`](https://mountainmath.github.io/cancensus/) library, but you can also access the data directly from the Census website, by clicking in this [link](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21).
+We will prepare our data set using the
+[`cancensus`](https://mountainmath.github.io/cancensus/) library, but
+you can also access the data directly from the Census website, by
+clicking in this
+[link](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21).
 
 For `Census Divisions`, you will need to:
 
-- Set the *language* of file (English or French).
-- Define the *type* as *Cartographic Boundary Files (CBF)*.  
-- In *Administrative boundaries*, set *Census divisions*. 
-- Define the *format* as *Shapefile (.shp)* and click and *Continue.* 
-- Click in the link to download file. 
+-   Set the *language* of file (English or French).
+-   Define the *type* as *Cartographic Boundary Files (CBF)*.\
+-   In *Administrative boundaries*, set *Census divisions*.
+-   Define the *format* as *Shapefile (.shp)* and click and *Continue.*
+-   Click in the link to download file.
 
 For `Census tracts` and `Dissemination areas`, you will need to:
 
-- Set the *language* of file (English or French).
-- Define the *type* as *Cartographic Boundary Files (CBF)*.  
-- In *Statistical boundaries*, set *Census tracts* and *Dissemination areas*. 
-- Define the *format* as *Shapefile (.shp)* and click and *Continue.* 
-- Click in the link to download file. 
+-   Set the *language* of file (English or French).
+-   Define the *type* as *Cartographic Boundary Files (CBF)*.\
+-   In *Statistical boundaries*, set *Census tracts* and *Dissemination
+    areas*.
+-   Define the *format* as *Shapefile (.shp)* and click and *Continue.*
+-   Click in the link to download file.
 
-# Obtaining data files using the `cancensus` library 
+# Obtaining data files using the `cancensus` library
 
-First, you need install the `cancensus` library [@cancensus]: 
+First, you need install the `cancensus` library [@cancensus]:
+
 ```{r}
 library('cancensus')
 library('geojsonsf')
@@ -96,26 +132,36 @@ library('dplyr')
 library('here')
 ```
 
-`cancensus` requires a valid `CensusMapper` API key to use. You can obtain a free API key by [signing up](https://censusmapper.ca/users/sign_up) for a CensusMapper account. To check your API key, just go to “Edit Profile” (in the top-right of the CensusMapper menu bar). Once you have your key, you can store it in your system environment so it is automatically used in API calls. To do so just enter `set_cancensus_api_key('<your_api_key>', install = TRUE)`.
+`cancensus` requires a valid `CensusMapper` API key to use. You can
+obtain a free API key by [signing
+up](https://censusmapper.ca/users/sign_up) for a CensusMapper account.
+To check your API key, just go to “Edit Profile” (in the top-right of
+the CensusMapper menu bar). Once you have your key, you can store it in
+your system environment so it is automatically used in API calls. To do
+so just enter `set_cancensus_api_key('<your_api_key>', install = TRUE)`.
 
 ```{r}
-set_cancensus_api_key('<your_api_key>', install = TRUE, overwrite=TRUE)
+#set_cancensus_api_key('<your API ket>', install = TRUE, overwrite=TRUE)
 ```
 
 You can visualize all available data set in the library by doing:
+
 ```{r}
 list_census_datasets()
 ```
 
-For this demonstration, we will access the data set related to the City of Toronto (Census Divisions (CD) = `3520`).
+For this demonstration, we will access the data set related to the City
+of Toronto (Census Divisions (CD) = `3520`).
+
 ```{r}
 code <- "3520" # As a character! you can change for your city code
 ```
 
-In our case, we are interested on the Census Divisions: 
+In our case, we are interested on the Census Divisions:
 
 ```{r}
-census_divisions <- get_census(dataset='CA21', regions=list(CD=code), level='CD', geo_format = "sf")
+census_divisions <- get_census(dataset='CA21', regions=list(CSD=code), level='CSD', 
+                               geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
@@ -128,11 +174,16 @@ census_divisions <- census_divisions %>%
                 PRUID = PR_UID)
 ```
 
+```{r}
+plot(census_divisions["geometry"])
+```
 
-Census tracts (it is important to remember that if you city of analysis is not within a Census Agglomeration or Census Metropolitan Area, you will not have census tract available for your city!): 
+Census tracts (it is important to remember that if you city of analysis
+is not within a Census Agglomeration or Census Metropolitan Area, you
+will not have census tract available for your city!):
 
 ```{r}
-census_tracts <- get_census(dataset='CA21', regions=list(CD=code), level='CT', geo_format = "sf")
+census_tracts <- get_census(dataset='CA21', regions=list(CSD=code), level='CT', geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
@@ -150,9 +201,14 @@ census_tracts <- census_tracts %>%
   dplyr::select(CTUID,CTNAME, LANDAREA, PCD, CMAUID, PRUID, geometry)
 ```
 
-And Dissemination areas:
 ```{r}
-dissemination_areas <- get_census(dataset='CA21', regions=list(CD=code), level='DA', geo_format = "sf")
+plot(census_tracts["geometry"])
+```
+
+And Dissemination areas:
+
+```{r}
+dissemination_areas <- get_census(dataset='CA21', regions=list(CSD=code), level='DA', geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
@@ -170,9 +226,16 @@ dissemination_areas <- dissemination_areas %>%
   dplyr::select(DAUID, LANDAREA, PCD, CTUID, CMAUID, PRUID, geometry)
 ```
 
+```{r}
+plot(dissemination_areas["geometry"])
+```
+
 # Saving the files
 
-We will now download these datasets as shapefiles for use in the next steps. First, we will create a folder within the `raw-data` directory using the city code of our study area. This organization makes it easier to manage files if we decide to analyze multiple study areas.
+We will now download these datasets as shapefiles for use in the next
+steps. First, we will create a folder within the `raw-data` directory
+using the city code of our study area. This organization makes it easier
+to manage files if we decide to analyze multiple study areas.
 
 ```{r}
 directory <- paste0(here(), "/data-raw/output/PCD", code, "/spatial-files/")
@@ -182,6 +245,7 @@ if(!dir.exists(directory)){
 ```
 
 Saving the files:
+
 ```{r}
 sf::st_write(census_divisions, paste0(directory, "census_divisions.shp"), append=FALSE)
 
@@ -190,3 +254,4 @@ sf::st_write(census_tracts, paste0(directory, "census_tracts.shp"), append=FALSE
 sf::st_write(dissemination_areas, paste0(directory, "dissemination_areas.shp"), append=FALSE)
 ```
 
+# References {#references .unnumbered}

@@ -191,7 +191,7 @@ ttm_car <- travel_time_matrix(r5r_core = r5r_core,
                                max_walk_time = 5)
 
 ttm_car <- ttm_car %>%
-  mutate(mode = "Car/motor")
+  mutate(mode = "Car-motor")
 ```
 
 ## Travel time matrix for transit mode
@@ -249,9 +249,9 @@ ttm <- rbind(ttm_bike,
              ttm_car,
              ttm_transit,
              ttm_walk) %>%
-  mutate(mode = factor(mode, levels = c("Bike","Car/motor","Transit","Walk"))) %>%
+  mutate(mode = factor(mode, levels = c("Bike","Car-motor","Transit","Walk"))) %>%
   rename(travel_time = travel_time_p50,
-         PwMode = mode)
+         PwMode_label = mode)
 ```
 
 Bring the Census Metropolitan Area information:
@@ -262,7 +262,7 @@ names(spatial_unit)[1] <- 'SPUID'
 ttm_spatial_unit <- ttm %>%
   mutate(from_id = as.factor(from_id),
          to_id = as.factor(to_id),
-         PwMode = as.factor(PwMode)) %>%
+         PwMode_label = as.factor(PwMode_label)) %>%
   left_join(as.data.frame(spatial_unit[,c("SPUID","CMAUID","PCD","PRUID")][,c("SPUID","CMAUID","PCD","PRUID")]), 
             by= c("from_id"= "SPUID"))
 ```
@@ -273,6 +273,6 @@ ttm_spatial_unit <- ttm %>%
 To finalize the methodology of this R markdown, we will export the processed data. Export the travel time table:
 
 ```{r export-ttm}
-write.csv(ttm_spatial_unit[,c("from_id","to_id","travel_time","PwMode","PCD","CMAUID","PRUID")], paste0(directory_r5r, "ttm.csv"), row.names=FALSE)
+write.csv(ttm_spatial_unit[,c("from_id","to_id","travel_time","PwMode_label","PCD","CMAUID","PRUID")], paste0(directory_r5r, "ttm.csv"), row.names=FALSE)
 ```
 

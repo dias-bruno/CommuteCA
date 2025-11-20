@@ -138,6 +138,7 @@ library(tidyr) # Wide tables
 library(ggplot2) # Plot graphs 
 library(Hmisc)
 library(ggrepel)
+library(openxlsx) # To save files in excel format
 ```
 
 For this demonstration, we will use the case of the test data for the
@@ -155,6 +156,9 @@ address and execute the following chunk:
 # Reading the original Census data set
 # files_address <- "INSERT-FULL-FILE-ADRESS"
 # census <- read.csv(files_address, header = TRUE)
+
+files_address <- "C:\\Bruno\\CommuteCA\\data-ignore-inputs\\census_test_toronto_v2.csv"
+census <- read.csv(files_address, header = TRUE)
 ```
 
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
@@ -500,8 +504,12 @@ summary_pop_table <- data.frame(Variable = character(),
                                 Equity = character(),
                                 Total_pop = numeric(),
                                 Respondents = numeric(),
+                                NonZeroCases = numeric(),
+                                NonZeroCases_weighted = numeric(),
                                 Median = numeric(),
                                 Mean = numeric(),
+                                Mean_rounded = numeric(),
+                                Median_rounded = numeric(),
                                 Median_rate = numeric(),
                                 Mean_rate = numeric(),
                                 stringsAsFactors = FALSE)
@@ -513,6 +521,25 @@ pvalue_table <- data.frame(Variable = character(),
                           Significance = character(),
                           stringsAsFactors = FALSE)
 
+get_p <- function(nonzero_pop) {
+  case_when(
+    nonzero_pop < 10      ~ 0.1667,
+    nonzero_pop < 20      ~ 0.1667,
+    nonzero_pop < 40      ~ 0.10,
+    nonzero_pop < 80      ~ 0.05,
+    nonzero_pop < 160     ~ 0.025,
+    nonzero_pop < 320     ~ 0.0125,
+    nonzero_pop < 640     ~ 0.00625,
+    nonzero_pop < 1280    ~ 0.00313,
+    TRUE                  ~ 0.00156
+  )
+}
+
+percent_round <- function(value, nonzero_pop) {
+  p <- get_p(nonzero_pop)
+  base <- pmax(1, round(abs(value) * p))  
+  round(value / base) * base
+}
 ```
 
 ## Youth population
@@ -529,7 +556,8 @@ non_disadvantaged <- "Adult"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0),
+    "NonZeroCases_weighted"  = sum(CompW1[Total_SA > 0], na.rm = TRUE),
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -541,42 +569,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_youth <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_youth %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_youth %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_youth %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_youth %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_youth %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_youth %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_youth %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_youth %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_youth <- df_youth %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_youth) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -614,7 +650,7 @@ non_disadvantaged <- "Man+"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -626,42 +662,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_gender <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_gender %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_gender %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_gender %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_gender %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_gender %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_gender %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_gender %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_gender %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_gender <- df_gender %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_gender) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -696,7 +740,7 @@ non_disadvantaged <- "Employed"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -708,42 +752,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_labour <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_labour %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_labour %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_labour %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_labour %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_labour %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_labour %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_labour %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_labour %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_labour <- df_labour %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_labour) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -778,7 +830,7 @@ non_disadvantaged <- "Not in low income"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -790,42 +842,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_income <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_income %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_income %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_income %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_income %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_income %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_income %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_income %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_income %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_income <- df_income %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_income) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -861,7 +921,7 @@ non_disadvantaged <- "Without frequent difficulties"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -873,42 +933,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_disability <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_disability %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_disability %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_disability %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_disability %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_disability %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_disability %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_disability %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_disability %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_disability <- df_disability %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_disability) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -942,7 +1010,7 @@ non_disadvantaged <- "Non single-parent family"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -954,42 +1022,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_single_parent <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_single_parent %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_single_parent %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_single_parent %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_single_parent %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_single_parent %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_single_parent %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_single_parent %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_single_parent %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_single_parent <- df_single_parent %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_single_parent) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -1024,7 +1100,7 @@ non_disadvantaged <- "Not a refugee"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -1036,42 +1112,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_refugee <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_refugee %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_refugee %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_refugee %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_refugee %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_refugee %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_refugee %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_refugee %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_refugee %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_refugee <- df_refugee %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_refugee) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -1106,7 +1190,7 @@ non_disadvantaged <- "Not a new immigrant"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -1118,42 +1202,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_immigrant <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_immigrant %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_immigrant %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_immigrant %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_immigrant %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_immigrant %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_immigrant %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_immigrant %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_immigrant %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_immigrant <- df_immigrant %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_immigrant) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -1188,7 +1280,7 @@ non_disadvantaged <- "Not a visible minority"
 census_accessibility %>% 
   group_by(!!sym(variable)) %>%
   dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), NonZeroCases = sum(Total_SA > 0), 
     "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
     "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
     .groups = "drop") %>% 
@@ -1200,42 +1292,50 @@ disadvantaged/non-disadvantaged groups. The following chuck save this
 information in the summary dataframe:
 
 ```{r}
-df <- census_accessibility %>% 
+df_visbi <- census_accessibility %>% 
   group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
+  summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) %>%
   rename(Category = !!sym(variable))
 
 # Rates
 medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
+  df_visbi %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) / 
+  df_visbi %>% filter(Category == disadvantaged) %>% pull(Median_rounded) 
 
 medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
+  df_visbi %>% filter(Category == disadvantaged) %>% pull(Median_rounded) / 
+  df_visbi %>% filter(Category == non_disadvantaged) %>% pull(Median_rounded) 
 
 meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
+  df_visbi %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded) / 
+  df_visbi %>% filter(Category == disadvantaged) %>% pull(Mean_rounded)
 
 meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
+  df_visbi %>% filter(Category == disadvantaged) %>% pull(Mean_rounded) / 
+  df_visbi %>% filter(Category == non_disadvantaged) %>% pull(Mean_rounded)
 
-df <- df %>%
+df_visbi <- df_visbi %>%
   mutate(Variable = variable,
     Description = description,
     Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
     Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
     Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+ dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
 
-summary_pop_table <- bind_rows(summary_pop_table, df) 
+summary_pop_table <- bind_rows(summary_pop_table, df_visbi) 
 ```
 
 Evaluating if the differences in median is statistically significant:
@@ -1268,8 +1368,12 @@ summary_dvismin_table <- data.frame(Variable = character(),
                                 Equity = character(),
                                 Total_pop = numeric(),
                                 Respondents = numeric(),
+                                NonZeroCases = numeric(),
+                                NonZeroCases_weighted = numeric(),
                                 Median = numeric(),
                                 Mean = numeric(),
+                                Mean_rounded = numeric(),
+                                Median_rounded = numeric(),
                                 Median_rate = numeric(),
                                 Mean_rate = numeric(),
                                 stringsAsFactors = FALSE)
@@ -1287,21 +1391,27 @@ for (group in dvismin_groups) {
   
   df <- temp %>%
     group_by(Equity) %>%
-    summarise(
-      Total_pop = sum(CompW1, na.rm = TRUE),
-      Respondents = n(),
-      Median = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
-      Mean = sum(Total_SA * CompW1) / sum(CompW1),
-      .groups = "drop"
-    )
+summarise(
+    Total_pop              = sum(CompW1, na.rm = TRUE),
+    Respondents            = n(),
+    NonZeroCases           = sum(Total_SA > 0),                        # unweighted
+    NonZeroCases_weighted  = sum(CompW1[Total_SA > 0], na.rm = TRUE),  # weighted
+    Median                 = Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5),
+    Mean                   = sum(Total_SA * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Mean_rounded      = percent_round(Mean, NonZeroCases_weighted),
+    Median_rounded    = percent_round(Median, NonZeroCases_weighted),
+  ) 
   
-  medr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Median) / 
-                 df %>% filter(Equity == "Disadvantaged") %>% pull(Median)
+  medr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Median_rounded) / 
+                 df %>% filter(Equity == "Disadvantaged") %>% pull(Median_rounded) 
 
   medr_ad <- 1 / medr_disad
 
-  meanr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Mean) / 
-                  df %>% filter(Equity == "Disadvantaged") %>% pull(Mean)
+  meanr_disad <- df %>% filter(Equity == "Non-disadvantaged") %>% pull(Mean_rounded) / 
+                  df %>% filter(Equity == "Disadvantaged") %>% pull(Mean_rounded)
 
   meanr_ad <- 1 / meanr_disad
 
@@ -1313,11 +1423,104 @@ for (group in dvismin_groups) {
       Median_rate = ifelse(Equity == "Disadvantaged", medr_ad, medr_disad),
       Mean_rate   = ifelse(Equity == "Disadvantaged", meanr_ad, meanr_disad)
     ) %>%
-	dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
+	dplyr::select(Variable, Description, Category, Equity, 
+	              Total_pop, Respondents, NonZeroCases, NonZeroCases_weighted, 
+	              Median, Mean, Mean_rounded, Median_rounded, Median_rate, Mean_rate)
 
-  summary_dvismin_table <- bind_rows(summary_dvismin_table, df)
-}
+  summary_dvismin_table <- bind_rows(summary_dvismin_table, df)}
 ```
+
+### Adding general population to the summary table
+
+```{r general-pop}
+df_general_pop <- census_accessibility %>% 
+  dplyr::summarise(
+    "Variable" = "General_Pop_label",
+    "Category" = "General Population",
+    "Description" = "General Population",
+    "Equity" = "General Population",
+    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
+    "NonZeroCases" = sum(Total_SA > 0), 
+    "NonZeroCases_weighted" = sum(CompW1[Total_SA > 0], na.rm = TRUE),
+    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
+    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
+    "Median_rate" = NA, 
+    "Mean_rate" = NA,
+    "Mean_rounded" = NA, 
+    "Median_rounded" = NA,    .groups = "drop") %>% 
+  dplyr::select(names(summary_pop_table))
+
+summary_pop_table <- bind_rows(summary_pop_table, df_general_pop) 
+```
+
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be
+released by the Research Data Center to ensure that confidentiality
+risks for StatCan respondents are minimized.
+
+The following rules apply to our results:
+
+-   Statistics must not be released for identifiable areas with less
+    than 40 persons ($\sum{CompW1} ≥ 40$).
+-   Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum
+    of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable.
+    In addition, counts must be rounded up to multiples of 5.
+-   Statistics must be based on at least 5 respondents, whose sum of weights is at least 10, to be releasable.
+-   Thresholds have been established for the minimum number of (unweighted) records to produce quantiles. These are: 8 for medians, 16 for quartiles, 40 for quintiles and deciles, and 400 for percentiles.
+-   Statistics are subject to a simplistic percent rounding by deterministically rounding to the nearest multiple of a rounding base. 
+
+We are performing the analysis at the level of a City (PCD), however, to
+facilitate the work of the RDC analyst, we will also include these
+information to our table outputs:
+
+```{r vetting}
+census_pcd_vetting <- census_pcd %>%
+  group_by(PCD) %>%
+  dplyr::summarize(Population_PCD = sum(CompW1),
+            Respondents_PCD = n()) %>% 
+         dplyr::select(PCD, Population_PCD, Respondents_PCD)
+
+### Sumary tables 
+summary_pop_table_support <- summary_pop_table %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+    filter(Population_PCD >= 40, Respondents_PCD >= 5, Respondents >= 5, Total_pop >= 10) %>%
+  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
+  dplyr::select(Variable, Description, Category, Equity, 
+                Total_pop, Total_pop_rounded, Respondents, 
+                NonZeroCases, NonZeroCases_weighted,
+                Median, Mean, Median_rounded, Mean_rounded, 
+                Median_rate, Mean_rate, PCD, 
+                Respondents_PCD, Population_PCD, Respondents_PCD)
+
+summary_dvismin_table_support <- summary_dvismin_table %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+    filter(Population_PCD >= 40, Respondents_PCD >= 5, Respondents >= 5, Total_pop >= 10) %>%
+  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
+  dplyr::select(Variable, Description, Category, Equity, 
+                Total_pop, Total_pop_rounded, Respondents, 
+                NonZeroCases, NonZeroCases_weighted,
+                Median, Mean, Median_rounded, Mean_rounded, 
+                Median_rate, Mean_rate, PCD, 
+                Respondents_PCD, Population_PCD, Respondents_PCD)
+
+### P-value table
+aux_pop_table <- summary_pop_table_support %>% 
+  group_by(Description) %>%
+  dplyr::summarize(Total_pop = sum(Total_pop),
+            Respondents = sum(Respondents))
+
+pvalue_table_support <- pvalue_table %>% 
+  left_join(aux_pop_table, by = "Description") %>%
+  mutate(PCD = code_pcd) %>% 
+  left_join(census_pcd_vetting, by = "PCD") %>% 
+  dplyr::select(Variable, Description, Disadvantaged, Total_pop, Respondents, P_value, Significance, PCD, Population_PCD, Respondents_PCD) %>% 
+  filter(Population_PCD >= 40, Respondents_PCD >= 5, Respondents >= 5, Total_pop >= 10)
+```
+
 
 # Visualizing differences
 
@@ -1325,7 +1528,7 @@ The following chunk display the median values for each
 disadvantaged/non-disadvantaged group:
 
 ```{r}
-summary_pop_table
+summary_pop_table_support
 ```
 
 Showing the p-values to check if these differences are significant:
@@ -1353,6 +1556,7 @@ if(!dir.exists(diretorio_export_tables)){
   dir.create(diretorio_export_tables, recursive = TRUE)}
 ```
 
+
 ## Boxplots
 
 ```{r pop-boxplot}
@@ -1363,10 +1567,10 @@ census_accessibility_long <- census_accessibility %>%
                names_to = "Variable",
                values_to = "Category") %>%
   dplyr::select(Frame_ID, CompW1, Total_SA, Variable, Category) %>% 
-  left_join(summary_pop_table, by = c("Variable" = "Variable", 
+  left_join(summary_pop_table_support, by = c("Variable" = "Variable", 
                                       "Category" = "Category"))
 
-summary_data <- census_accessibility_long %>%
+summary_data_boxplot <- census_accessibility_long %>% 
   group_by(Description, Equity, Category) %>%
   summarise(
     P10 = wtd.quantile(Total_SA, weights = CompW1, probs = 0.10, na.rm = TRUE),
@@ -1374,15 +1578,17 @@ summary_data <- census_accessibility_long %>%
     Median = wtd.quantile(Total_SA, weights = CompW1, probs = 0.5, na.rm = TRUE),
     Q3  = wtd.quantile(Total_SA, weights = CompW1, probs = 0.75, na.rm = TRUE),
     P90 = wtd.quantile(Total_SA, weights = CompW1, probs = 0.90, na.rm = TRUE),
+    Respondents = n(), 
     .groups = "drop")
 
-description_order <- summary_data %>%
+description_order <- summary_data_boxplot %>%
   group_by(Description) %>%
   summarise(median_overall = max(Median[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(median_overall)) %>%
   pull(Description)
 
-summary_data_ordered <- summary_data %>%
+summary_data_ordered <- summary_data_boxplot %>% 
+  filter(!is.na(Description)) %>% 
   mutate(
     Description = factor(Description, levels = description_order),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1429,15 +1635,17 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/boxplot_pop_groups.jpg
 First, visualizing the medians of all population groups:
 
 ```{r medinas-general-pop}
-description_order <- summary_pop_table %>%
+description_order <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   group_by(Description) %>%
-  summarise(median_overall = max(Median[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  summarise(median_overall = max(Median_rounded[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(median_overall)) %>%
   pull(Description)
 
 description_order
 
-summary_pop_table_ordered <- summary_pop_table %>%
+summary_pop_table_ordered <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   mutate(
     Description = factor(Description, levels = description_order),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1445,14 +1653,14 @@ summary_pop_table_ordered <- summary_pop_table %>%
   arrange(Description, Equity) 
 
 figure_medians_by_pop_group <- summary_pop_table_ordered %>% 
-ggplot(aes(y = Description, x = Median, fill = Equity)) +
+ggplot(aes(y = Description, x = Median_rounded, fill = Equity)) +
 geom_bar(stat="identity", position=position_dodge()) +
 scale_fill_brewer(palette="Reds") + 
 geom_text(aes(label = Category, x = 3),
           position = position_dodge(width = 0.9),
           hjust = 0,  
           size = 2.5) + 
-geom_text(aes(label = round(Median)),
+geom_text(aes(label = Median_rounded),
           position = position_dodge(width = 0.9),
           hjust = -0.1,  
           size = 2.5) +
@@ -1466,7 +1674,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/medians_by_pop_group.jpg"), 
        plot = figure_medians_by_pop_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1479,13 +1687,15 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/medians_by_pop_group.j
 Now, the median rate (the division of median from a group by the other):
 
 ```{r median-rate-general-pop}
-description_order_rate <- summary_pop_table %>%
+description_order_rate <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   group_by(Description) %>%
   summarise(median_overall = max(Median_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(median_overall)) %>%
   pull(Description)
 
-summary_pop_table_ordered_rate <- summary_pop_table %>%
+summary_pop_table_ordered_rate <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   mutate(
     Description = factor(Description, levels = description_order_rate),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1514,7 +1724,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/ratio_medians_by_pop_group.jpg"), 
        plot = figure_ration_medians_by_pop_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1532,13 +1742,13 @@ groups:
 
 ```{r median-vismin-pop}
 
-description_order_racial <- summary_dvismin_table %>%
+description_order_racial <- summary_dvismin_table_support %>%
   group_by(Description) %>%
-  summarise(median_overall = max(Median[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  summarise(median_overall = max(Median_rounded[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(median_overall)) %>%
   pull(Description)
 
-summary_racial_table_ordered <- summary_dvismin_table %>%
+summary_racial_table_ordered <- summary_dvismin_table_support %>%
   mutate(
     Description = factor(Description, levels = description_order_racial),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1546,14 +1756,14 @@ summary_racial_table_ordered <- summary_dvismin_table %>%
   arrange(Description, Equity) 
 
 figure_medians_by_racial_group <- summary_racial_table_ordered %>% 
-ggplot(aes(y = Description, x = Median, fill = Equity)) +
+ggplot(aes(y = Description, x = Median_rounded, fill = Equity)) +
 geom_bar(stat="identity", position=position_dodge()) +
 scale_fill_brewer(palette="Pastel2") + 
 geom_text(aes(label = Category, x = 3),
           position = position_dodge(width = 0.9),
           hjust = 0,  
           size = 2.5) + 
-geom_text(aes(label = round(Median)),
+geom_text(aes(label = Median_rounded),
           position = position_dodge(width = 0.9),
           hjust = -0.1,  
           size = 2.5) +
@@ -1567,7 +1777,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/medians_by_racial_group.jpg"), 
        plot = figure_medians_by_racial_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1580,13 +1790,13 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/medians_by_racial_grou
 Now, the median rate (the division of median from a group by the other):
 
 ```{r median-vismin-pop}
-description_order_rate_racial <- summary_dvismin_table %>%
+description_order_rate_racial <- summary_dvismin_table_support %>%
   group_by(Description) %>%
   summarise(median_overall = max(Median_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(median_overall)) %>%
   pull(Description)
 
-summary_pop_table_ordered_rate_racial <- summary_dvismin_table %>%
+summary_pop_table_ordered_rate_racial <- summary_dvismin_table_support %>%
   mutate(
     Description = factor(Description, levels = description_order_rate_racial),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1615,7 +1825,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/ratio_medians_by_racial_group.jpg"), 
        plot = figure_ration_medians_by_racial_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1630,15 +1840,17 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/ratio_medians_by_racia
 First, visualizing the Means of all population groups:
 
 ```{r medinas-general-pop}
-description_order <- summary_pop_table %>%
+description_order <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   group_by(Description) %>%
-  summarise(mean_overall = max(Mean[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  summarise(mean_overall = max(Mean_rounded[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(mean_overall)) %>%
   pull(Description)
 
 description_order
 
-summary_pop_table_ordered <- summary_pop_table %>%
+summary_pop_table_ordered <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   mutate(
     Description = factor(Description, levels = description_order),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1646,14 +1858,14 @@ summary_pop_table_ordered <- summary_pop_table %>%
   arrange(Description, Equity) 
 
 figure_means_by_pop_group <- summary_pop_table_ordered %>% 
-ggplot(aes(y = Description, x = Mean, fill = Equity)) +
+ggplot(aes(y = Description, x = Mean_rounded, fill = Equity)) +
 geom_bar(stat="identity", position=position_dodge()) +
 scale_fill_brewer(palette="Reds") + 
 geom_text(aes(label = Category, x = 3),
           position = position_dodge(width = 0.9),
           hjust = 0,  
           size = 2.5) + 
-geom_text(aes(label = round(Mean)),
+geom_text(aes(label = Mean_rounded),
           position = position_dodge(width = 0.9),
           hjust = -0.1,  
           size = 2.5) +
@@ -1667,7 +1879,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/means_by_pop_group.jpg"), 
        plot = figure_means_by_pop_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1680,13 +1892,15 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/means_by_pop_group.jpg
 Now, the mean rate (the division of mean from a group by the other):
 
 ```{r mean-rate-general-pop}
-description_order_rate <- summary_pop_table %>%
+description_order_rate <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   group_by(Description) %>%
   summarise(mean_overall = max(Mean_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(mean_overall)) %>%
   pull(Description)
 
-summary_pop_table_ordered_rate <- summary_pop_table %>%
+summary_pop_table_ordered_rate <- summary_pop_table_support %>% 
+  filter(Variable != "General_Pop_label") %>%
   mutate(
     Description = factor(Description, levels = description_order_rate),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1715,7 +1929,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/ratio_means_by_pop_group.jpg"), 
        plot = figure_ration_means_by_pop_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1733,13 +1947,13 @@ groups:
 
 ```{r mean-vismin-pop}
 
-description_order_racial <- summary_dvismin_table %>%
+description_order_racial <- summary_dvismin_table_support %>%
   group_by(Description) %>%
-  summarise(mean_overall = max(Mean[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
+  summarise(mean_overall = max(Mean_rounded[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(mean_overall)) %>%
   pull(Description)
 
-summary_racial_table_ordered <- summary_dvismin_table %>%
+summary_racial_table_ordered <- summary_dvismin_table_support %>%
   mutate(
     Description = factor(Description, levels = description_order_racial),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1747,14 +1961,14 @@ summary_racial_table_ordered <- summary_dvismin_table %>%
   arrange(Description, Equity) 
 
 figure_means_by_racial_group <- summary_racial_table_ordered %>% 
-ggplot(aes(y = Description, x = Mean, fill = Equity)) +
+ggplot(aes(y = Description, x = Mean_rounded, fill = Equity)) +
 geom_bar(stat="identity", position=position_dodge()) +
 scale_fill_brewer(palette="Pastel2") + 
 geom_text(aes(label = Category, x = 3),
           position = position_dodge(width = 0.9),
           hjust = 0,  
           size = 2.5) + 
-geom_text(aes(label = round(Mean)),
+geom_text(aes(label = Mean_rounded),
           position = position_dodge(width = 0.9),
           hjust = -0.1,  
           size = 2.5) +
@@ -1768,7 +1982,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/means_by_racial_group.jpg"), 
        plot = figure_means_by_racial_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1781,13 +1995,13 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/means_by_racial_group.
 Now, the mean rate (the division of mean from a group by the other):
 
 ```{r mean-vismin-pop}
-description_order_rate_racial <- summary_dvismin_table %>%
+description_order_rate_racial <- summary_dvismin_table_support %>%
   group_by(Description) %>%
   summarise(mean_overall = max(Mean_rate[Equity == "Non-disadvantaged"], na.rm = TRUE)) %>%
   arrange(desc(mean_overall)) %>%
   pull(Description)
 
-summary_pop_table_ordered_rate_racial <- summary_dvismin_table %>%
+summary_pop_table_ordered_rate_racial <- summary_dvismin_table_support %>%
   mutate(
     Description = factor(Description, levels = description_order_rate_racial),
     Equity = factor(Equity, levels = c("Non-disadvantaged", "Disadvantaged"))
@@ -1816,7 +2030,7 @@ theme_minimal()
 # Saving figure
 ggsave(file = paste0(diretorio_export_figures,"/ratio_means_by_racial_group.jpg"), 
        plot = figure_ration_means_by_racial_group,
-       width = 20, 
+       width = 22, 
        height = 12, 
        units = "cm", 
        dpi = 300)
@@ -1824,127 +2038,6 @@ ggsave(file = paste0(diretorio_export_figures,"/ratio_means_by_racial_group.jpg"
 
 ```{r}
 knitr::include_graphics(paste0(diretorio_export_figures,"/ratio_means_by_racial_group.jpg"))
-```
-
-The previous chunk display the median and mean values for the
-disadvantaged/non-disadvantaged groups. The following chuck save this
-information in the summary dataframe:
-
-```{r}
-df <- census_accessibility %>% 
-  group_by(!!sym(variable)) %>%
-  dplyr::summarise(
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    .groups = "drop") %>% 
-  rename(Category = !!sym(variable))
-
-# Rates
-medr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Median)
-
-medr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Median) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Median)
-
-meanr_disad <- 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean)
-
-meanr_ad <- 
-  df %>% filter(Category == disadvantaged) %>% pull(Mean) / 
-  df %>% filter(Category == non_disadvantaged) %>% pull(Mean)
-
-df <- df %>%
-  mutate(Variable = variable,
-    Description = description,
-    Equity = ifelse(Category == disadvantaged, "Disadvantaged", "Non-disadvantaged"),
-    Median_rate = ifelse(Category == disadvantaged, medr_ad, medr_disad),
-    Mean_rate   = ifelse(Category == disadvantaged, meanr_ad, meanr_disad)) %>%
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Respondents, Median, Mean, Median_rate, Mean_rate)
-
-
-summary_pop_table <- bind_rows(summary_pop_table, df) 
-```
-
-### Adding general population to the summary table
-
-```{r general-pop}
-variable <- "AGE_label"
-description <- "General population"
-disadvantaged <- "Youth"
-non_disadvantaged <- "Adult"
-
-df_general_pop <- census_accessibility %>% 
-  dplyr::summarise(
-    "Variable" = "General_Pop_label",
-    "Category" = "General Population",
-    "Description" = "General Population",
-    "Equity" = "General Population",
-    "Total_pop" = sum(CompW1, na.rm = TRUE), 	"Respondents" = n(), 
-    "Median" =  Hmisc::wtd.quantile(Total_SA, weights = CompW1, probs = 0.5), 
-    "Mean" =  sum(Total_SA * CompW1)/sum(CompW1), 
-    "Median_rate" = NA, 
-    "Mean_rate" = NA,
-    .groups = "drop") %>% 
-  dplyr::select(names(summary_pop_table))
-
-summary_pop_table <- bind_rows(summary_pop_table, df_general_pop) 
-```
-
-# Confidentiality vetting
-
-Confidentiality vetting is the process of reviewing the results to be
-released by the Research Data Center to ensure that confidentiality
-risks for StatCan respondents are minimized.
-
-The following rules apply to our results:
-
--   Statistics must not be released for identifiable areas with less
-    than 40 persons ($\sum{CompW1} ≥ 40$).
--   Counts must be based on at least 5 respondents ($n ≥ 5$), with a sum
-    of weights of at least 10 ($\sum{CompW1} ≥ 10$), to be releasable.
-    In addition, counts must be rounded up to multiples of 5.
-
-We are performing the analysis at the level of a City (PCD), however, to
-facilitate the work of the RDC analyst, we will also include these
-information to our table outputs:
-
-```{r vetting}
-census_pcd_vetting <- census_pcd %>%
-  group_by(PCD) %>%
-  dplyr::summarize(Population_PCD = sum(CompW1),
-            Respondents_PCD = n()) %>% 
-         dplyr::select(PCD, Population_PCD, Respondents_PCD)
-
-### Sumary tables 
-summary_pop_table_support <- summary_pop_table %>%
-  mutate(PCD = code_pcd) %>% 
-  left_join(census_pcd_vetting, by = "PCD") %>% 
-    filter(Population_PCD >= 40, Respondents_PCD >= 5) %>%
-  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Total_pop_rounded, Respondents, Respondents_PCD, Median, Mean, Median_rate, Mean_rate, PCD, Population_PCD, Respondents_PCD)
-
-summary_dvismin_table_support <- summary_dvismin_table %>%
-  mutate(PCD = code_pcd) %>% 
-  left_join(census_pcd_vetting, by = "PCD") %>% 
-    filter(Population_PCD >= 40, Respondents_PCD >= 5) %>%
-  mutate(Total_pop_rounded = round(Total_pop / 5) * 5) %>% 
-  dplyr::select(Variable, Description, Category, Equity, Total_pop, Total_pop_rounded, Respondents, Respondents_PCD, Median, Mean, Median_rate, Mean_rate, PCD, Population_PCD, Respondents_PCD)
-
-### P-value table
-aux_pop_table <- summary_pop_table_support %>% 
-  group_by(Description) %>%
-  dplyr::summarize(Population_Group = sum(Total_pop),
-            Respondents_Group = sum(Respondents))
-
-pvalue_table_support <- pvalue_table %>% 
-  left_join(aux_pop_table, by = "Description") %>%
-  mutate(PCD = code_pcd) %>% 
-  left_join(census_pcd_vetting, by = "PCD") %>% 
-  dplyr::select(Variable, Description, Disadvantaged, Population_Group, Respondents_Group, P_value, Significance, PCD, Population_PCD, Respondents_PCD)
 ```
 
 # Data export
@@ -1956,16 +2049,127 @@ Export of summary tables:
 
 ```{r export-summary-tab}
 # Release - all groups
-write.csv(summary_pop_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_pop_table_release.csv"), row.names=FALSE)
+write.csv(summary_pop_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median_rounded", "Mean_rounded", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_pop_table_release.csv"), row.names=FALSE)
 
 # Supporting file for RDC - all groups 
 write.csv(summary_pop_table_support, paste0(diretorio_export_tables, "summary_pop_table_support.csv"), row.names=FALSE)
 
 # Release - visible minorities 
-write.csv(summary_dvismin_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median", "Mean", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_vmin_table_release.csv"), row.names=FALSE)
+write.csv(summary_dvismin_table_support[,c("Variable","Description","Category","Equity","Total_pop_rounded", "Median_rounded", "Mean_rounded", "Median_rate", "Mean_rate")], paste0(diretorio_export_tables, "summary_vmin_table_release.csv"), row.names=FALSE)
 
 # Supporting file for RDC - visible minorities 
 write.csv(summary_dvismin_table_support, paste0(diretorio_export_tables, "summary_vmin_table_support.csv"), row.names=FALSE)
+```
+
+Saving in excel format: 
+
+```{r}
+# Release
+summary_pop_excel <- createWorkbook()
+addWorksheet(summary_pop_excel, "general")
+addWorksheet(summary_pop_excel, "visible_minorities")
+
+writeData(summary_pop_excel, "general", summary_pop_table_support[,c("Description","Category","Equity","Total_pop_rounded", "Median_rounded", "Mean_rounded", "Median_rate", "Mean_rate")])
+
+writeData(summary_pop_excel, "visible_minorities", summary_dvismin_table_support[,c("Description","Category","Equity","Total_pop_rounded", "Median_rounded", "Mean_rounded", "Median_rate", "Mean_rate")])
+
+## Commenting and highlighting the general sheet
+
+writeComment(summary_pop_excel, "general", col = 1, row = 1, comment = createComment("Type of sociodemographic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 2, row = 1, comment = createComment("Category of the sociodomegraphic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 3, row = 1, comment = createComment("Wheter this group is considered as disadvantaged in terms of the transportation literature.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 4, row = 1, comment = createComment("Total population (weighted sum, rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 5, row = 1, comment = createComment("Median (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 6, row = 1, comment = createComment("Mean (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 7, row = 1, comment = createComment("Rate of rounded medians between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel, "general", col = 8, row = 1, comment = createComment("Rate of rounded means between population from the same descriptor.", author = "Author"))
+
+addStyle(summary_pop_excel, sheet = c("general"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(summary_pop_table_support)+1),
+         cols = c(1:8),
+         gridExpand = TRUE)
+
+writeComment(summary_pop_excel, "visible_minorities", col = 1, row = 1, comment = createComment("Type of sociodemographic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 2, row = 1, comment = createComment("Category of the sociodomegraphic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 3, row = 1, comment = createComment("Wheter this group is considered as disadvantaged in terms of the transportation literature.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 4, row = 1, comment = createComment("Total population (weighted sum, rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 5, row = 1, comment = createComment("Median (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 6, row = 1, comment = createComment("Mean (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 7, row = 1, comment = createComment("Rate of rounded medians between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel, "visible_minorities", col = 8, row = 1, comment = createComment("Rate of rounded means between population from the same descriptor.", author = "Author"))
+
+addStyle(summary_pop_excel, sheet = c("visible_minorities"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(summary_dvismin_table_support)+1),
+         cols = c(1:8),
+         gridExpand = TRUE)
+
+
+saveWorkbook(summary_pop_excel, paste0(diretorio_export_tables, "summary_pop_release.xlsx"), overwrite = TRUE)
+
+#SUPPORT 
+
+summary_pop_excel_support <- createWorkbook()
+addWorksheet(summary_pop_excel_support, "general")
+addWorksheet(summary_pop_excel_support, "visible_minorities")
+
+writeData(summary_pop_excel_support, "general", summary_pop_table_support)
+
+writeData(summary_pop_excel_support, "visible_minorities", summary_dvismin_table_support)
+
+
+writeComment(summary_pop_excel_support, "general", col = 1, row = 1, comment = createComment("Census variable used to obtain the information.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 2, row = 1, comment = createComment("Type of sociodemographic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 3, row = 1, comment = createComment("Category of the sociodomegraphic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 4, row = 1, comment = createComment("Wheter this group is considered as disadvantaged in terms of the transportation literature.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 5, row = 1, comment = createComment("Total population (weighted sum, not rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 6, row = 1, comment = createComment("Total population (weighted sum, rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 7, row = 1, comment = createComment("Count of respondents in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 8, row = 1, comment = createComment("Count of respondents with non-zero cases in job accessibility value. ", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 9, row = 1, comment = createComment("Weighted sum of respondents with non-zero cases in job accessibility value.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 10, row = 1, comment = createComment("Median (not rounded) of job accessibility of this population group.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 11, row = 1, comment = createComment("Mean (not rounded) of job accessibility of this population group.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 12, row = 1, comment = createComment("Median (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 13, row = 1, comment = createComment("Mean (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 14, row = 1, comment = createComment("Rate of rounded medians between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 15, row = 1, comment = createComment("Rate of rounded means between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 16, row = 1, comment = createComment("Census Division of the population.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 17, row = 1, comment = createComment("Count of respondents in this census division.", author = "Author"))
+writeComment(summary_pop_excel_support, "general", col = 18, row = 1, comment = createComment("Total population (weighted) in this census division.", author = "Author"))
+
+addStyle(summary_pop_excel_support, sheet = c("general"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(summary_pop_table_support)+1),
+         cols = c(2,3,4,6,12,13,14,15),
+         gridExpand = TRUE)
+
+writeComment(summary_pop_excel_support, "visible_minorities", col = 1, row = 1, comment = createComment("Census variable used to obtain the information.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 2, row = 1, comment = createComment("Type of sociodemographic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 3, row = 1, comment = createComment("Category of the sociodomegraphic information to be analyzed.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 4, row = 1, comment = createComment("Wheter this group is considered as disadvantaged in terms of the transportation literature.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 5, row = 1, comment = createComment("Total population (weighted sum, not rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 6, row = 1, comment = createComment("Total population (weighted sum, rounded) in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 7, row = 1, comment = createComment("Count of respondents in this group.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 8, row = 1, comment = createComment("Count of respondents with non-zero cases in job accessibility value. ", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 9, row = 1, comment = createComment("Weighted sum of respondents with non-zero cases in job accessibility value.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 10, row = 1, comment = createComment("Median (not rounded) of job accessibility of this population group.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 11, row = 1, comment = createComment("Mean (not rounded) of job accessibility of this population group.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 12, row = 1, comment = createComment("Median (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 13, row = 1, comment = createComment("Mean (rounded) of job accessibility of this population group. The rounding was realized in accordance to the weighted sum of non-zero cases.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 14, row = 1, comment = createComment("Rate of rounded medians between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 15, row = 1, comment = createComment("Rate of rounded means between population from the same descriptor.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 16, row = 1, comment = createComment("Census Division of the population.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 17, row = 1, comment = createComment("Count of respondents in this census division.", author = "Author"))
+writeComment(summary_pop_excel_support, "visible_minorities", col = 18, row = 1, comment = createComment("Total population (weighted) in this census division.", author = "Author"))
+
+addStyle(summary_pop_excel_support, sheet = c("visible_minorities"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(summary_dvismin_table_support)+1),
+         cols = c(2,3,4,6,12,13,14,15),
+         gridExpand = TRUE)
+
+saveWorkbook(summary_pop_excel_support, paste0(diretorio_export_tables, "summary_pop_support.xlsx"), overwrite = TRUE)
 ```
 
 Export of p-values tables:
@@ -1974,4 +2178,10 @@ Export of p-values tables:
 write.csv(pvalue_table_support[,c("Variable", "Description", "Disadvantaged", "P_value",  "Significance")], paste0(diretorio_export_tables, "pvalue_table_release.csv"), row.names=FALSE)
 
 write.csv(pvalue_table_support, paste0(diretorio_export_tables, "pvalue_table_support.csv"), row.names=FALSE)
+```
+
+Export of box plot table: 
+
+```{r export-summary-tab}
+write.csv(summary_data_ordered, paste0(diretorio_export_tables, "boxplot_summary_table.csv"), row.names=FALSE)
 ```

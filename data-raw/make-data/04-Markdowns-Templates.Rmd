@@ -1,0 +1,64 @@
+---
+title: "04-Markdowns-Templates"
+output: html_document
+---
+
+
+```{r}
+library('usethis')
+```
+
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "01_Basics_of_R", 
+                                template_description = "This R markdown aims to provide a brief introduction of `R` language and the concepts of data.")
+```
+```{r}
+usethis::use_rmarkdown_template(template_name = "02_Exploratory_Data_Analysis", 
+                                template_description = "This R markdown aims to provide a brief introduction to Exploratory Data Analysis (EDA).")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "03a_Census_Spatial_Files", 
+                                template_description = "This R markdown aims to preparate the spatial dataset to perform the accessibility analysis.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "03b_Travel_Times", 
+                                template_description = "This R markdown aims to calculate a travel time matrix for multimodal transport networks (walk, bike, public transport and car), for an selected area using the r5r R package.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "04_Accessibility_Measures_DA", 
+                                template_description = "This R markdown enables to obtain accessibility measures for any Canadian city at the Dissemination Area level.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "05_Visualizing_Accessibility_DA", 
+                                template_description = "Visualizing accessibility measures with maps - Dissemination Area level.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "04_Accessibility_Measures_CT", 
+                                template_description = "This R markdown enables to obtain accessibility measures for any Canadian city at the Census Tract level.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "05_Visualizing_Accessibility_CT", 
+                                template_description = "Visualizing accessibility measures with maps - Census Tract level.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "06_Disadvantaged_Population", 
+                                template_description = "Selecting disadvantaged population groups in terms of accessibility.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "07_Creating_Spatial_Filters", 
+                                template_description = "Creating synthetic instrumental variables from spatial filters.")
+```
+
+```{r}
+usethis::use_rmarkdown_template(template_name = "08_Employment_Outcomes", 
+                                template_description = "Linking job accessibility to employment outcomes.")
+```
