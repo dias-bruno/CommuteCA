@@ -12,14 +12,14 @@
 Source:
 [`DESCRIPTION`](https://github.com/dias-bruno/CommuteCA/blob/master/DESCRIPTION)
 
-Dos Santos B, Paez A (2025). *CommuteCA: Standardized Methods for
+Dos Santos B, Paez A (2026). *CommuteCA: Standardized Methods for
 Accessibility Analysis in Canadian Research*. R package version 3.4,
 <https://github.com/dias-bruno/CommuteCA>.
 
     @Manual{,
       title = {CommuteCA: Standardized Methods for Accessibility Analysis in Canadian Research},
       author = {Bruno {Dos Santos} and Antonio Paez},
-      year = {2025},
+      year = {2026},
       note = {R package version 3.4},
       url = {https://github.com/dias-bruno/CommuteCA},
     }

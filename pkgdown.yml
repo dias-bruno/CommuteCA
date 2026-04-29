@@ -2,7 +2,7 @@ pandoc: 3.1.11
 pkgdown: 2.2.0
 pkgdown_sha: ~
 articles: {}
-last_built: 2025-11-20T01:53Z
+last_built: 2026-04-29T16:36Z
 urls:
   reference: https://paezha.github.io/CommuteCA/reference
   article: https://paezha.github.io/CommuteCA/articles
