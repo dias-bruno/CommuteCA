@@ -113,7 +113,7 @@ For this R markdown, we'll use the following variables[^4]:
 | LBR_FORC | This variable refers to whether a person was employed, unemployed or not in the labour force. |
 | AGE | Age of the respondent. |
 | GENDER_BINARY | Gender of person (binary). |
-| LOLICOA | Income: Low-income status based on LICO-AT (after tax). |
+| LoLICOA | Income: Low-income status based on LICO-AT (after tax). |
 | LOLIMA | Income: Low-income status based on LIM-AT (after tax). |
 | ACTLMFLG | Activities of daily living: Flag. |
 | CFAMSTSIMPLE | Type of family. |
@@ -157,7 +157,7 @@ address and execute the following chunk:
 # files_address <- "INSERT-FULL-FILE-ADRESS"
 # census <- read.csv(files_address, header = TRUE)
 
-files_address <- "C:\\Bruno\\CommuteCA\\data-ignore-inputs\\census_test_toronto_v2.csv"
+files_address <- "C:\\Bruno\\CommuteCA\\data-ignore-inputs\\census_test_toronto_v3.csv"
 census <- read.csv(files_address, header = TRUE)
 ```
 
@@ -189,7 +189,7 @@ census <- census %>%
                  "LBR_FORC",
                  "AGE",
                  "GENDER_BINARY",
-                 "LOLICOA",
+                 "LoLICOA",
                  "LoLIMA",
                  "ACTLMFLG",
                  "CFAMSTSIMPLE",
@@ -275,7 +275,7 @@ following possible values:
     income
 -   4: Concept not applicable (territories or reserves) - in low income
 
-According to the census code book, the variable 'LOLICOA' has the
+According to the census code book, the variable 'LoLICOA' has the
 following possible values:[\^]
 
 [\^] Refers to the income situation of a person in relation to the
@@ -379,13 +379,13 @@ census_filtered_labeled <- census_filtered %>%
                             case_when(GENDER_BINARY == 1 ~ "Woman+",
                                       GENDER_BINARY == 2 ~ "Man+"),
                           GENDER_BINARY_label = factor(GENDER_BINARY_label), 
-                           # Low income population - LOLICOA
+                           # Low income population - LoLICOA
                      LOLICOA_label = 
-                       case_when(LOLICOA == -3 ~ "Not in low income", 
-                                 LOLICOA == 1 ~ "Not in low income",
-                                 LOLICOA == 2 ~ "In low income",
-                                 LOLICOA == 3 ~ "Not in low income",
-                                 LOLICOA == 4 ~ "In low income"),
+                       case_when(LoLICOA == -3 ~ "Not in low income", 
+                                 LoLICOA == 1 ~ "Not in low income",
+                                 LoLICOA == 2 ~ "In low income",
+                                 LoLICOA == 3 ~ "Not in low income",
+                                 LoLICOA == 4 ~ "In low income"),
                      LOLICOA_label = factor(LOLICOA_label), 
                     LoLIMA_label = 
                        case_when(LoLIMA == -3 ~ "Not in low income", 
@@ -467,7 +467,7 @@ availability measures (not distinct by mode):
 
 ```{r reading-accessibility-files}
 # For the original accessibility_measures data set
-files_address <- paste0(here(),"/data-raw/output/PCD3520/DA/accessibility-measures/SA_general_original.csv")
+files_address <- paste0(here(),"/data-raw/output/PCD",code_pcd,"/DA/accessibility-measures/SA_general_original.csv")
 accessibility_measures <- read.csv(files_address, header = TRUE)
 ```
 
@@ -1545,12 +1545,12 @@ bar plots.
 Creating a directory to export the figures and tables:
 
 ```{r directory-export}
-diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD3520/DA/disadvantaged-figures/") # Update the address to export the data, if necessary
+diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD",code_pcd,"/DA/disadvantaged-figures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_figures)){
   dir.create(diretorio_export_figures, recursive = TRUE)}
 
-diretorio_export_tables <- paste0(here(),"/data-raw/output/PCD3520/DA/disadvantaged-tables/") # Update the address to export the data, if necessary
+diretorio_export_tables <- paste0(here(),"/data-raw/output/PCD",code_pcd,"/DA/disadvantaged-tables/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_tables)){
   dir.create(diretorio_export_tables, recursive = TRUE)}

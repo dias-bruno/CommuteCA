@@ -362,7 +362,7 @@ the size of the dataframe and making data processing faster:
 ```{r select-variables-census}
 census <- census %>% 
           dplyr::select("PRCDDA",
-                 "Pr",
+                 "PR",
                  "CMA",
                  "PCD",
                  "CompW1",
@@ -382,7 +382,7 @@ next chunk corrects this problem by turning them into factors:
 ```{r factoring-variables}
 census <- census %>% 
           mutate_at(c("PRCDDA",
-                 "Pr",
+                 "PR",
                  "CMA",
                  "PCD",
                  "LBR_FORC",
@@ -681,7 +681,7 @@ Obtaining the theoretical impedance function for the bike mode:
 ```{r bike-function}
 mode <- 'Bike'
 bike_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
+                                    weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 bike_function
 ```
 
@@ -690,7 +690,7 @@ Obtaining the theoretical impedance function for the car mode:
 ```{r car-function}
 mode <- 'Car-motor'
 car_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
+                                    weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 car_function
 
 ```
@@ -700,7 +700,7 @@ Obtaining the theoretical impedance function for the transit mode:
 ```{r transit-function}
 mode <- 'Transit'
 transit_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
+                                    weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 transit_function
 ```
 
@@ -709,7 +709,7 @@ Obtaining the theoretical impedance function for the walk mode:
 ```{r walk-function}
 mode <- 'Walk'
 walk_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                    weights = tld_empirical[tld_empirical$mode == mode, ]$CompW1)
+                                    weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 walk_function
 ```
 
@@ -874,7 +874,7 @@ par(mfrow = c(1, 1))
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm_folder <- paste0(here(),"/data-raw/output/PCD3520/DA/travel_times/")
+ttm_folder <- paste0(here(),"/data-raw/output/PCD",code,"/DA/travel_times/")
 ttm_file <- paste0(ttm_folder,"ttm.csv")
 
 ttm <- read.csv(ttm_file) # Travel time table address
@@ -1218,7 +1218,7 @@ accessibility_table %>%
 
 ```{r cleaning-env}
 # List of objects required for the next steps
-keep <- c("census", "commuters", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "ttm_folder", "code", "land_use_support")
+keep <- c("census", "census_backup", "commuters", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "ttm_folder", "code", "land_use_support")
 all_objects <- ls()
 
 # Remove all objects except the ones in the keep list

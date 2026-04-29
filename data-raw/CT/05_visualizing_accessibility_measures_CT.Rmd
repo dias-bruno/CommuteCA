@@ -103,7 +103,7 @@ library('here') # enable easy file referencing in project-oriented workflows
 Setting the folder with the accessibility measures: 
 
 ```{r}
-code <- "PCD3520"
+code <- "PCD3525"
 measures_folder <- paste0(here::here(),"/data-raw/output/", code, "/CT/accessibility-measures/")
 ```
 
@@ -137,7 +137,7 @@ land_use_general <- read_csv(paste0(measures_folder, "land_use_general.csv"),
 Reading the census_tracts geometries:
 
 ```{r}
-directory_spatial_files <- paste0(here(), "/data-raw/output/PCD3520/spatial-files/") # Update this address if necessary
+directory_spatial_files <- paste0(here(), "/data-raw/output/PCD3525/spatial-files/") # Update this address if necessary
 census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.shp"))
 ```
 
@@ -157,11 +157,8 @@ mode_metrics_ct <-
   left_join(census_tracts, by = "CTUID") %>% 
   left_join(HT_mode, by = c("CTUID" = "from_id", "PwMode" = "PwMode")) %>%
   left_join(SA_mode, by = c("CTUID" = "from_id", "PwMode" = "PwMode")) %>% 
-  left_join(land_use_mode[,c("CTUID","PwMode","labour_force")], by = c("CTUID" = "CTUID", "PwMode" = "PwMode"))
-
-mode_metrics_ct[is.na(mode_metrics_ct$HT_im),]$HT_im <- 0
-mode_metrics_ct[is.na(mode_metrics_ct$SA_im),]$SA_im <- 0
-mode_metrics_ct[is.na(mode_metrics_ct$labour_force),]$labour_force <- 0
+  left_join(land_use_mode[,c("CTUID","PwMode","labour_force")], by = c("CTUID" = "CTUID", "PwMode" = "PwMode")) %>% 
+  distinct(CTUID, PwMode, .keep_all = TRUE)
 
 mode_metrics_ct_sf <- st_as_sf(mode_metrics_ct, crs = st_crs(census_tracts))
 ```
@@ -172,20 +169,14 @@ Preparing the tables to plot the maps:
 # Hansen
 HT_metrics_ct <- census_tracts %>% 
   full_join(HT, by = c("CTUID" = "from_id")) %>%
-  full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
-
-HT_metrics_ct$HT_i <- ifelse(is.na(HT_metrics_ct$HT_i), 0, HT_metrics_ct$HT_i)
-HT_metrics_ct$labour_force <- ifelse(is.na(HT_metrics_ct$labour_force), 0, HT_metrics_ct$labour_force)
-HT_metrics_ct$jobs <- ifelse(is.na(HT_metrics_ct$jobs), 0, HT_metrics_ct$jobs)
+  full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID")) %>% 
+  distinct(CTUID, .keep_all = TRUE)
 
 # Spatial Availability
 SA_metrics_ct <- census_tracts %>% 
   full_join(SA, by = c("CTUID" = "from_id")) %>%
-  full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID"))
-
-SA_metrics_ct$SA_i <- ifelse(is.na(SA_metrics_ct$SA_i), 0, SA_metrics_ct$SA_i)
-SA_metrics_ct$labour_force <- ifelse(is.na(SA_metrics_ct$labour_force), 0, SA_metrics_ct$labour_force)
-SA_metrics_ct$jobs <- ifelse(is.na(SA_metrics_ct$jobs), 0, SA_metrics_ct$jobs)
+  full_join(land_use_general[,c("CTUID","labour_force","jobs")], by = c("CTUID" = "CTUID")) %>% 
+  distinct(CTUID, .keep_all = TRUE)
 ```
 
 ## Visualizing the accessibility measures with maps
@@ -193,7 +184,7 @@ SA_metrics_ct$jobs <- ifelse(is.na(SA_metrics_ct$jobs), 0, SA_metrics_ct$jobs)
 Creating a directory to export the figures:
 
 ```{r directory-export}
-diretorio_export_figures <- paste0(here(),"/data-raw/output/PCD3520/CT/accessibility-figures/") # Update the address to export the data, if necessary
+diretorio_export_figures <- paste0(here(),"/data-raw/output/",code,"/CT/accessibility-figures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_figures)){
   dir.create(diretorio_export_figures, recursive = TRUE)}
@@ -204,9 +195,10 @@ opportunities in each census_tracts:
 
 ```{r}
 labour_force_plot <- tm_shape(HT_metrics_ct) + 
-   tm_polygons("labour_force",
+  tm_polygons("labour_force",
               style = "cont",
               palette = "Reds",
+              colorNA = "grey80",
               title = " ",
               border.col = NULL) + 
   tm_shape(census_divisions) +
@@ -242,6 +234,7 @@ tmap_save(lf_jobs_CT,
 
 lf_jobs_CT
 ```
+
 
 Plotting the accessibility measures:
 
@@ -292,12 +285,6 @@ labour force:
 ```{r}
 HT_metrics_ct$jobs_per_lf <- HT_metrics_ct$jobs / HT_metrics_ct$labour_force
 
-HT_metrics_ct <- HT_metrics_ct %>%
-  mutate(jobs_per_lf = case_when(
-    jobs == 0 & labour_force == 0 ~ 0,
-    labour_force == 0 & jobs != 0 ~ jobs,  
-    TRUE ~ jobs_per_lf))
-
 jobs_per_labour_force <- tm_shape(HT_metrics_ct) + 
    tm_polygons("jobs_per_lf",
               style = "fixed",
@@ -314,12 +301,6 @@ jobs_per_labour_force <- tm_shape(HT_metrics_ct) +
             panel.labels = "Jobs per person in labour fource")
 
 SA_metrics_ct$SA_per_lf <- SA_metrics_ct$SA_i / SA_metrics_ct$labour_force
-
-SA_metrics_ct <- SA_metrics_ct %>%
-  mutate(SA_per_lf = case_when(
-    jobs == 0 & labour_force == 0 ~ 0,
-    labour_force == 0 & jobs != 0 ~ jobs,  
-    TRUE ~ SA_per_lf))
 
 SA_per_labour_force <- tm_shape(SA_metrics_ct) + 
    tm_polygons("SA_per_lf",
@@ -429,16 +410,16 @@ SA_by_mode_CT
 Computing of the labour force by transportation mode:
 
 ```{r}
-total_pop <- sum(land_use_mode$labour_force)
-total_SA <- sum(mode_metrics_ct$SA_im)
+total_pop <- sum(land_use_mode$labour_force, na.rm = TRUE)
+total_SA <- sum(mode_metrics_ct$SA_im, na.rm = TRUE)
 
 modal_SA_percents <- mode_metrics_ct %>% 
   group_by(PwMode) %>%
-  summarize(total_labour_fource = sum(labour_force),
+  summarize(total_labour_fource = sum(labour_force, na.rm = TRUE),
             SA_meam = mean(SA_im),
-            SA_sum = sum(SA_im),
+            SA_sum = sum(SA_im, na.rm = TRUE),
             perc_SA = sum(SA_im)/total_SA, 
-            perc_pop= sum(labour_force)/total_pop)
+            perc_pop= sum(labour_force, na.rm = TRUE)/total_pop)
 
 modal_SA_long <- modal_SA_percents %>%
   pivot_longer(cols = c(perc_SA, perc_pop), names_to = "perc", values_to = "measure")

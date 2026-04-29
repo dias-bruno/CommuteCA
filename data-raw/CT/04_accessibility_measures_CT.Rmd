@@ -415,7 +415,7 @@ specific_function
 Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm_file <- paste0(here(),"/data-raw//PCD3520/CT/travel_times/ttm.csv")
+ttm_file <- paste0(here(),"/data-raw/output/PCD",code,"/CT/travel_times/ttm.csv")
 
 ttm <- read_csv(ttm_file,
                 col_types = cols(
@@ -732,7 +732,7 @@ because this metric is constrained.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/output/PCD3520/CT/accessibility-measures/") # Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/output/PCD",code,"/CT/accessibility-measures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export)){
   dir.create(diretorio_export, recursive = TRUE)}
@@ -758,10 +758,11 @@ land_use_mode <- land_use_exp %>%
   
 write.csv(land_use_mode, paste0(diretorio_export, "land_use_mode.csv"), row.names=FALSE)
 
-land_use_general <- land_use_exp %>%
-  left_join(land_use %>% 
-                dplyr::select("CTUID","CTNAME","CMAUID",
-                              "CMANAME","PCD","PRUID"), by =('CTUID'))
+land_use_general <- land_use_mode %>%
+  group_by(CTUID) %>%
+  summarize(labour_force = sum(labour_force, na.rm = TRUE),
+            across(.cols = -labour_force, .fns  = first ),
+            .groups = "drop") 
   
 write.csv(land_use_general, paste0(diretorio_export, "land_use_general.csv"), row.names=FALSE)
 ```

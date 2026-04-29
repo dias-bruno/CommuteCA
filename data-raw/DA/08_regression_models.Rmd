@@ -1,5 +1,5 @@
 ---
-title: "UNFINISHED: Links between job accessibility and employment outcomes"
+title: "Defining equity standards based on the relationship between job accessibility and employment outcomes"
 runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
 subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
 author: "Bruno Santos & Antonio Paez"
@@ -33,36 +33,40 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
 This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
-[^1]: The Mobilizing Justice project is a multidisciplinary and
-    multi-sector collaboration with the objective of understand and
-    address transportation poverty in Canada and to improve the
-    well-being of Canadians at risk of transport poverty. The Social
-    Sciences and Humanities Research Council (SSRHC) has provided
-    funding for the project, which was created by an unprecedented
-    alliance of academics from various Canadian provinces and
-    institutions, transportation firms, and nonprofit organizations
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
 
-The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
-package was created to develop standardized methods for transport
-analysis in research, particularly for analysis using the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
-which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
 
 # Section objectives
 
+In the previous section, we developed spatial filters to address the likely endogeneity between accessibility measures and individual outcomes. Building on this, we now develop regression models to examine the relationship between job accessibility and employment outcomes, with the goal of identifying key accessibility thresholds associated with improved results in employment status and job seeking engagement.
+
+We first model the relationship between each dependent variable (employment outcome) and a set of predictor variables, which include job accessibility indicators and socioeconomic characteristics. These models estimate the probability of an outcome occurring, conditional on a linear combination of the predictors. All models are estimated separately for disadvantaged and non-disadvantaged populations, as defined earlier in Section 6.
+
+Following this modelling stage, we identify equity-based accessibility standards: key thresholds of job accessibility for disadvantaged populations that correspond to more favourable employment outcomes.
 
 ## Suggested Readings
 
-
-## Data
-
+ -  Bastiaanssen, J., Johnson, D., & Lucas, K. (2025). *The relationship between individual employment probabilities and accessibility to matching jobs: A study of the Netherlands*. Transportation Research Part A: Policy and Practice, 193, 104398. 
+ -  Cunningham, S. (2021). *Causal inference: The mixtape*. Yale
+    university press.
 
 # Let's code!
 
@@ -70,33 +74,45 @@ Load the packages:
 
 ```{r load-packages}
 library(CommuteCA)
-library(dplyr)# A Grammar of Data Manipulation 
-library(here) # enable easy file referencing in project-oriented workflows
-library(survey)
-library(psych)
-library(tibble)
-library(tidyr)
-library(purrr)
-library(VGAM)
-library(stringr)
+library(dplyr) # A Grammar of Data Manipulation
+library(here) # Enables easy file referencing in project-oriented workflows
+library(survey) # Tools for analyzing complex survey samples with weights, strata, and clustering
+# library(psych) # Procedures for psychological, psychometric, and personality research
+# library(tibble) # Modern reimagining of data frames providing cleaner printing and stricter behavior
+library(tidyr) # Tools for tidying data: reshaping, pivoting, separating, and uniting columns
+library(purrr) # Functional programming tools for working with lists and iteration
+library(VGAM) # Vector generalized linear and additive models, including multinomial and ordinal models
+library(stringr) # Consistent, simple functions for working with strings
+library(MASS) # Functions and datasets from *Modern Applied Statistics with S*, including statistical models
+library(car) # Applied regression tools, including diagnostics, recoding, and ANOVA utilities
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+#library(RColorBrewer)   # Color schemes for maps (and other graphics) designed
+library(scales) # Tools for scaling, formatting, and transforming data for visualization
+library(sf) # Support for simple features: a standardized way to encode spatial vector data
+library(tmap) # Thematic maps: static, interactive, and animated cartographic visualizations
+library(openxlsx) # Read, write, and format Excel files
 ```
 
-## Reading and processing the census file
+## Data and Folders
 
-Reading census data and creating a R data frame[^1]:
+Reading census data and creating a R data frame[^2]:
 
-[^1]: For this demonstration, we will use the case of the city of
+[^2]: For this demonstration, we will use the case of the city of
     Toronto. If you want to use the other options, the original data
-    from the Census in an RDC office or the test data for all
-    locations in Canada, *update* the address in the chunk.
-    
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
 ```{r}
 # For the original Census data set
-files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto_v2.csv") # insert-the-RDC-address!!!
+files_address <- paste0(here(),"/data-ignore-inputs/census_test_toronto_v3.csv") # insert-the-RDC-address!!!
 census <- read.csv(files_address, header = TRUE)
+census_backup <- census
 ```
 
-If the original Census dataset available in the RDC is not in .csv (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+If the original Census dataset available in the RDC is not in .csv
+(comma-separated values) format but is instead provided in other formats
+such as SPSS, SAS, or SAS Data, you can use the foreign package (a
+built-in R library) to import it:
 
 ```{r}
 # library(foreign)
@@ -112,14 +128,78 @@ Or if you have installed *CommuteCA*, you can access the *test* data:
 # census <- census_test_toronto
 ```
 
-| ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+| ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
 
-It's possible to filter the data frame by administrative (province
+
+Setting the folder with the accessibility measures and spatial filter:
+
+```{r read-accessibility}
+# Folder  
+measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/spatial-filter-measures/")
+
+# Read file
+SA_mode <- read.csv(paste0(measures_folder, "spatial_filter_original.csv"))
+```
+
+```{r}
+SA_mode_wide <- SA_mode %>%
+  rename(SA = SA_im) %>%
+  pivot_wider(id_cols = PRCDDA,
+              names_from = PwMode, 
+              values_from = c(SA, Sf_dist, Sf_median_dur, Sf_imp_dur),
+              names_sep = "_")
+```
+
+Reading the dissemination area geometries:
+
+```{r}
+directory_spatial_files <- paste0(here(), "/data-raw/output/PCD3520/spatial-files/") # Update this address if necessary
+dissemination_areas <-   st_read(paste0(directory_spatial_files, "dissemination_areas.shp"))
+
+dissemination_areas <- dissemination_areas %>% 
+  mutate(DAUID = as.numeric(DAUID))
+```
+
+Reading the census division geometries:
+
+```{r}
+census_divisions <- st_read(paste0(directory_spatial_files, "census_divisions.shp"))
+```
+
+Reading the files with the disadvantaged population groups:
+
+```{r read-disadvantaged-files}
+# Folder  
+measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/disadvantaged-tables/")
+
+# Read file
+dpg_pvalues <- read.csv(paste0(measures_folder, "pvalue_table_release.csv"))
+dpg_table <- read.csv(paste0(measures_folder, "summary_pop_table_release.csv"))
+dvm_table <- read.csv(paste0(measures_folder, "summary_vmin_table_release.csv"))
+```
+
+Setting folders to export files:
+
+```{r directory-export}
+diretorio_export <- paste0(here(),"/data-raw/output/PCD3520/DA/standards-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
+
+diretorio_export_images <- paste0(here(),"/data-raw/output/PCD3520/DA/standards-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export_images, recursive = TRUE)}
+```
+
+## Preprocessing files
+
+We will filter the census data frame by administrative (province
 and/or census division) and/or statistical (census metropolitan areas
-and census agglomerations)[^10]. The chunk below shows how to make this
+and census agglomerations)[^3]. The chunk below shows how to make this
 procedure:
 
-[^10]: As said before, we will perform our analysis for the city of
+[^3]: As said before, we will perform our analysis for the city of
     Toronto. If you want to select a specific area to work, uncomment
     the code above that applies to your case and select the apropriate
     code of your interest unit. Please, check the dictionary to have
@@ -159,12 +239,12 @@ Additionally, we'll remove from our analysis travel modes signed as
 
 According to the Census 2021, an 'Employed' person refers to those who,
 during the reference period, had a labour force status of
-'employed.'[^11]. In addition, the labour force is made up of the
+'employed.'[^4]. In addition, the labour force is made up of the
 employed population and the unemployed population. This variable can
 assume the values:
 
-[^11]: Those who, during the reference period: (a) Did any work at all
-    at a job or business, that is, paid work in the context of an
+[^4]: Those who, during the reference period: (a) Did any work at all at
+    a job or business, that is, paid work in the context of an
     employer-employee relationship, or self-employment. This also
     includes persons who did unpaid family work, which is defined as
     unpaid work contributing directly to the operation of a farm,
@@ -182,11 +262,21 @@ assume the values:
 -   3: Not in Labour Force
 
 ```{r lf-selection}
+census_vetting <- census_filtered  %>%
+  dplyr::select("Frame_ID", "PRCDDA", "Pr", "CMA", "PCD", "CompW1",
+                "LBR_FORC", "CfInc_AT", "CFCNT", "CF_PnCF_NumEarners", "PWDA",
+                "PWPR", "PWCD", "PWCMA", "PWDUR", "PWDist", "PwMode", "AGE",
+                #"MRNFY", 
+                "GENDER_BINARY", "LOLICOA", "LoLIMA", "ACTLMFLG", 
+                "CFAMSTSIMPLE", "IMMCAT5", "PerImmA", "DVisMin", 
+                "HCDD", "CFKID0T5", "WEEKS", "LOKWK","Mob5", "GovtI_SocAssist")
+
 census_filtered <- census_filtered %>% 
   filter(LBR_FORC == 1 | LBR_FORC == 2) %>%
   dplyr::select("Frame_ID", "PRCDDA", "Pr", "CMA", "PCD", "CompW1",
                 "LBR_FORC", "CfInc_AT", "CFCNT", "CF_PnCF_NumEarners", "PWDA",
                 "PWPR", "PWCD", "PWCMA", "PWDUR", "PWDist", "PwMode", "AGE",
+                #"MRNFY", 
                 "GENDER_BINARY", "LOLICOA", "LoLIMA", "ACTLMFLG", 
                 "CFAMSTSIMPLE", "IMMCAT5", "PerImmA", "DVisMin", 
                 "HCDD", "CFKID0T5", "WEEKS", "LOKWK","Mob5", "GovtI_SocAssist")
@@ -194,11 +284,11 @@ census_filtered <- census_filtered %>%
 
 According to the Census 2021, an 'Employed' person refers to those who,
 during the reference period, had a labour force status of
-'employed.'[^6]. In addition, the labour force is made up of the
+'employed.'[^5]. In addition, the labour force is made up of the
 employed population and the unemployed population. This variable can
 assume the values:
 
-[^6]: Those who, during the reference period: (a) Did any work at all at
+[^5]: Those who, during the reference period: (a) Did any work at all at
     a job or business, that is, paid work in the context of an
     employer-employee relationship, or self-employment. This also
     includes persons who did unpaid family work, which is defined as
@@ -219,9 +309,9 @@ assume the values:
     dataset)
 
 According to the census code book, the variable 'GENDER_BINARY' has the
-following possible values:[^7]
+following possible values:[^6]
 
-[^7]: Given that the non-binary population is small, data aggregation to
+[^6]: Given that the non-binary population is small, data aggregation to
     a two-category gender variable is sometimes necessary to protect the
     confidentiality of responses provided. In these cases, individuals
     in the category “non-binary persons” are distributed into the other
@@ -451,7 +541,19 @@ census_filtered_labeled <- census_filtered %>%
                                                      "Not applicable")))
 ```
 
-Creating neighborhood variables:
+Creating dummy variables for Woman+, Low educated, Disability, Racialized and Single Parents:
+
+```{r}
+census_filtered_labeled <- census_filtered_labeled %>%
+                    mutate(woman_dummy = if_else(GENDER_BINARY_label == "Woman+", 1L, 0L),
+                           low_educated_dummy = if_else(HCDD_label == "Low educated", 1L, 0L),
+                           disability_dummy = if_else(ACTLMFLG_label == "With frequent difficulties", 1L, 0L),
+                           racialized_dummy = if_else(DVisMin_binary_label == "Visible minority", 1L, 0L),
+                           single_parent_dummy = if_else(CFAMSTSIMPLE_label == "Single-parent family", 1L, 0L),
+                           employed_dummy = if_else(LBR_FORC_label == "Employed", 1L, 0L))
+```
+
+Creating neighborhood variables: unemployed rate by DA and percentage of car commuters.
 
 ```{r}
 # Unemployment rate by DA
@@ -480,62 +582,7 @@ census_filtered_labeled <- census_filtered_labeled %>%
             by = "PRCDDA")
 ```
 
-Creating dummy variables:
-
-```{r}
-census_filtered_labeled <- census_filtered_labeled %>%
-                    mutate(woman_dummy = if_else(GENDER_BINARY_label == "Woman+", 1L, 0L),
-                           low_educated_dummy = if_else(HCDD_label == "Low educated", 1L, 0L),
-                           disability_dummy = if_else(ACTLMFLG_label == "With frequent difficulties", 1L, 0L),
-                           racialized_dummy = if_else(DVisMin_binary_label == "Visible minority", 1L, 0L),
-                           single_parent_dummy = if_else(CFAMSTSIMPLE_label == "Single-parent family", 1L, 0L),
-                           employed_dummy = if_else(LBR_FORC_label == "Employed", 1L, 0L))
-```
-
-
-View summary statistics from the data frame:
-
-```{r census-summary}
-summary(census_filtered_labeled)
-```
-
-## Reading the job accessibility and spatial filter indicators 
-
-Setting the folder with the accessibility measures and spatial filter: 
-
-```{r read-accessibility}
-# Folder  
-measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/spatial-filter-measures/")
-
-# Read file
-SA_mode <- read.csv(paste0(measures_folder, "spatial_filter_original.csv"))
-```
-
-```{r}
-SA_mode_wide <- SA_mode %>%
-  rename(SA = SA_im) %>%
-  pivot_wider(id_cols = PRCDDA,
-              names_from = PwMode, 
-              values_from = c(SA, Sf_dist, Sf_median_dur, Sf_imp_dur),
-              names_sep = "_")
-```
-
-
-## Reading the tables with the disadvantaged population groups 
-
-Setting the folder with the disadvantaged population groups: 
-
-```{r read-disadvantaged-files}
-# Folder  
-measures_folder <- paste0(here::here(),"/data-raw/output/PCD3520/DA/disadvantaged-tables/")
-
-# Read file
-dpg_pvalues <- read.csv(paste0(measures_folder, "pvalue_table_release.csv"))
-dpg_table <- read.csv(paste0(measures_folder, "summary_pop_table_release.csv"))
-dvm_table <- read.csv(paste0(measures_folder, "summary_vmin_table_release.csv"))
-```
-
-Defining if the respondent is part a disadvantaged group: 
+Defining whether the respondent is part a disadvantaged group:
 
 ```{r creating-equity-variable}
 significant_dpg <- dpg_pvalues %>%
@@ -580,19 +627,27 @@ if ("DVisMin_binary_label" %in% dpg_pvalues$Variable) {
 }
 ```
 
-## Creating the tables to build the regression models
+View summary statistics from the data frame:
+
+```{r census-summary}
+summary(census_filtered_labeled)
+```
+
+Now, we create a table called respondents that will serve as the base for building the regression models. To better approximate a causal relationship between accessibility and employment outcomes, we restrict the sample according to the following criteria:
+
+- We include only respondents who have lived at the same address for at least five years, in order to reduce residence self-selection bias.
+- Because the Census does not contain information on household car ownership, and because car ownership is endogenous to employment outcomes, we select only individuals living in areas where no more than 50% of commuters travel by car.
+- We exclude individuals who did not work the full year due to illness or disability; pregnancy, maternity, or parental leave; full-time studies or training; caregiving responsibilities; or retirement. This restriction focuses the analysis on respondents for whom accessibility is more likely to influence employment outcomes.
 
 ```{r respondents}
 respondents <- census_filtered_labeled %>% 
   left_join(SA_mode_wide, by = c("PRCDDA" = "PRCDDA"))
-```
 
-Filtering to select only those who live in the same address for at least 5 years:
-```{r}
-respondents <- respondents %>%
+respondents_filtered <- respondents %>%
   filter(
     Mob5 == 6, # Place of residence 5 years ago, code 6: Same address (dwelling)
     car_share < 30,  # DA in which car commuters represent less than 50% of the total population
+    #MRNFY %in% c(-5,5,7,8,9), 
     !is.na(SA_Transit), # Cases of DA without accessibility values
     !is.na(`SA_Car/motor`), 
     !is.na(SA_Walk), 
@@ -603,12 +658,42 @@ respondents <- respondents %>%
          Sf_imp_dur_Car = `Sf_imp_dur_Car/motor`)
 ```
 
-# Regression 
+# Models
+
+We now develop regression models to examine the relationship between employment outcomes and neighbourhood accessibility. First, we model the link between accessibility and employment status. Next, we restrict the sample to unemployed individuals (those in the labour force but not employed) and analyse the relationship between job search engagement and neighbourhood accessibility. For each dependent variable, we estimate separate models for the non-disadvantaged and disadvantaged populations.
+
+| Model | Population                       | Dependent variable                                                            |
+| ----- | -------------------------------- | ----------------------------------------------------------------------------- |
+| **1** | Non-disadvantaged                | Employment status (“Employed full-time” as the base category)                 |
+| **2** | Disadvantaged                    | Employment status (“Employed full-time” as the base category)                 |
+| **3** | Unemployed and non-disadvantaged | Job search engagement (“Yes, looked for full-time work” as the base category) |
+| **4** | Unemployed and disadvantaged     | Job search engagement (“Yes, looked for full-time work” as the base category) |
+
+Based on the literature, we include the following socioeconomic and demographic control variables in all models:
+
+- Respondent’s age and age squared (divided by 100)
+- Educational background (low-education dummy)
+- Number of children under age 5 in the household
+- Gender (Woman+ dummy)
+- Disability status (dummy)
+- Racialized identity (dummy)
+- Number of weeks worked in the previous year
+- Single-parent household (dummy)
+- Family size
+- Neighbourhood unemployment rate (to capture job competition)
+
+In addition, we include the instrumental variables generated using the spatial filters. 
+
+Because the dependent variables are categorical, and to address potential endogeneity, we apply the Two-Stage Residual Inclusion (2SRI) method. This approach involves two steps:
+- First stage: Regress each endogenous accessibility variable on its instrumental variable(s) and all exogenous covariates, then extract the residuals.
+- Second stage: Include these residuals as additional regressors in the main models to correct for endogeneity.
 
 ## First stage
 
+We will start the first stage of regression by creating a formula to regress accessibility based on spatial filters and other variables. 
+
 ```{r}
-design_ndis <- svydesign(ids = ~1, data = respondents, weights = ~CompW1)
+design_respondents <- svydesign(ids = ~1, data = respondents_filtered, weights = ~CompW1)
 
 stage1_formula <- as.formula(
   Accessibility ~ Sf_dist_Walk + Sf_dist_Bike + Sf_dist_Transit + Sf_dist_Car +
@@ -618,10 +703,10 @@ stage1_formula <- as.formula(
 )
 ```
 
-Walking 
+Creating the first stage for walking accessibility: 
 
 ```{r}
-stage1_walk <- svyglm(update(stage1_formula, SA_Walk ~ .), design = design_ndis)
+stage1_walk <- svyglm(update(stage1_formula, SA_Walk ~ .), design = design_respondents)
 
 summary(stage1_walk, diagnostics = TRUE)
 ```
@@ -629,10 +714,11 @@ summary(stage1_walk, diagnostics = TRUE)
 ```{r}
 regTermTest(stage1_walk, ~ Sf_dist_Walk + Sf_dist_Bike + Sf_dist_Transit + Sf_dist_Car)
 ```
-Cycling
+
+Creating the first stage for cycling accessibility: 
 
 ```{r}
-stage1_bike <- svyglm(update(stage1_formula, SA_Bike ~ .), design = design_ndis)
+stage1_bike <- svyglm(update(stage1_formula, SA_Bike ~ .), design = design_respondents)
 
 summary(stage1_bike, diagnostics = TRUE)
 ```
@@ -640,10 +726,11 @@ summary(stage1_bike, diagnostics = TRUE)
 ```{r}
 regTermTest(stage1_bike, ~ Sf_dist_Walk + Sf_dist_Bike + Sf_dist_Transit + Sf_dist_Car)
 ```
-Transit
+
+Creating the first stage for transit accessibility: 
 
 ```{r}
-stage1_transit <- svyglm(update(stage1_formula, SA_Transit ~ .), design = design_ndis)
+stage1_transit <- svyglm(update(stage1_formula, SA_Transit ~ .), design = design_respondents)
 
 summary(stage1_transit, diagnostics = TRUE)
 ```
@@ -652,10 +739,10 @@ summary(stage1_transit, diagnostics = TRUE)
 regTermTest(stage1_transit, ~ Sf_dist_Walk + Sf_dist_Bike + Sf_dist_Transit + Sf_dist_Car)
 ```
 
-Car/Motorized
+Creating the first stage for car/motorized accessibility: 
 
 ```{r}
-stage1_car <- svyglm(update(stage1_formula, SA_Car ~ .), design = design_ndis)
+stage1_car <- svyglm(update(stage1_formula, SA_Car ~ .), design = design_respondents)
 
 summary(stage1_car, diagnostics = TRUE)
 ```
@@ -664,98 +751,230 @@ summary(stage1_car, diagnostics = TRUE)
 regTermTest(stage1_car, ~ Sf_dist_Walk + Sf_dist_Bike + Sf_dist_Transit + Sf_dist_Car)
 ```
 
+Adding the residuals to the data frame: 
+
 ```{r}
-respondents$walk_residuals <- residuals(stage1_walk, type = "response")
-respondents$bike_residuals <- residuals(stage1_bike, type = "response")
-respondents$transit_residuals <- residuals(stage1_transit, type = "response")
-respondents$car_residuals <- residuals(stage1_car, type = "response")
+respondents_filtered <- respondents_filtered %>%
+  mutate(walk_hat = predict(stage1_walk, newdata = ., type = "response"),
+    walk_IV  = SA_Walk - walk_hat
+  )
+
+respondents_filtered$walk_IV <- residuals(stage1_walk, type = "response")
+respondents_filtered$bike_IV <- residuals(stage1_bike, type = "response")
+respondents_filtered$transit_IV <- residuals(stage1_transit, type = "response")
+respondents_filtered$car_IV <- residuals(stage1_car, type = "response")
+```
+
+Visualizing summary statistics: 
+
+```{r}
+summary(respondents_filtered)
 ```
 
 
-```{r dis-nondis}
-disadvantaged <- respondents %>%
-  filter(Equity == "Disadvantaged")
+## Descriptive analysis
 
-non_disadvantaged <- respondents %>%
-  filter(Equity == "Non-disadvantaged")
-```  
-
-## Variables used for the models
-
-accessibilities 
-
-age 
-
-age squared divided by 100 
-
-highest educational level, 
-
-the number of children under 6 years old in the household, 
-
-household gender, 
-
-whether the household has any disability, 
-
-whether the household is a racialized person, 
-
-whether the individual is an experienced worker   
-
-single parent household
-
-Size of the family 
-
-neighborhood car commuters 
-
-neighborhood unemployment rate 
-
-## Descriptive analysis 
+Before we perform the second stage, we will visualize some descriptive statistics about the variables used in the model.
 
 ```{r}
-disadvantaged_describe <- disadvantaged %>% 
-  dplyr::select(SA_Walk, SA_Bike, SA_Transit, SA_Car,
-                       AGE, low_educated_dummy, CFKID0T5, woman_dummy,
-                       disability_dummy, racialized_dummy, WEEKS, single_parent_dummy, 
-                       CFCNT, unemployment_rate) %>% 
-psych::describe(na.rm = TRUE, 
-                  skew = FALSE, 
-                  ranges = TRUE) %>%
-    as.data.frame() %>%                    
-  dplyr::select(mean, sd, median, min, max) %>%
-  mutate(across(everything(), ~ round(.x, 2)))
+labour_force_sum <- sum(census_filtered$CompW1)
+labour_force_n <- nrow(census_filtered)
 
-non_disadvantaged_describe <- non_disadvantaged %>% dplyr::select(SA_Walk, SA_Bike, SA_Transit, SA_Car,
-                       AGE, low_educated_dummy, CFKID0T5, woman_dummy,
-                       disability_dummy, racialized_dummy, WEEKS, single_parent_dummy, 
-                       CFCNT, unemployment_rate) %>% 
-psych::describe(na.rm = TRUE, 
-                  skew = FALSE, 
-                  ranges = TRUE) %>%
-    as.data.frame() %>%                     # <-- convert to regular data.frame
-  dplyr::select(mean, sd, median, min, max) %>%
-  mutate(across(everything(), ~ round(.x, 2)))
+
+descriptive_analysis <- respondents_filtered %>%
+  group_by(Equity) %>% 
+  summarise(
+    Unweighted = n(), 
+    Weighted_Total_pop = sum(CompW1),
+    Total_pop_rounded = round(Weighted_Total_pop / 5) * 5,
+    Unweighted_labour_fource = labour_force_n,
+    Weighted_labor_force = labour_force_sum, 
+    Labor_force_rounded = round(Weighted_labor_force / 5) * 5,
+
+    SA_Walk_mean = sum(SA_Walk * CompW1) / sum(CompW1),
+    SA_Walk_sd = sqrt(sum(CompW1 * (SA_Walk - SA_Walk_mean)^2) / sum(CompW1)),
+    SA_Walk_non_zero = sum((SA_Walk > 0) * CompW1),
+
+    SA_Bike_mean = sum(SA_Bike * CompW1) / sum(CompW1),
+    SA_Bike_sd = sqrt(sum(CompW1 * (SA_Bike - SA_Bike_mean)^2) / sum(CompW1)),
+    SA_Bike_non_zero = sum((SA_Bike > 0) * CompW1),
+
+    SA_Transit_mean = sum(SA_Transit * CompW1) / sum(CompW1),
+    SA_Transit_sd = sqrt(sum(CompW1 * (SA_Transit - SA_Transit_mean)^2) / sum(CompW1)),
+    SA_Transit_non_zero = sum((SA_Transit > 0) * CompW1),
+
+    SA_Car_mean = sum(SA_Car * CompW1) / sum(CompW1),
+    SA_Car_sd = sqrt(sum(CompW1 * (SA_Car - SA_Car_mean)^2) / sum(CompW1)),
+    SA_Car_non_zero = sum((SA_Car > 0) * CompW1),
+
+    AGE_mean = sum(AGE * CompW1) / sum(CompW1),
+    AGE_sd = sqrt(sum(CompW1 * (AGE - AGE_mean)^2) / sum(CompW1)),
+    AGE_non_zero = sum((AGE > 0) * CompW1),
+
+    CFKID0T5_mean = sum(CFKID0T5 * CompW1) / sum(CompW1),
+    CFKID0T5_sd = sqrt(sum(CompW1 * (CFKID0T5 - CFKID0T5_mean)^2) / sum(CompW1)),
+    CFKID0T5_non_zero = sum((CFKID0T5 > 0) * CompW1),
+
+    CFCNT_mean = sum(CFCNT * CompW1) / sum(CompW1),
+    CFCNT_sd = sqrt(sum(CompW1 * (CFCNT - CFCNT_mean)^2) / sum(CompW1)),
+    CFCNT_non_zero = sum((CFCNT > 0) * CompW1),
+
+    WEEKS_mean = sum(WEEKS * CompW1) / sum(CompW1),
+    WEEKS_sd = sqrt(sum(CompW1 * (WEEKS - WEEKS_mean)^2) / sum(CompW1)),
+    WEEKS_non_zero = sum((WEEKS > 0) * CompW1),
+
+    # ----- Weighted + Unweighted proportions -----
+
+    woman_unweighted = sum(woman_dummy == 1),
+    woman_weighted   = sum((woman_dummy == 1) * CompW1),
+    woman_rounded = round(woman_weighted / 5) * 5,
+    woman_prop = woman_rounded / Total_pop_rounded,
+
+    disability_unweighted = sum(disability_dummy == 1),
+    disability_weighted   = sum((disability_dummy == 1) * CompW1),
+    disability_rounded = round(disability_weighted / 5) * 5,
+    disability_prop = disability_rounded / Total_pop_rounded,
+
+    
+    racialized_unweighted = sum(racialized_dummy == 1),
+    racialized_weighted   = sum((racialized_dummy == 1) * CompW1),
+    racialized_rounded = round(racialized_weighted / 5) * 5,
+    racialized_prop = racialized_rounded / Total_pop_rounded,
+
+    low_educated_unweighted = sum(low_educated_dummy == 1),
+    low_educated_weighted   = sum((low_educated_dummy == 1) * CompW1),
+    low_educated_rounded = round(low_educated_weighted / 5) * 5,
+    low_educated_prop = low_educated_rounded / Total_pop_rounded,
+
+    single_parent_unweighted = sum(single_parent_dummy == 1),
+    single_parent_weighted   = sum((single_parent_dummy == 1) * CompW1),
+    single_parent_rounded = round(single_parent_weighted / 5) * 5,
+    single_parent_prop = single_parent_rounded / Total_pop_rounded,
+
+    employed_unweighted = sum(employed_dummy == 1),
+    employed_weighted   = sum((employed_dummy == 1) * CompW1),
+    employed_rounded = round(employed_weighted / 5) * 5,
+    employed_prop = employed_rounded / Total_pop_rounded,
+
+    full_time_unweighted = sum(LOKWK_label == "Yes (for full-time work)"),
+    full_time_weighted   = sum((LOKWK_label == "Yes (for full-time work)") * CompW1),
+    full_time_rounded = round(full_time_weighted / 5) * 5,
+    full_time_prop = full_time_rounded / Total_pop_rounded,
+
+    part_time_unweighted = sum(LOKWK_label == "Yes (for part-time work)"),
+    part_time_weighted   = sum((LOKWK_label == "Yes (for part-time work)") * CompW1),
+    part_time_rounded = round(part_time_weighted / 5) * 5,
+    part_time_prop = part_time_rounded / Total_pop_rounded,
+
+    no_unweighted = sum(LOKWK_label == "No"),
+    no_weighted   = sum((LOKWK_label == "No") * CompW1),
+    no_rounded = round(no_weighted / 5) * 5,
+    no_prop = no_rounded / Total_pop_rounded,
+    
+    .groups = "drop")
 ```
-
 
 ```{r}
-disadvantaged_describe <- disadvantaged_describe %>%
-  rownames_to_column(var = "Variable")
+get_p_percentage <- function(nonzero_pop) {
+  case_when(
+    nonzero_pop < 10 ~ 0.1667,   # 16.67%
+    nonzero_pop < 20 ~ 0.1667,   # 16.67%
+    nonzero_pop < 40 ~ 0.10,     # 10%
+    nonzero_pop < 80 ~ 0.05,     # 5%
+    nonzero_pop < 160 ~ 0.025,   # 2.5%
+    nonzero_pop < 320 ~ 0.0125,  # 1.25%
+    nonzero_pop < 640 ~ 0.00625, # 0.625%
+    nonzero_pop < 1280 ~ 0.00313, # 0.313%
+    TRUE ~ 0.00156               # 0.156%
+  )
+}
 
-non_disadvantaged_describe <- non_disadvantaged_describe %>%
-  rownames_to_column(var = "Variable")
-
-describe_joined <- disadvantaged_describe %>%
-  left_join(non_disadvantaged_describe,
-            by = "Variable",
-            suffix = c("_disadvantaged", "_non_disadvantaged")) %>%
-  dplyr::select(Variable, everything())
-
-describe_joined
+round_statistic <- function(value, nonzero_pop) {
+  if (is.na(value) || value == 0) return(value)
+  
+  # Get the p% based on non-zero population
+  p_percent <- get_p_percentage(nonzero_pop)
+  
+  # Calculate allowed error
+  allowed_error <- abs(value) * p_percent
+  
+  # Calculate rounding base (2 * allowed_error ensures within p%)
+  rounding_base <- 2 * allowed_error
+  
+  # If rounding base is 0 or very small, return original
+  if (rounding_base == 0) return(value)
+  
+  # Round to nearest multiple of rounding_base
+  return(round(value / rounding_base) * rounding_base)
+}
 ```
 
+```{r}
+descriptive_analysis <- descriptive_analysis %>%
+  mutate(
+    SA_Walk_mean_rounded = mapply(round_statistic, SA_Walk_mean, SA_Walk_non_zero),
+    SA_Walk_sd_rounded = mapply(round_statistic, SA_Walk_sd, SA_Walk_non_zero),
+    SA_Bike_mean_rounded = mapply(round_statistic, SA_Bike_mean, SA_Bike_non_zero),
+    SA_Bike_sd_rounded = mapply(round_statistic, SA_Bike_sd, SA_Bike_non_zero),
+    SA_Transit_mean_rounded = mapply(round_statistic, SA_Transit_mean, SA_Transit_non_zero),
+    SA_Transit_sd_rounded = mapply(round_statistic, SA_Transit_sd, SA_Transit_non_zero),
+    SA_Car_mean_rounded = mapply(round_statistic, SA_Car_mean, SA_Car_non_zero),
+    SA_Car_sd_rounded = mapply(round_statistic, SA_Car_sd, SA_Car_non_zero),
+    AGE_mean_rounded = mapply(round_statistic, AGE_mean, AGE_non_zero),
+    AGE_sd_rounded = mapply(round_statistic, AGE_sd, AGE_non_zero),
+    CFKID0T5_mean_rounded = mapply(round_statistic, CFKID0T5_mean, CFKID0T5_non_zero),
+    CFKID0T5_sd_rounded = mapply(round_statistic, CFKID0T5_sd, CFKID0T5_non_zero),
+    CFCNT_mean_rounded = mapply(round_statistic, CFCNT_mean, CFCNT_non_zero),
+    CFCNT_sd_rounded = mapply(round_statistic, CFCNT_sd, CFCNT_non_zero),
+    WEEKS_mean_rounded = mapply(round_statistic, WEEKS_mean, WEEKS_non_zero),
+    WEEKS_sd_rounded = mapply(round_statistic, WEEKS_sd, WEEKS_non_zero))
+
+descriptive_analysis
+```
+
+```{r}
+descriptive_analysis <- descriptive_analysis %>% 
+  dplyr::select(
+  "Equity","Unweighted","Weighted_Total_pop",
+"Total_pop_rounded","Unweighted_labour_fource","Weighted_labor_force","Labor_force_rounded",
+"SA_Walk_mean","SA_Walk_sd","SA_Walk_non_zero","SA_Walk_mean_rounded","SA_Walk_sd_rounded",
+"SA_Bike_mean","SA_Bike_sd","SA_Bike_non_zero","SA_Bike_mean_rounded","SA_Bike_sd_rounded",
+"SA_Transit_mean","SA_Transit_sd","SA_Transit_non_zero","SA_Transit_mean_rounded","SA_Transit_sd_rounded",
+"SA_Car_mean","SA_Car_sd","SA_Car_non_zero","SA_Car_mean_rounded","SA_Car_sd_rounded",
+"AGE_mean","AGE_sd","AGE_non_zero","AGE_mean_rounded","AGE_sd_rounded",
+"CFKID0T5_mean","CFKID0T5_sd","CFKID0T5_non_zero","CFKID0T5_mean_rounded","CFKID0T5_sd_rounded",
+"CFCNT_mean","CFCNT_sd","CFCNT_non_zero","CFCNT_mean_rounded","CFCNT_sd_rounded",
+"WEEKS_mean","WEEKS_sd","WEEKS_non_zero","WEEKS_mean_rounded","WEEKS_sd_rounded",
+"woman_unweighted","woman_weighted","woman_rounded","woman_prop",
+"disability_unweighted","disability_weighted","disability_rounded","disability_prop",
+"racialized_unweighted","racialized_weighted","racialized_rounded","racialized_prop",
+"low_educated_unweighted","low_educated_weighted","low_educated_rounded","low_educated_prop",
+"single_parent_unweighted","single_parent_weighted","single_parent_rounded","single_parent_prop",
+"employed_unweighted","employed_weighted","employed_rounded","employed_prop",
+"full_time_unweighted","full_time_weighted","full_time_rounded","full_time_prop",
+"part_time_unweighted","part_time_weighted","part_time_rounded","part_time_prop",
+"no_unweighted","no_weighted","no_rounded","no_prop")
+```
+
+```{r}
+descriptive_analysis
+```
 
 # Employment status
 
-## Non-disadvantaged  
+To start the second stage of our models, we need to split the variables between the two populations: 
+
+```{r dis-nondis}
+disadvantaged <- respondents_filtered %>%
+  filter(Equity == "Disadvantaged")
+
+non_disadvantaged <- respondents_filtered %>%
+  filter(Equity == "Non-disadvantaged")
+```
+
+## Non-disadvantaged: Model 1
+
+Creating the formula: 
 
 ```{r}
 design_ndis_employment <- svydesign(ids = ~1, data = non_disadvantaged, weights = ~CompW1)
@@ -763,20 +982,48 @@ design_ndis_employment <- svydesign(ids = ~1, data = non_disadvantaged, weights 
 outcome_formula <- as.formula(Outcome ~ SA_Walk + SA_Bike + SA_Transit + SA_Car +
     AGE + I(AGE^2) + low_educated_dummy + CFKID0T5 + woman_dummy + 
     disability_dummy + racialized_dummy + WEEKS + single_parent_dummy + 
-    CFCNT + unemployment_rate + walk_residuals + bike_residuals +
-    transit_residuals + car_residuals)
+    CFCNT + unemployment_rate + walk_IV + bike_IV +
+    transit_IV + car_IV)
 ```
+
 
 ```{r}
 outcome_formula <- update(outcome_formula, employed_dummy ~ .)
 
-employment_ndis_model <- svyglm(outcome_formula, 
+employment_ndis_model <- survey::svyglm(outcome_formula, 
                                 design = design_ndis_employment,
                                 family = binomial())
 
 summary(employment_ndis_model)
 ```
 
+Plotting some diagnostic graphs. The first is Cook's distance: 
+
+```{r}
+plot(employment_ndis_model, 
+     which = 4, 
+     id.n = 3)
+```
+
+Visualizing Cook's distance using another graph (Hint: it needs to be between the dashed lines!):
+
+```{r}
+plot(employment_ndis_model, which = 5)
+```
+
+Viewing the standard deviation of the residuals (Hint: no greater than 3):
+ 
+```{r}
+summary(MASS::stdres(employment_ndis_model))
+```
+
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+ 
+```{r}
+car::vif(employment_ndis_model)
+```
+
+Comparing our model with a null model:
 
 ```{r}
 null_model <- svyglm(employed_dummy ~ 1, design = design_ndis_employment, family = binomial())
@@ -790,7 +1037,9 @@ pseudo_r2
 outcome_formula
 
 regTermTest(employment_ndis_model, ~ SA_Walk + SA_Bike + SA_Transit + SA_Car)
-```
+``` 
+
+ANOVA:
 
 ```{r}
 car::Anova(employment_ndis_model, type = 3, test.statistic = "F",
@@ -798,35 +1047,102 @@ car::Anova(employment_ndis_model, type = 3, test.statistic = "F",
 ```
 
 ```{r}
-compute_or_table <- function(svy_model, remove_intercept = TRUE, round_digits = 3) {
-  coef_table <- summary(svy_model)$coefficients
+compute_or_table <- function(svy_model, 
+                                      remove_intercept = TRUE, 
+                                      round_digits = 3,
+                                      alpha = 0.05,
+                                      include_se = TRUE) {
+  # Get model summary
+  model_summary <- summary(svy_model)
   
-  OR_CI <- cbind("AOR" = exp(coef(svy_model)),
-    "2.5%" = exp(confint(svy_model, df.resid = degf(svy_model$survey.design))[,1]),
-    "97.5%" = exp(confint(svy_model, df.resid = degf(svy_model$survey.design))[,2]),
-    "p-value" = coef_table[, "Pr(>|t|)"])
+  # Extract coefficients and standard errors
+  coefs <- coef(svy_model)
+  se <- sqrt(diag(vcov(svy_model)))
   
-  if (remove_intercept){
-    OR_CI <- OR_CI[-1, ]
-    }
+  # Degrees of freedom for t-distribution
+  df_resid <- degf(svy_model$survey.design)
   
-  OR_CI <- as.data.frame(OR_CI)
+  # Calculate t-statistics and p-values
+  t_stats <- coefs / se
+  p_values <- 2 * pt(-abs(t_stats), df = df_resid)  # Two-tailed
   
-  OR_CI$Change <- (OR_CI$AOR - 1) * 100
+  # Calculate confidence intervals using t-distribution
+  t_critical <- qt(1 - alpha/2, df = df_resid)
+  ci_lower <- coefs - t_critical * se
+  ci_upper <- coefs + t_critical * se
   
-  OR_CI$Effect <- ifelse(OR_CI$`p-value` > 0.05, "Insignificant",
-                         ifelse(OR_CI$AOR > 1, "Positive", "Negative"))
+  # Create results table
+  results <- data.frame(
+    Variable = names(coefs),
+    Coef = coefs,
+    SE = se,
+    t_value = t_stats,
+    OR = exp(coefs),
+    OR_lower = exp(ci_lower),
+    OR_upper = exp(ci_upper),
+    p_value = p_values,
+    stringsAsFactors = FALSE
+  )
   
-  num_cols <- c("AOR","2.5%","97.5%","Change")
-  OR_CI[, num_cols] <- round(OR_CI[, num_cols], round_digits)
+  # Calculate percentage change
+  results$Change <- (results$OR - 1) * 100
   
-  OR_CI$Variable <- rownames(OR_CI)
-  rownames(OR_CI) <- NULL
+  # Determine effect direction with more precise logic
+  results$Effect <- with(results, {
+    case_when(
+      p_value >= alpha ~ "Insignificant",
+      OR > 1.001 ~ "Positive",  # Small buffer for rounding
+      OR < 0.999 ~ "Negative",
+      TRUE ~ "No Effect"  # OR ~= 1
+    )
+  })
   
-  OR_CI <- OR_CI %>% 
-    dplyr::select(Variable,AOR,"2.5%","97.5%",Change,Effect)
-
-  return(OR_CI)
+  # Add significance stars if desired
+  results$Sig <- with(results, {
+    case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01  ~ "**",
+      p_value < 0.05  ~ "*",
+      p_value < 0.1   ~ ".",
+      TRUE ~ ""
+    )
+  })
+  
+  # Remove intercept if requested
+  if (remove_intercept && "(Intercept)" %in% results$Variable) {
+    results <- results[results$Variable != "(Intercept)", ]
+  }
+  
+  # Round numeric columns
+  num_cols <- c("Coef", "SE", "t_value", "OR", "OR_lower", 
+                "OR_upper", "Change")
+  results[num_cols] <- lapply(results[num_cols], round, round_digits)
+  results$p_value <- signif(results$p_value, 3)  # Better for p-values
+  
+  # Reorder columns
+  col_order <- c("Variable", "Coef", if(include_se) "SE", "t_value", 
+                 "OR", "OR_lower", "OR_upper", "Change", "p_value", 
+                 "Sig", "Effect")
+  col_order <- col_order[col_order %in% names(results)]
+  
+  results <- results[, col_order]
+  
+  # Add interpretation column
+  results$Interpretation <- with(results, {
+    case_when(
+      Effect == "Positive" ~ sprintf(
+        "%s%% increase in odds (95%% CI: %s to %s)",
+        round(Change, 1), round(OR_lower, 2), round(OR_upper, 2)
+      ),
+      Effect == "Negative" ~ sprintf(
+        "%s%% decrease in odds (95%% CI: %s to %s)",
+        round(-Change, 1), round(OR_lower, 2), round(OR_upper, 2)
+      ),
+      TRUE ~ "No significant effect"
+    )
+  })
+  
+  return(results)
 }
 
 compute_elasticities <- function(model, alpha = 0.05) {
@@ -932,24 +1248,31 @@ compute_marginal_effects <- function(model, dummy_vars, alpha = 0.05) {
 }
 ```
 
+Calculation of the odds ratio ($e^β$) (the impact on the outcome caused by a 1-unit increase in a variable): 
+ 
 ```{r}
 OR_table_employment_ndis <- compute_or_table(employment_ndis_model)
 OR_table_employment_ndis
 ```
 
+Visualizing elasticity (the impact of a 1% increase in the outcome):
 
 ```{r}
 elasticity_table_employment_ndis <- compute_elasticities(employment_ndis_model)
 elasticity_table_employment_ndis
 ```
 
+Viewing the marginal effect for dummy variables: 
+
 ```{r}
-dummy_vars <- c("woman_dummy", "disability_dummy", "low_educated_dummy")
+dummy_vars <- c("woman_dummy", "disability_dummy", "racialized_dummy", "low_educated_dummy")
 dummy_margins_employment_ndis <- compute_marginal_effects(employment_ndis_model, dummy_vars)
 dummy_margins_employment_ndis
 ```
 
-## Disadvantaged  
+## Disadvantaged: Model 2
+
+Creating the formula: 
 
 ```{r}
 design_dis_employment <- svydesign(ids = ~1, data = non_disadvantaged, weights = ~CompW1)
@@ -960,6 +1283,33 @@ employment_dis_model <- svyglm(outcome_formula,
 summary(employment_dis_model)
 ```
 
+Cook's distance: 
+
+```{r}
+plot(employment_dis_model, 
+     which = 4, 
+     id.n = 3)
+```
+
+Visualizing Cook's distance using another graph (Hint: it needs to be between the dashed lines!):
+
+```{r}
+plot(employment_dis_model, which = 5)
+```
+
+Visualizing Cook's distance using another graph (Hint: it needs to be between the dashed lines!):
+
+```{r}
+summary(MASS::stdres(employment_dis_model))
+```
+
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+
+```{r}
+car::vif(employment_dis_model)
+```
+
+Comparing our model with a null model:
 
 ```{r}
 null_model <- svyglm(employed_dummy ~ 1, design = design_dis_employment, family = binomial())
@@ -973,21 +1323,28 @@ pseudo_r2
 regTermTest(employment_dis_model, ~SA_Walk + SA_Bike + SA_Transit + SA_Car)
 ```
 
+ANOVA:
+
 ```{r}
 car::Anova(employment_dis_model, type = 3, test.statistic = "F",
            error.df = degf(employment_dis_model$survey.design))
 ```
+
+Calculation of the odds ratio ($e^β$) (the impact on the outcome caused by a 1-unit increase in a variable): 
 
 ```{r}
 OR_table_employment_dis <- compute_or_table(employment_dis_model)
 OR_table_employment_dis
 ```
 
+Visualizing elasticity (the impact of a 1% increase in the outcome):
 
 ```{r}
 elasticity_table_employment_dis <- compute_elasticities(employment_dis_model)
 elasticity_table_employment_dis
 ```
+
+Viewing the marginal effect for dummy variables: 
 
 ```{r}
 dummy_margins_employment_dis <- compute_marginal_effects(employment_dis_model, dummy_vars)
@@ -995,6 +1352,8 @@ dummy_margins_employment_dis
 ```
 
 # Job seeking
+
+For the second outcome, we need to filter the respondents to left only unemployed people:
 
 ```{r}
 disadvantaged <- disadvantaged %>%
@@ -1012,22 +1371,18 @@ non_disadvantaged <- non_disadvantaged %>%
 non_disadvantaged$LOKWK_label <- relevel(non_disadvantaged$LOKWK_label, ref = "No")
 ```
 
-## Non-disadvantaged  
+## Non-disadvantaged: Model 3
+
+Creating the formula: 
 
 ```{r}
-jseek_outcome_formula <- as.formula(Outcome ~ SA_Walk + SA_Bike + SA_Transit + SA_Car +
-    AGE + I(AGE^2) +  CFKID0T5 +  GovtI_SocAssist + WEEKS + 
-    low_educated_dummy + woman_dummy +  disability_dummy +  racialized_dummy + single_parent_dummy +     unemployment_rate + 
-    + walk_residuals + bike_residuals + transit_residuals + car_residuals)
-
-
-jseek_outcome_formula <- as.formula(Outcome ~ SA_Walk + SA_Bike + SA_Transit + SA_Car +
-    walk_residuals + bike_residuals +
-    transit_residuals + car_residuals)
+jseek_outcome_formula <- as.formula(
+  Outcome ~ SA_Walk + SA_Bike + SA_Transit + SA_Car +
+    AGE + I(AGE^2) +  CFKID0T5 +  GovtI_SocAssist + WEEKS + CFCNT + 
+    low_educated_dummy + woman_dummy +  disability_dummy +  racialized_dummy + single_parent_dummy +     unemployment_rate + walk_IV + bike_IV + transit_IV + car_IV)
 
 jseek_outcome_formula <- update(jseek_outcome_formula, LOKWK_label ~ .)
 ```
-
 
 ```{r}
 jseek_ndis_model <- vglm(jseek_outcome_formula,
@@ -1037,6 +1392,37 @@ jseek_ndis_model <- vglm(jseek_outcome_formula,
 
 summary(jseek_ndis_model)
 ```
+
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+
+```{r}
+m <- lm(update(jseek_outcome_formula, as.numeric(LOKWK_label) ~ .), 
+               data = non_disadvantaged, 
+               weights = non_disadvantaged$CompW1)
+
+car::vif(m)
+```
+
+Comparing our model with a null model:
+
+```{r}
+jseek_ndis_model_nulo <- vglm(update(jseek_outcome_formula, LOKWK_label ~ 1),
+                          family = multinomial(),
+                          data = non_disadvantaged,
+                          weights = CompW1)
+```
+
+ANOVA: 
+
+```{r}
+anova(jseek_ndis_model, jseek_ndis_model_nulo, type = 'I')
+```
+
+```{r}
+car::Anova(jseek_ndis_model)
+```
+
+Calculation of the odds ratio ($e^β$) (the impact on the outcome caused by a 1-unit increase in a variable): 
 
 ```{r}
 make_multinom_OR_table <- function(model) {
@@ -1080,25 +1466,1331 @@ make_multinom_OR_table <- function(model) {
 }
 ```
 
-
 ```{r}
 OR_table_jseek_ndis <- make_multinom_OR_table(jseek_ndis_model)
 OR_table_jseek_ndis
 ```
 
-## Disadvantaged
+## Disadvantaged: Model 4
+
+Creating the formula: 
 
 ```{r}
-jseek_dis_model <- vglm(jseek_outcome_formula,
-                          family = multinomial(),
-                          data = disadvantaged,
-                          weights = CompW1)
+jseek_dis_model <- jseek_ndis_model
+
+# jseek_dis_model <- vglm(jseek_outcome_formula,
+#                           family = multinomial(),
+#                           data = disadvantaged,
+#                           weights = CompW1)
 
 summary(jseek_dis_model)
 ```
 
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+
 ```{r}
-OR_table_jseek_dis <- make_multinom_OR_table(jseek_dis_model)
-OR_table_jseek_dis
+# m <- lm(update(jseek_outcome_formula, as.numeric(LOKWK_label) ~ .), 
+#                data = disadvantaged, 
+#                weights = disadvantaged$CompW1)
+# 
+# car::vif(m)
+```
+
+Comparing our model with a null model:
+
+```{r}
+# jseek_dis_model_nulo <- vglm(update(jseek_outcome_formula, LOKWK_label ~ 1),
+#                           family = multinomial(),
+#                           data = disadvantaged,
+#                           weights = CompW1)
+```
+
+ANOVA: 
+
+```{r}
+# anova(jseek_dis_model, jseek_dis_model_nulo, type = 'I')
+```
+
+```{r}
+# car::Anova(jseek_dis_model)
+```
+
+Calculation of the odds ratio ($e^β$) (the impact on the outcome caused by a 1-unit increase in a variable): 
+
+```{r}
+# OR_table_jseek_dis <- make_multinom_OR_table(jseek_dis_model)
+# OR_table_jseek_dis
+```
+
+# Defining Equity Standards
+
+Now, based on the relationship identified between accessibility and employment outcomes, we will identify some key thresholds to employment accessibility, focusing on the disadvantaged population. To do this, we need to control for other variables (indicators of non-accessibility) and vary the accessibility values in order to identify these key thresholds. The following chunks create a data frame with the median values (control) of the socioeconomic variables: 
+
+```{r}
+m1_disadvantaged <- respondents_filtered %>%
+  filter(Equity == "Disadvantaged")
+
+m1_non_disadvantaged <- respondents_filtered %>%
+  filter(Equity == "Non-disadvantaged")
+```
+
+How accessibility will vary: 
+
+```{r}
+access_seq <- seq(from = 0,
+                      to = max(m1_disadvantaged$SA_Car, na.rm = TRUE),
+                      by = 5)
+```
+
+Controlling socioeconomic and demographic variables: 
+
+```{r}
+ndis_m1_list <- list(SA_Walk = Hmisc::wtd.quantile(m1_non_disadvantaged$SA_Walk, weights = m1_non_disadvantaged$CompW1, probs = 0.5),
+                    SA_Bike = Hmisc::wtd.quantile(m1_non_disadvantaged$SA_Bike, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Car = Hmisc::wtd.quantile(m1_non_disadvantaged$SA_Car, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Transit = Hmisc::wtd.quantile(m1_non_disadvantaged$SA_Transit, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   AGE = Hmisc::wtd.quantile(m1_non_disadvantaged$AGE, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   CFKID0T5 = Hmisc::wtd.quantile(m1_non_disadvantaged$CFKID0T5, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   WEEKS = Hmisc::wtd.quantile(m1_non_disadvantaged$WEEKS, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   CFCNT = Hmisc::wtd.quantile(m1_non_disadvantaged$CFCNT, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   GovtI_SocAssist  = Hmisc::wtd.quantile(m1_non_disadvantaged$GovtI_SocAssist, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   low_educated_dummy = sum(m1_non_disadvantaged$low_educated_dummy * m1_non_disadvantaged$CompW1)/sum(m1_non_disadvantaged$CompW1), 
+                   woman_dummy = sum(m1_non_disadvantaged$woman_dummy * m1_non_disadvantaged$CompW1)/sum(m1_non_disadvantaged$CompW1), 
+                   disability_dummy = sum(m1_non_disadvantaged$disability_dummy * m1_non_disadvantaged$CompW1)/sum(m1_non_disadvantaged$CompW1), 
+                   racialized_dummy = sum(m1_non_disadvantaged$racialized_dummy * m1_non_disadvantaged$CompW1)/sum(m1_non_disadvantaged$CompW1), 
+                   single_parent_dummy = sum(m1_non_disadvantaged$single_parent_dummy * m1_non_disadvantaged$CompW1)/sum(m1_non_disadvantaged$CompW1), 
+                   unemployment_rate = Hmisc::wtd.quantile(m1_non_disadvantaged$SA_Transit, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   walk_IV = Hmisc::wtd.quantile(m1_non_disadvantaged$walk_IV, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   bike_IV = Hmisc::wtd.quantile(m1_non_disadvantaged$bike_IV, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   transit_IV = Hmisc::wtd.quantile(m1_non_disadvantaged$transit_IV, weights = m1_non_disadvantaged$CompW1, probs = 0.5), 
+                   car_IV = Hmisc::wtd.quantile(m1_non_disadvantaged$car_IV, weights = m1_non_disadvantaged$CompW1, probs = 0.5))
+```
+
+```{r}
+dis_m1_list <- list(SA_Walk = Hmisc::wtd.quantile(m1_disadvantaged$SA_Walk, weights = m1_disadvantaged$CompW1, probs = 0.5),
+                    SA_Bike = Hmisc::wtd.quantile(m1_disadvantaged$SA_Bike, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Car = Hmisc::wtd.quantile(m1_disadvantaged$SA_Car, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Transit = Hmisc::wtd.quantile(m1_disadvantaged$SA_Transit, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   AGE = Hmisc::wtd.quantile(m1_disadvantaged$AGE, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   CFKID0T5 = Hmisc::wtd.quantile(m1_disadvantaged$CFKID0T5, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   WEEKS = Hmisc::wtd.quantile(m1_disadvantaged$WEEKS, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   CFCNT = Hmisc::wtd.quantile(m1_disadvantaged$CFCNT, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   GovtI_SocAssist  = Hmisc::wtd.quantile(m1_disadvantaged$GovtI_SocAssist, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   low_educated_dummy = sum(m1_disadvantaged$low_educated_dummy * m1_disadvantaged$CompW1)/sum(m1_disadvantaged$CompW1), 
+                   woman_dummy = sum(m1_disadvantaged$woman_dummy * m1_disadvantaged$CompW1)/sum(m1_disadvantaged$CompW1), 
+                   disability_dummy = sum(m1_disadvantaged$disability_dummy * m1_disadvantaged$CompW1)/sum(m1_disadvantaged$CompW1), 
+                   racialized_dummy = sum(m1_disadvantaged$racialized_dummy * m1_disadvantaged$CompW1)/sum(m1_disadvantaged$CompW1), 
+                   single_parent_dummy = sum(m1_disadvantaged$single_parent_dummy * m1_disadvantaged$CompW1)/sum(m1_disadvantaged$CompW1), 
+                   unemployment_rate = Hmisc::wtd.quantile(m1_disadvantaged$SA_Transit, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   walk_IV = Hmisc::wtd.quantile(m1_disadvantaged$walk_IV, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   bike_IV = Hmisc::wtd.quantile(m1_disadvantaged$bike_IV, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   transit_IV = Hmisc::wtd.quantile(m1_disadvantaged$transit_IV, weights = m1_disadvantaged$CompW1, probs = 0.5), 
+                   car_IV = Hmisc::wtd.quantile(m1_disadvantaged$car_IV, weights = m1_disadvantaged$CompW1, probs = 0.5))
+```
+
+```{r}
+m2_disadvantaged <- m1_disadvantaged %>%
+  filter(LOKWK_label %in% c("Yes (for full-time work)", 
+                            "Yes (for part-time work)", 
+                            "No")) 
+
+m2_disadvantaged$LOKWK_label <- relevel(m2_disadvantaged$LOKWK_label, ref = "No")
+
+m2_non_disadvantaged <- m1_non_disadvantaged %>%
+  filter(LOKWK_label %in% c("Yes (for full-time work)", 
+                            "Yes (for part-time work)", 
+                            "No"))
+
+m2_non_disadvantaged$LOKWK_label <- relevel(m2_non_disadvantaged$LOKWK_label, ref = "No")
+```
+
+```{r}
+ndis_m2_list <- list(SA_Walk = Hmisc::wtd.quantile(m2_non_disadvantaged$SA_Walk, weights = m2_non_disadvantaged$CompW1, probs = 0.5),
+                    SA_Bike = Hmisc::wtd.quantile(m2_non_disadvantaged$SA_Bike, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Car = Hmisc::wtd.quantile(m2_non_disadvantaged$SA_Car, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Transit = Hmisc::wtd.quantile(m2_non_disadvantaged$SA_Transit, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   AGE = Hmisc::wtd.quantile(m2_non_disadvantaged$AGE, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   CFKID0T5 = Hmisc::wtd.quantile(m2_non_disadvantaged$CFKID0T5, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   WEEKS = Hmisc::wtd.quantile(m2_non_disadvantaged$WEEKS, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   CFCNT = Hmisc::wtd.quantile(m2_non_disadvantaged$CFCNT, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   GovtI_SocAssist  = Hmisc::wtd.quantile(m2_non_disadvantaged$GovtI_SocAssist, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   low_educated_dummy = sum(m2_non_disadvantaged$low_educated_dummy * m2_non_disadvantaged$CompW1)/sum(m2_non_disadvantaged$CompW1), 
+                   woman_dummy = sum(m2_non_disadvantaged$woman_dummy * m2_non_disadvantaged$CompW1)/sum(m2_non_disadvantaged$CompW1), 
+                   disability_dummy = sum(m2_non_disadvantaged$disability_dummy * m2_non_disadvantaged$CompW1)/sum(m2_non_disadvantaged$CompW1), 
+                   racialized_dummy = sum(m2_non_disadvantaged$racialized_dummy * m2_non_disadvantaged$CompW1)/sum(m2_non_disadvantaged$CompW1), 
+                   single_parent_dummy = sum(m2_non_disadvantaged$single_parent_dummy * m2_non_disadvantaged$CompW1)/sum(m2_non_disadvantaged$CompW1), 
+                   unemployment_rate = Hmisc::wtd.quantile(m2_non_disadvantaged$SA_Transit, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   walk_IV = Hmisc::wtd.quantile(m2_non_disadvantaged$walk_IV, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   bike_IV = Hmisc::wtd.quantile(m2_non_disadvantaged$bike_IV, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   transit_IV = Hmisc::wtd.quantile(m2_non_disadvantaged$transit_IV, weights = m2_non_disadvantaged$CompW1, probs = 0.5), 
+                   car_IV = Hmisc::wtd.quantile(m2_non_disadvantaged$car_IV, weights = m2_non_disadvantaged$CompW1, probs = 0.5))
+```
+
+```{r}
+dis_m2_list <- list(SA_Walk = Hmisc::wtd.quantile(m2_disadvantaged$SA_Walk, weights = m2_disadvantaged$CompW1, probs = 0.5),
+                    SA_Bike = Hmisc::wtd.quantile(m2_disadvantaged$SA_Bike, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Car = Hmisc::wtd.quantile(m2_disadvantaged$SA_Car, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   SA_Transit = Hmisc::wtd.quantile(m2_disadvantaged$SA_Transit, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   AGE = Hmisc::wtd.quantile(m2_disadvantaged$AGE, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   CFKID0T5 = Hmisc::wtd.quantile(m2_disadvantaged$CFKID0T5, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   WEEKS = Hmisc::wtd.quantile(m2_disadvantaged$WEEKS, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   CFCNT = Hmisc::wtd.quantile(m2_disadvantaged$CFCNT, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   GovtI_SocAssist  = Hmisc::wtd.quantile(m2_disadvantaged$GovtI_SocAssist, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   low_educated_dummy = sum(m2_disadvantaged$low_educated_dummy * m2_disadvantaged$CompW1)/sum(m2_disadvantaged$CompW1), 
+                   woman_dummy = sum(m2_disadvantaged$woman_dummy * m2_disadvantaged$CompW1)/sum(m2_disadvantaged$CompW1), 
+                   disability_dummy = sum(m2_disadvantaged$disability_dummy * m2_disadvantaged$CompW1)/sum(m2_disadvantaged$CompW1), 
+                   racialized_dummy = sum(m2_disadvantaged$racialized_dummy * m2_disadvantaged$CompW1)/sum(m2_disadvantaged$CompW1), 
+                   single_parent_dummy = sum(m2_disadvantaged$single_parent_dummy * m2_disadvantaged$CompW1)/sum(m2_disadvantaged$CompW1), 
+                   unemployment_rate = Hmisc::wtd.quantile(m2_disadvantaged$SA_Transit, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   walk_IV = Hmisc::wtd.quantile(m2_disadvantaged$walk_IV, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   bike_IV = Hmisc::wtd.quantile(m2_disadvantaged$bike_IV, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   transit_IV = Hmisc::wtd.quantile(m2_disadvantaged$transit_IV, weights = m2_disadvantaged$CompW1, probs = 0.5), 
+                   car_IV = Hmisc::wtd.quantile(m2_disadvantaged$car_IV, weights = m2_disadvantaged$CompW1, probs = 0.5))
+```
+
+```{r}
+grid <- expand.grid(c("Walk","Bike","Transit","Car"),
+                    c("Non-disadvantaged","Disadvantaged"), 
+                    c("Employed", "Unemployed", "No", "Yes (for part-time work)", "Yes (for full-time work)"), 
+                  access_seq)
+
+grid_df <- as.data.frame(grid) %>% 
+  rename(Mode = Var1,
+         Equity = Var2,
+         Outcome = Var3, 
+         Value = Var4) %>% 
+  mutate(Model = case_when(
+    Outcome %in% c("Employed", "Unemployed") ~ "Status",
+    Outcome %in% c("No", "Yes (for part-time work)", "Yes (for full-time work)") ~ "Job seeking"))
+
+# function to select the correct list based on Equity
+select_values <- function(equity, model) {
+  if (equity == "Disadvantaged") {
+    if (model == "Status") {
+      dis_m1_list
+    } else if (model == "Job seeking") {
+      dis_m2_list
+    }
+  } else if (equity == "Non-disadvantaged") {
+    if (model == "Status") {
+      ndis_m1_list
+    } else if (model == "Job seeking") {
+      ndis_m2_list
+    }
+  }
+}
+
+
+# generate a data frame where each row contains the appropriate values
+library(purrr)
+
+value_df <- pmap_dfr(list(grid_df$Equity, grid_df$Model),
+  ~ as.data.frame(select_values(..1, ..2)))
+
+rownames(value_df) <- NULL
+
+# bind to grid_df
+grid_df <- bind_cols(grid_df, value_df) %>%
+  mutate(SA_Walk = if_else(Mode == "Walk", Value, SA_Walk),
+         SA_Bike = if_else(Mode == "Bike", Value, SA_Bike),
+         SA_Transit = if_else(Mode == "Transit", Value, SA_Transit),
+         SA_Car = if_else(Mode == "Car", Value, SA_Car), 
+         employed_dummy = case_when(Outcome == "Employed" & Model == "Status" ~ 1, 
+                                    Outcome == "Unemployed" & Model == "Status" ~ 0), 
+         LOKWK_label = 
+         )
+
+# Change values for the dummy variables
+# grid_df <- grid_df %>% 
+#   mutate(low_educated_dummy = case_when(
+#     Equity == "Non-disadvantaged" ~ 0,
+#     Equity == "Disadvantaged" ~ 1),
+#     woman_dummy = case_when(
+#     Equity == "Non-disadvantaged" ~ 0,
+#     Equity == "Disadvantaged" ~ 1),
+#     disability_dummy = case_when(
+#     Equity == "Non-disadvantaged" ~ 0,
+#     Equity == "Disadvantaged" ~ 1),
+#     single_parent_dummy = case_when(
+#     Equity == "Non-disadvantaged" ~ 0,
+#     Equity == "Disadvantaged" ~ 1),
+#     racialized_dummy = case_when(
+#     Equity == "Non-disadvantaged" ~ 0,
+#     Equity == "Disadvantaged" ~ 1))
+```
+
+```{r}
+predict_subet <- data.frame()
+
+for(mode in unique(grid_df$Mode)){
+for(model in unique(grid_df$Model)){
+  for(group in unique(grid_df$Equity)){
+    if(model == 'Status'){
+      if(group == 'Disadvantaged'){
+        df <- grid_df %>% 
+          filter(Model == model, 
+                 Equity == group, 
+                 Mode == mode)
+        
+          pred_employment <- predict(employment_dis_model,
+                               newdata = df,
+                               type = "response")
+          
+          pred_employment <- as.data.frame(pred_employment) %>% 
+            rename(Employed = response) 
+          
+          pred_employment$Value <- df$Value
+          
+          pred_employment <- pred_employment %>% 
+            mutate(Unemployed = 1 - Employed,
+                     Mode = mode,
+                     Equity = group,
+                     Model  = model) %>% 
+            pivot_longer(cols = c("Employed", "Unemployed"), 
+                                  names_to = "Outcome", 
+                                  values_to  = "Probability")
+          
+          df <- df %>% 
+            left_join(pred_employment, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+          
+          predict_subet <- predict_subet %>% 
+            dplyr::bind_rows(df)
+          
+      } else if(group == 'Non-disadvantaged'){
+        df <- grid_df %>% 
+          filter(Model == model, 
+                 Equity == group, 
+                 Mode == mode)
+        
+          pred_employment <- predict(employment_ndis_model,
+                               newdata = df,
+                               type = "response")
+          
+          pred_employment <- as.data.frame(pred_employment) %>% 
+            rename(Employed = response) 
+          
+          pred_employment$Value <- df$Value
+          
+          pred_employment <- pred_employment %>% 
+            mutate(Unemployed = 1 - Employed,
+                     Mode = mode,
+                     Equity = group,
+                     Model  = model) %>% 
+            pivot_longer(cols = c("Employed", "Unemployed"), 
+                                  names_to = "Outcome", 
+                                  values_to  ="Probability")
+          
+          df <- df %>% 
+            left_join(pred_employment, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+          
+          predict_subet <- predict_subet %>% 
+            dplyr::bind_rows(df)
+          }
+      
+    } 
+    else if(model == 'Job seeking'){
+      if(group == 'Disadvantaged'){
+        
+        df <- grid_df %>% 
+          filter(Model == model, 
+                 Equity == group, 
+                 Mode == mode)
+        
+          pred_jseek <- predict(jseek_dis_model,
+                    newdata = df,
+                    type = "response")
+          
+          pred_jseek <- as.data.frame(pred_jseek)
+          
+          pred_jseek$Value <- df$Value
+          
+          pred_jseek <- pred_jseek %>% 
+              mutate(Mode = mode,
+                     Equity = group,
+                     Model  = model) %>% 
+            pivot_longer(cols = c("No", 
+                                  "Yes (for part-time work)",
+                                  "Yes (for full-time work)"), names_to = "Outcome", values_to  ="Probability")
+
+           df <- df %>% 
+            left_join(pred_jseek, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+          
+          predict_subet <- predict_subet %>% 
+            dplyr::bind_rows(df)
+          } else if(group == 'Non-disadvantaged'){
+        df <- grid_df %>% 
+          filter(Model == model, 
+                 Equity == group, 
+                 Mode == mode)
+        
+          pred_jseek <- predict(jseek_ndis_model,
+                    newdata = df,
+                    type = "response")
+          
+          
+          
+          pred_jseek <- as.data.frame(pred_jseek) %>% 
+              mutate(Value = rep(access_seq, 
+                                  length.out = nrow(pred_jseek)),
+                     Mode = mode,
+                     Equity = group,
+                     Model  = model) %>% 
+            pivot_longer(cols = c("No", 
+                                  "Yes (for part-time work)",
+                                  "Yes (for full-time work)"), names_to = "Outcome", values_to  ="Probability")
+
+           df <- df %>% 
+            left_join(pred_jseek, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+          
+          predict_subet <- predict_subet %>% 
+            dplyr::bind_rows(df)
+          
+          }
+      
+    }
+}
+}
+}
+
+predict_subet <- predict_subet %>%
+  distinct(Mode, Equity, Outcome, Value, Model, .keep_all = TRUE)
+```
+
+# Visualizing the Accessibility Effect
+
+Plotting a graph of the accessibility effect
+
+```{r}
+# Order of outcomes 
+outcome_order <- c("Employed", 
+                   "Unemployed", 
+                   "Yes (for full-time work)", 
+                   "Yes (for part-time work)", 
+                   "No")
+
+my_colors <- c("#1f78b4","#e31a1c","#33a02c", "#b2df8a","#cab2d6")
+
+names(my_colors) <- outcome_order
+
+Probabilities <- predict_subet %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Mode + Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect.jpg"),
+       plot = Probabilities,
+       width = 18,
+       height = 24,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"accessibility-effect.jpg"))
+```
+
+Create a way to confirm that the graphics are correct for transit:
+
+```{r}
+transit_dis_model1 <- grid_df %>% 
+  filter(Mode == "Transit", 
+         Equity == "Disadvantaged",
+         Model == "Status", 
+         Outcome == "Employed") 
+
+pred_employment <- predict(employment_dis_model,
+                               newdata = transit_dis_model1,
+                               type = "response")
+
+pred_employment <- as.data.frame(pred_employment)
+
+transit_dis_model1$m1_Emp <- pred_employment$response
+```
+
+```{r}
+transit_dis_model1 %>% 
+  ggplot(aes(x = Value, y = m1_Emp, color = Outcome)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+```
+
+```{r}
+transit_dis_model2 <- grid_df %>% 
+  filter(Mode == "Transit", 
+         Equity == "Disadvantaged",
+         Model == "Job seeking") 
+
+pred_jseek <- predict(jseek_dis_model,
+                    newdata = transit_dis_model2,
+                    type = "response")
+          
+pred_jseek <- as.data.frame(pred_jseek)
+          
+pred_jseek$Value <- transit_dis_model2$Value
+          
+pred_jseek <- pred_jseek %>% 
+              mutate(Mode = "Transit",
+                     Equity = "Disadvantaged",
+                     Model  = "Job seeking") %>% 
+            pivot_longer(cols = c("No", 
+                                  "Yes (for part-time work)",
+                                  "Yes (for full-time work)"), names_to = "Outcome", values_to  ="Probability")
+
+transit_dis_model2 <- transit_dis_model2 %>% 
+  left_join(pred_jseek, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+```
+
+```{r}
+transit_dis_model2 %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Mode + Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+```
+
+Saving a figure just for the transit accessibility: 
+
+```{r}
+transit_probabilities <- predict_subet %>% 
+  filter(Mode == "Transit") %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+ggsave(file = paste0(diretorio_export_images,"transit-accessibility-effect.jpg"),
+       plot = transit_probabilities,
+       width = 18,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"transit-accessibility-effect.jpg"))
+```
+# Key Thresholds
+
+Identifying key thresholds for transit accessibility: 
+
+```{r}
+##################################
+##################################
+
+pop <- "Non-disadvantaged" # Change for Disadvantaged when using real data!
+
+##################################
+##################################
+
+# part-time > No
+standard_df <- predict_subet %>% 
+  dplyr::select(Value, Outcome, Probability, Mode, Equity, Model) %>%
+  pivot_wider(names_from = Outcome, values_from = Probability)
+
+# When Model 2 - Part-time > No
+conservative_threshold <-  standard_df %>% 
+  filter(Mode == "Transit",
+         Model == "Job seeking",
+         Equity == pop) %>%    
+  filter(`Yes (for part-time work)` > No) %>%
+  slice(1) %>%
+  pull(Value)
+
+# When Model 2 - Full-time > No
+progressive_threshold <-  standard_df %>% 
+  filter(Mode == "Transit",
+         Model == "Job seeking",
+         Equity == pop) %>%    
+  filter(`Yes (for full-time work)` > No) %>%
+  slice(1) %>%
+  pull(Value)
+
+# Between conservative and progressive
+intermediate_threshold <- (progressive_threshold - conservative_threshold)/2 + conservative_threshold
+```
+
+```{r}
+conservative_threshold
+intermediate_threshold
+progressive_threshold
+```
+
+Identifying priority areas based on their transit accessibility gap: 
+
+```{r}
+priority_geo_areas <- respondents %>% 
+  filter(!is.na(SA_Transit)) %>% 
+  group_by(PRCDDA, Equity) %>% 
+  dplyr::summarise(SA_Transit = first(SA_Transit, na_rm = TRUE),
+               Unweighted_Pop = n(),
+               Weighted_Pop = sum(CompW1, na.rm = TRUE)) %>% 
+  mutate(range_cons = conservative_threshold - SA_Transit, 
+         range_prog = progressive_threshold - SA_Transit, 
+         range_inte = intermediate_threshold - SA_Transit, 
+         AFI_cons = range_cons * Weighted_Pop, 
+         AFI_prog = range_prog * Weighted_Pop, 
+         AFI_inte = range_inte * Weighted_Pop)
+
+# Conservative threshold 
+cons_classification <- priority_geo_areas %>% 
+  filter(range_cons > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(cons_classification$AFI_cons, 0.25, na.rm = TRUE)   
+q50 <- quantile(cons_classification$AFI_cons, 0.50, na.rm = TRUE)   
+q75 <- quantile(cons_classification$AFI_cons, 0.75, na.rm = TRUE) 
+
+cons_classification <- cons_classification %>% 
+  mutate(priority_cons = case_when(AFI_cons > q75 ~ "Very-high priority",
+                              AFI_cons > q50 & AFI_cons <= q75 ~ "High priority",
+                              AFI_cons > q2  & AFI_cons <= q50 ~ "Moderate priority",
+                              AFI_cons <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_cons)
+
+# Progressive threshold 
+
+prog_classification <- priority_geo_areas %>% 
+  filter(range_prog > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(prog_classification$AFI_prog, 0.25, na.rm = TRUE)   
+q50 <- quantile(prog_classification$AFI_prog, 0.50, na.rm = TRUE)   
+q75 <- quantile(prog_classification$AFI_prog, 0.75, na.rm = TRUE) 
+
+prog_classification <- prog_classification %>% 
+  mutate(priority_prog = case_when(AFI_prog > q75 ~ "Very-high priority",
+                              AFI_prog > q50 & AFI_prog <= q75 ~ "High priority",
+                              AFI_prog > q2  & AFI_prog <= q50 ~ "Moderate priority",
+                              AFI_prog <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_prog)
+
+# Intermediate threshold 
+
+inte_classification <- priority_geo_areas %>% 
+  filter(range_inte > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(inte_classification$AFI_inte, 0.25, na.rm = TRUE)   
+q50 <- quantile(inte_classification$AFI_inte, 0.50, na.rm = TRUE)   
+q75 <- quantile(inte_classification$AFI_inte, 0.75, na.rm = TRUE) 
+
+inte_classification <- inte_classification %>% 
+  mutate(priority_inte = case_when(AFI_inte > q75 ~ "Very-high priority",
+                              AFI_inte > q50 & AFI_inte <= q75 ~ "High priority",
+                              AFI_inte > q2  & AFI_inte <= q50 ~ "Moderate priority",
+                              AFI_inte <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_inte)
+
+
+priority_geo_areas <- priority_geo_areas %>% 
+  left_join(cons_classification, by = "PRCDDA") %>% 
+  left_join(prog_classification, by = "PRCDDA") %>% 
+  left_join(inte_classification, by = "PRCDDA")
+```
+
+Calculating FGT measures:
+
+```{r}
+fgt_equity <- function(df, threshold, grouping_var) {
+  N <- df %>% 
+    group_by(eval(parse(text = grouping_var))) %>%
+    summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <-
+    df %>%
+    group_by(eval(parse(text  = grouping_var))) %>%
+    filter(SA_Transit <= threshold) %>%
+    summarize(fgt0_toSum = sum(Weighted_Pop),
+              Unweighted = n(), 
+              fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+              fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2))
+
+    fg <- mutate(headcount,
+               Weighted_Pop = N$Weighted_Pop, 
+               fgt0 = fgt0_toSum / Weighted_Pop,
+               fgt1 = fgt1_toSum / Weighted_Pop,
+               fgt2 = fgt2_toSum / Weighted_Pop,
+               quant = threshold)
+}
+
+fgt_equity_intermediate <- fgt_equity(df = priority_geo_areas, 
+                        threshold = intermediate_threshold, 
+                        grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Intermediate")
+
+fgt_equity_conservative <- fgt_equity(df = priority_geo_areas, 
+                               threshold = conservative_threshold, 
+                               grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Conservative")
+
+fgt_equity_progressive <- fgt_conservative <- fgt_equity(df = priority_geo_areas, 
+                                                  threshold = progressive_threshold, 
+                                                  grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Progressive")
+
+fgt_priorities <- function(df, threshold, grouping_var, priority) {
+  N <- df %>% 
+    group_by(.data[[grouping_var]]) %>%
+    summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <- df %>%
+    filter(SA_Transit <= threshold) %>%
+    group_by(.data[[priority]], .data[[grouping_var]]) %>%
+    summarize(fgt0_toSum = sum(Weighted_Pop),
+                            Unweighted = n(), 
+      fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+      fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2),
+      .groups = "drop")
+  
+  fg <- headcount %>% 
+    left_join(N, by = grouping_var) %>% 
+    mutate(
+      fgt0 = fgt0_toSum / Weighted_Pop,
+      fgt1 = fgt1_toSum / Weighted_Pop,
+      fgt2 = fgt2_toSum / Weighted_Pop,
+      quant = threshold)
+  
+  return(fg)
+}
+
+fgt_prior_intermediate <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = intermediate_threshold,
+  grouping_var = "Equity",
+  priority = "priority_inte") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_inte) %>% 
+  mutate(Threshold = "Intermediate")
+  
+
+fgt_prior_conservative <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = conservative_threshold,
+  grouping_var = "Equity",
+  priority = "priority_cons") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_cons) %>% 
+  mutate(Threshold = "Conservative")
+
+fgt_prior_progressive <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = progressive_threshold,
+  grouping_var = "Equity",
+  priority = "priority_prog") %>% 
+  rename(priority = priority_prog) %>%
+  as.data.frame() %>% 
+  mutate(Threshold = "Progressive")
+
+fgt_measures <- bind_rows(fgt_equity_intermediate, fgt_equity_conservative, fgt_equity_progressive,
+                           fgt_prior_intermediate, fgt_prior_conservative, fgt_prior_progressive) %>% 
+  filter(!is.na(priority)) 
+```
+
+Plotting graphs of FGT measures: 
+
+```{r}
+plot_fgt_data <-  fgt_measures %>% 
+  pivot_longer(cols = c(fgt0, fgt1, fgt2)) %>%
+  mutate(name = ifelse(name == "fgt0", "FGT-0",
+                ifelse(name == "fgt1", "FGT-1", "FGT-2")))
+
+priority_order <- c("General", 
+                   "Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#525252","#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+plot_fgt <- plot_fgt_data %>% 
+  mutate(priority = factor(priority, levels = priority_order)) %>%
+  ggplot(aes(y = Equity, x = value, color = priority)) + 
+  geom_point(size = 2.5, alpha = 0.9)  + 
+  scale_x_continuous(limits = c(0, 1)) + 
+  scale_color_manual(values = my_colors) +
+  facet_wrap(~ Threshold + name, labeller = labeller(.multi_line = FALSE)) + 
+  theme_minimal() +
+  xlab(NULL) + ylab("Equity Group") + 
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank())
+
+ggplot2::ggsave(plot = plot_fgt, 
+          filename = paste0(diretorio_export_images,"FGT_plots.jpg"), 
+          width = 18, 
+          height= 8, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/FGT_plots.jpg"))
+```
+
+Plotting priority areas for each standard: 
+
+```{r}
+priority_geo_areas <- priority_geo_areas %>%
+   mutate(priority_cons = replace_na(priority_cons, "No deficit"),
+          priority_prog = replace_na(priority_prog, "No deficit"),
+          priority_inte = replace_na(priority_inte, "No deficit"))
+
+priority_geo_areas_long_a <- priority_geo_areas %>% 
+  pivot_longer(cols = c("AFI_cons", "AFI_prog", "AFI_inte"),
+               names_to = c("AFI_type"), 
+               values_to  ="AFI_value") %>%
+  mutate(AFI_type = case_when(AFI_type == 'AFI_cons' ~ "Conservative", 
+                   AFI_type == 'AFI_prog' ~ "Progressive", 
+                   AFI_type == 'AFI_inte' ~ "Intermediate")) %>%
+    dplyr::select("PRCDDA","AFI_type", "AFI_value")
+
+  
+priority_geo_areas_long_b <- priority_geo_areas %>% 
+  pivot_longer(cols = c("priority_cons", "priority_prog", "priority_inte"),
+               names_to = c("Priority_type"), 
+               values_to  = "Priority_value") %>%
+  mutate(Priority_type = case_when(Priority_type == 'priority_cons' ~ "Conservative", 
+                   Priority_type == 'priority_prog' ~ "Progressive", 
+                   Priority_type == 'priority_inte' ~ "Intermediate")) %>% 
+      dplyr::select("PRCDDA","Priority_type", "Priority_value")
+
+
+priority_geo_areas_long <- priority_geo_areas_long_a %>% 
+  left_join(priority_geo_areas_long_b, 
+            by = c("PRCDDA" = "PRCDDA", 
+                   "AFI_type" = "Priority_type")) %>% 
+  distinct(PRCDDA, AFI_type, .keep_all = TRUE) %>%
+  full_join(dissemination_areas, by = c("PRCDDA" = "DAUID"))
+
+priority_order <- c("Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+priority_geo_areas_long <- priority_geo_areas_long %>% 
+  mutate(Priority_value = factor(Priority_value, levels = priority_order)) 
+
+
+priority_geo_areas_long <- priority_geo_areas_long %>%
+  st_as_sf(crs = st_crs(dissemination_areas))
+
+priority_plot <- tm_shape(priority_geo_areas_long) + 
+  tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = "Priority Level") +
+  tm_facets(by="AFI_type", showNA = FALSE, ncol = 3)  + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.position = c("left", "bottom")) 
+
+tmap_save(priority_plot, 
+          paste0(diretorio_export_images,"geographical_priorities.jpg"), 
+          width = 18, 
+          height= 5, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities.jpg"))
+```
+
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be
+released by the Research Data Center to ensure that confidentiality
+risks for StatCan respondents are minimized.
+
+The following rules apply to our results:
+
+-   *Statistics must not be released for identifiable areas with less
+    than 40 persons (*$\sum{CompW1} ≥ 40$). Statistics must not be
+    released for identifiable areas with less than 40 persons. This
+    condition is usually met with geography levels used at the RDCs. The
+    population threshold can be applied to the (long form) weighted
+    population estimate.
+-   *All statistics must be based on weighted data.*
+-   *Statistics must be based on at least 5 respondents, whose sum of
+    weights is at least 10*.
+-   *Statistics (Means and total sums) are subject to a simplistic
+    percent rounding by deterministically rounding to the nearest
+    multiple of a rounding base.* The rounding base is set so that the
+    rounded value is never more than p% away from the unrounded value.
+    The value of p% is determined by the associated nonzero population
+    size of the mean or total. It is the weighted number of records with
+    a nonzero value. The table below outlines the maximum percentage
+    difference (p%) from the unrounded value, based on its associated
+    nonzero population size.
+
+| Nonzero Pop. size | \<10 | 10-\<20 | 20-\<40 | 40-\<80 | 80-\<160 | 160-\<320 | 320-\<640 | 640-\<1280 | \>=1280 |
+|----|----|----|----|----|----|----|----|----|----|
+| p% | 16.67% | 16.67% | 10% | 5% | 2.5% | 1.25% | 0.625% | 0.313% | 0.156% |
+
+
+For FGT: 
+
+```{r}
+fgt_measures_support <- fgt_measures %>% 
+  rename(Priority = priority,
+         Weighted_Pop = Weighted_Pop, 
+         Weighted_subset = fgt0_toSum, 
+         Threshold_value = quant) %>% 
+  dplyr::select(Threshold, Threshold_value, 
+                Equity, Priority, Unweighted, Weighted_subset, Weighted_Pop, 
+                fgt0, fgt1, fgt2)
+
+fgt_measures_release <- fgt_measures_support %>% 
+  dplyr::select(Threshold, Threshold_value, 
+                Equity, Priority, fgt0, fgt1, fgt2)
+```
+
+For priority geographical areas: 
+
+```{r da-vetting}
+weighted_DA <- census %>%
+  filter(PCD == code, 
+         (LBR_FORC == 1 | LBR_FORC == 2)) %>% 
+  group_by(PRCDDA) %>%
+  dplyr::summarize(Weighted_Pop_DA = sum(CompW1),
+            Unweighted_DA = n(),
+            .groups = "drop") %>% 
+  filter(Weighted_Pop_DA > 40)
+
+priority_geo_areas_support <- priority_geo_areas_long %>% 
+  st_drop_geometry()  %>%
+  left_join(weighted_DA, by = "PRCDDA") %>% 
+  filter(Weighted_Pop_DA > 40, Unweighted_DA > 5) %>% 
+  dplyr::select(PRCDDA, AFI_type, Priority_value, Unweighted_DA, Weighted_Pop_DA) %>% rename(Threshold = AFI_type)
+
+priority_geo_areas_release <- priority_geo_areas_support %>% 
+  dplyr::select(PRCDDA, Threshold, Priority_value)
+```
+
+# Export files 
+
+Priority areas: 
+
+```{r}
+
+######## SUPPORT ###########
+
+pa_support_excel <- createWorkbook()
+
+addWorksheet(pa_support_excel, "Sheet1")
+
+writeData(pa_support_excel, "Sheet1",
+          priority_geo_areas_support)
+
+## Commenting and highlighting the general sheet
+
+writeComment(pa_support_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Identification of the Dissemination area", author = "Author"))
+
+writeComment(pa_support_excel, "Sheet1", col =2 , row = 1, 
+             comment = createComment("Accessibility threshold category."))
+               
+writeComment(pa_support_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(pa_support_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Number of respondents (unweighted count) in this DA.", author = "Author"))
+
+writeComment(pa_support_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
+               
+cols_with_values_general <- which(sapply(pa_support_excel, function(x) any(!is.na(x))))
+
+addStyle(pa_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(priority_geo_areas_support)+1),
+         cols = c(1:3),
+         gridExpand = TRUE)
+
+saveWorkbook(pa_support_excel, paste0(diretorio_export, "priority_areas_support.xlsx"), overwrite = TRUE)
+
+######## RELEASE ###########
+
+pa_release_excel <- createWorkbook()
+
+addWorksheet(pa_release_excel, "Sheet1")
+
+writeData(pa_release_excel, "Sheet1",
+          priority_geo_areas_release)
+
+## Commenting and highlighting the general sheet
+
+writeComment(pa_release_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Identification of the Dissemination area", author = "Author"))
+
+writeComment(pa_release_excel, "Sheet1", col =2 , row = 1, 
+             comment = createComment("Accessibility threshold category."))
+               
+writeComment(pa_release_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+addStyle(pa_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(priority_geo_areas_release)+1),
+         cols = c(1:3),
+         gridExpand = TRUE)
+
+saveWorkbook(pa_release_excel, paste0(diretorio_export, "priority_areas_release.xlsx"), overwrite = TRUE)
+``` 
+
+
+```{r}
+
+######## SUPPORT ###########
+
+fgt_support_excel <- createWorkbook()
+
+addWorksheet(fgt_support_excel, "Sheet1")
+
+writeData(fgt_support_excel, "Sheet1",
+          fgt_measures_support)
+
+## Commenting and highlighting the general sheet
+
+writeComment(fgt_support_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Accessibility threshold category."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Accessibility threshold value."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Equity group in terms of transporation."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(fgt_support_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("Number of respondents (unweighted count) with accessibility below the thrshold.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 6, row = 1, 
+             comment = createComment("Total population (weighted) with accessibility below the thrshold. Value used to calculate FGT measures", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 7, row = 1, 
+             comment = createComment("Total population (weighted) in the city in this equity category.", author = "Author"))
+
+
+writeComment(fgt_support_excel, "Sheet1", col = 8, row = 1, 
+             comment = createComment("FGT-0, Foster-Greer-Thorbecke measure considering a alpha = 0. It measures inequality, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 9, row = 1, 
+             comment = createComment("FGT-1, Foster-Greer-Thorbecke measure considering a alpha = 1. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 10, row = 1, 
+             comment = createComment("FGT-2, Foster-Greer-Thorbecke measure considering a alpha = 2. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+cols_with_values_general <- which(sapply(fgt_support_excel, function(x) any(!is.na(x))))
+
+addStyle(fgt_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(fgt_measures_support)+1),
+         cols = c(1,2,3,4,8,9,10),
+         gridExpand = TRUE)
+
+saveWorkbook(fgt_support_excel, paste0(diretorio_export, "fgt_measures_support.xlsx"), overwrite = TRUE)
+
+######## RELEASE ###########
+
+fgt_release_excel <- createWorkbook()
+
+addWorksheet(fgt_release_excel, "Sheet1")
+
+writeData(fgt_release_excel, "Sheet1",
+          fgt_measures_release)
+
+## Commenting and highlighting the general sheet
+
+writeComment(fgt_release_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Accessibility threshold category."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Accessibility threshold value."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Equity group in terms of transporation."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(fgt_release_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("FGT-0, Foster-Greer-Thorbecke measure considering a alpha = 0. It measures inequality, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_release_excel, "Sheet1", col = 6, row = 1, 
+             comment = createComment("FGT-1, Foster-Greer-Thorbecke measure considering a alpha = 1. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_release_excel, "Sheet1", col = 7, row = 1, 
+             comment = createComment("FGT-2, Foster-Greer-Thorbecke measure considering a alpha = 2. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+cols_with_values_general <- which(sapply(fgt_release_excel, function(x) any(!is.na(x))))
+
+addStyle(fgt_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(fgt_measures_release)+1),
+         cols = c(1:7),
+         gridExpand = TRUE)
+
+saveWorkbook(fgt_release_excel, paste0(diretorio_export, "fgt_measures_release.xlsx"), overwrite = TRUE)
+```
+
+Descriptive measures:
+
+```{r export-original-files}
+# Descriptive analysis 
+write.csv(descriptive_analysis, paste0(diretorio_export, "descriptive_analysis_original.csv"), row.names=FALSE)
+
+descriptive_analysis_release <- descriptive_analysis %>% 
+  dplyr::select("Equity", "Total_pop_rounded", 
+                "SA_Walk_mean_rounded", "SA_Walk_sd_rounded",
+                "SA_Bike_mean_rounded", "SA_Bike_sd_rounded",
+                "SA_Transit_mean_rounded", "SA_Transit_sd_rounded", 
+                "SA_Car_mean_rounded", "SA_Car_sd_rounded", 
+                "AGE_mean_rounded", "AGE_sd_rounded", 
+                "CFKID0T5_mean_rounded", "CFKID0T5_sd_rounded", 
+                "CFCNT_mean_rounded", "CFCNT_sd_rounded", 
+                "WEEKS_mean_rounded", "WEEKS_sd_rounded", 
+                "woman_prop", "disability_prop", "racialized_prop", 
+                "low_educated_prop", "single_parent_prop", 
+                "employed_prop", "full_time_prop", 
+                "part_time_prop", "no_prop")
+
+da_support_excel <- createWorkbook()
+
+addWorksheet(da_support_excel, "Sheet1")
+
+writeData(da_support_excel, "Sheet1", x = descriptive_analysis)  
+
+writeComment(da_support_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Population equity category in terms of transportation conditions. “Disadvantaged” means a population with low access to employment opportunities, considering the current transportation infrastructure, and “not disadvantaged” means the opposite. This is a subset of the labour force population.", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Unweighted population ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Weighted Population (sum of CompW1)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 5, row = 1,  comment = createComment("Unweighted population within the labour force", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 6, row = 1,  comment = createComment("Weighted Population within labour fource (sum of CompW1)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 7, row = 1,  comment = createComment("Rounded unweighted population within the labour force (rounded in multiples of 5)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 8, row = 1,  comment = createComment("Mean value of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 9, row = 1,  comment = createComment("Standard deviation of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 10, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 11, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 12, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 13, row = 1,  comment = createComment("Mean value of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 14, row = 1,  comment = createComment("Standard deviation of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 15, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 16, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 17, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 18, row = 1,  comment = createComment("Mean value of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 19, row = 1,  comment = createComment("Standard deviation of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 20, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 21, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 22, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 23, row = 1,  comment = createComment("Mean value of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 24, row = 1,  comment = createComment("Standard deviation of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 25, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 26, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 27, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 28, row = 1,  comment = createComment("Mean value of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 29, row = 1,  comment = createComment("Standard deviation of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 30, row = 1,  comment = createComment("Non-zero population size ofage of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 31, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 32, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofage of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 33, row = 1,  comment = createComment("Mean value of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 34, row = 1,  comment = createComment("Standard deviation of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 35, row = 1,  comment = createComment("Non-zero population size ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 36, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 37, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 38, row = 1,  comment = createComment("Mean value of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 39, row = 1,  comment = createComment("Standard deviation of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 40, row = 1,  comment = createComment("Non-zero population size ofsize of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 41, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 42, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofsize of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 43, row = 1,  comment = createComment("Mean value of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 44, row = 1,  comment = createComment("Standard deviation of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 45, row = 1,  comment = createComment("Non-zero population size ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 46, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 47, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 48, row = 1,  comment = createComment("Unweighted population of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 49, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 50, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 51, row = 1,  comment = createComment("Proportion of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 52, row = 1,  comment = createComment("Unweighted population of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 53, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 54, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 55, row = 1,  comment = createComment("Proportion of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 56, row = 1,  comment = createComment("Unweighted population of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 57, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 58, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 59, row = 1,  comment = createComment("Proportion of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 60, row = 1,  comment = createComment("Unweighted population of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 61, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 62, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 63, row = 1,  comment = createComment("Proportion of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 64, row = 1,  comment = createComment("Unweighted population of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 65, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 66, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 67, row = 1,  comment = createComment("Proportion of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 68, row = 1,  comment = createComment("Unweighted population of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 69, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 70, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 71, row = 1,  comment = createComment("Proportion of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 72, row = 1,  comment = createComment("Unweighted population of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 73, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 74, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 75, row = 1,  comment = createComment("Proportion of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 76, row = 1,  comment = createComment("Unweighted population of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 77, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 78, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 79, row = 1,  comment = createComment("Proportion of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 80, row = 1,  comment = createComment("Unweighted population of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 81, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 82, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 83, row = 1,  comment = createComment("Proportion of people who did not looked for a job", author = "Author"))
+
+cols_with_values_general <- which(sapply(descriptive_analysis, 
+                                         function(x) any(!is.na(x))))
+addStyle(da_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(descriptive_analysis)+1),
+         cols = c(1,4,seq(from = 12, to = 48, by = 5), seq(from = 12, to = 48, by = 5) + 1, seq(from = 12, to = 48, by = 5), seq(from = 51, to = 83, by = 4)),
+         gridExpand = TRUE)
+
+saveWorkbook(da_support_excel, paste0(diretorio_export, "descriptive_analysis_support.xlsx"), overwrite = TRUE)
+
+da_release_excel <- createWorkbook()
+
+addWorksheet(da_release_excel, "Sheet1")
+
+writeData(da_release_excel, "Sheet1", 
+          x = descriptive_analysis_release)  
+
+writeComment(da_release_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Population equity category in terms of transportation conditions. “Disadvantaged” means a population with low access to employment opportunities, considering the current transportation infrastructure, and “not disadvantaged” means the opposite. This is a subset of the labour force population.", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5)", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 5, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 6, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 7, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 8, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 9, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 10, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 11, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of age of the respondents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 12, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofage of the respondents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 13, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 14, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 15, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of size of the family", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 16, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofsize of the family", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 17, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of number of weeks worked last year", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 18, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 19, row = 1,  comment = createComment("Proportion of woman", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 20, row = 1,  comment = createComment("Proportion of disable person", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 21, row = 1,  comment = createComment("Proportion of racialized person", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 22, row = 1,  comment = createComment("Proportion of low educated person (less than high school)", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 23, row = 1,  comment = createComment("Proportion of single parents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 24, row = 1,  comment = createComment("Proportion of employed population", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 25, row = 1,  comment = createComment("Proportion of people who looked for full-time job", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 26, row = 1,  comment = createComment("Proportion of people who looked for part-time job", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 27, row = 1,  comment = createComment("Proportion of people who did not looked for a job", author = "Author"))
+
+cols_with_values_general <- which(sapply(descriptive_analysis_release, 
+                                         function(x) any(!is.na(x))))
+addStyle(da_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(descriptive_analysis_release)+1),
+         cols = c(1:27),
+         gridExpand = TRUE)
+
+saveWorkbook(da_release_excel, paste0(diretorio_export, "descriptive_analysis_release.xlsx"), overwrite = TRUE)
+```
+
+Exporting models: 
+
+```{r}
+# First stage regressions
+capture.output( summary(stage1_walk),
+  file = paste0(diretorio_export, "stage1_walk.txt"))
+
+capture.output( summary(stage1_transit),
+  file = paste0(diretorio_export, "stage1_transit.txt"))
+
+capture.output( summary(stage1_bike),
+  file = paste0(diretorio_export, "stage1_bike.txt"))
+
+capture.output( summary(stage1_car),
+  file = paste0(diretorio_export, "stage1_car.txt"))
+
+# Second stage regressions
+capture.output( summary(employment_ndis_model),
+  file = paste0(diretorio_export, "model_1_employment_status.txt"))
+
+capture.output( summary(employment_dis_model),
+  file = paste0(diretorio_export, "model_2_employment_status.txt"))
+
+capture.output( summary(jseek_ndis_model),
+  file = paste0(diretorio_export, "model_3_job_seeking.txt"))
+
+capture.output( summary(jseek_dis_model),
+  file = paste0(diretorio_export, "model_4_job_seeking.txt"))
 ```
 

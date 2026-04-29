@@ -49,6 +49,9 @@ main_pkgs <- c("corrr",
   "weights",
   "widgetframe")
 
+main_pkgs <- c("dplyr","here","survey","tidyr","purrr","VGAM","stringr","MASS","car",
+              "ggplot2","scales","tmap","openxlsx")
+
 pkgs_needed <- pkgDep(main_pkgs, suggests = FALSE, enhances = FALSE)
 
 
