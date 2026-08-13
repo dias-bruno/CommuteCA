@@ -7,15 +7,52 @@ Load libraries:
 ```{r}
 library("glue") # Interpreted String Literals
 library("here") # A Simpler Way to Find Your Files
-library('sf') # Simple Features for R
 library('tidyverse') # Easily Install and Load the 'Tidyverse'
 library('usethis') # Automate Package and Project Setup
 library('devtools') # Tools to Make Developing R Packages Easier
+library('readr') # Read tables
+library('readxl') # Read excel table 
 ```
 
-# Tabular data
+```{r}
+census_geographical_keys <- read_csv(paste0(here::here(), "/data-ignore-inputs/census_geographical_keys.csv"), 
+    # col_types = cols(CTUID = col_factor(), 
+    #     CTNAME = col_factor(), PR = col_factor(), 
+    #     PCSD = col_factor(), PCSDNAME = col_factor(), 
+    #     PCD = col_factor(), PCDNAME = col_factor(), 
+    #     CMA = col_factor(), CMANAME = col_factor(), 
+    #     PRNAME = col_factor())
+    # 
+    col_types = cols(.default = col_factor())) %>% 
+  rename(PCSD = "CSDUID", 
+         PCSDNAME = "CSDNAME", 
+         PCD = "CDUID",
+         PCDNAME = "CDNAME", 
+         CMA = "CMAUID", 
+         PR = "PRUID")
+```
 
-## Census Test Data:
+
+```{r}
+cma_keys <- census_geographical_keys %>% 
+  dplyr::distinct(CMA, .keep_all = TRUE) %>% 
+  dplyr::select(CMA:PRNAME) %>% 
+  filter(!is.na(CMA))
+
+pcd_keys <- census_geographical_keys %>% 
+  dplyr::distinct(PCD, .keep_all = TRUE) %>% 
+  dplyr::select(PCD:PRNAME) 
+
+ct_keys <- census_geographical_keys %>% 
+  dplyr::distinct(CTUID, .keep_all = TRUE) %>% 
+  dplyr::select(CTUID:PRNAME) %>% 
+  filter(!is.na(CTUID))
+```
+
+# Census Testing Datasets
+
+## Canada level
+
 ```{r}
 # reading file
 census_test_data <- read_csv(glue::glue(here::here(), 
@@ -29,11 +66,12 @@ usethis::use_data(census_test_data,
                   overwrite = TRUE)
 ```
 
-## Census Test Data (Toronto):
+## Toronto level
+
 ```{r}
 # reading file
 census_test_toronto <- read_csv(glue::glue(here::here(), 
-                                        "/data-ignore-inputs/census_test_toronto_v2.csv"))
+                                  "/data-ignore-inputs/census_test_toronto_v2.csv"))
 ```
 
 ```{r}
@@ -43,12 +81,78 @@ usethis::use_data(census_test_toronto,
                   overwrite = TRUE)
 ```
 
-## CMA Impedance Functions
+# Impedance Functions
+
+## Census Division Level 
+
+```{r}
+# reading file
+pcd_impedance_functions <-read_csv(glue::glue(here::here(),                                               "/data-ignore-inputs/pcd_impedance_functions.csv"))
+
+pcd_impedance_functions <- pcd_impedance_functions %>% 
+  dplyr::select("PCD", "PwMode", "distribution", "est_1", "est_2") %>%
+  rename("PwMode_label" = PwMode, Distribution = distribution) %>%
+  mutate(PwMode_label = case_when(PwMode_label == "Car/motor" ~ "Car-motorized", 
+                                  PwMode_label == "Transit" ~ "Public transit", 
+                                  TRUE ~ PwMode_label),
+         PwMode_label = factor(PwMode_label),
+         PCD = factor(PCD), 
+         est_2 = round(est_2, 5), 
+         est_2 = case_when(Distribution == "exp" ~ NA, 
+                          TRUE ~ est_2), 
+         est_1 = round(est_1, 5),
+         Distribution = case_when(Distribution == "exp" ~ "Exponential",
+                                  Distribution == "gamma" ~ "Gamma",
+                                  Distribution == "lnorm" ~ "Log-normal",
+                                  Distribution == "norm" ~ "Normal",
+                                  Distribution == "unif" ~ "Uniform"), 
+         Distribution = factor(Distribution))
+
+pcd_impedance_functions <- pcd_impedance_functions %>% 
+  left_join(pcd_keys, by = "PCD")  %>% 
+  dplyr::select(PCD, PCDNAME, "CMA", "CMANAME","PR", "PRNAME", "PwMode_label", "Distribution", "est_1", "est_2")
+```
+
+
+```{r}
+# adding file to the package
+usethis::use_data(pcd_impedance_functions,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+## Census Metropolitan Area Level 
+
 ```{r}
 # reading file
 cma_impedance_functions <- read_csv(glue::glue(here::here(), 
-                                               "/data-ignore-inputs/cma_impedance_functions.csv"))
+                      "/data-ignore-inputs/cma_impedance_functions.csv"))
+
+cma_impedance_functions <- cma_impedance_functions %>% 
+  dplyr::select("CMA", "PwMode", "distribution", "est_1", "est_2") %>%
+  rename("PwMode_label" = PwMode, Distribution = distribution) %>%
+  filter(CMA > 0, CMA < 996) %>% 
+  mutate(PwMode_label = case_when(PwMode_label == "Car/motor" ~ "Car-motorized", 
+                                  PwMode_label == "Transit" ~ "Public transit", 
+                                  TRUE ~ PwMode_label),
+         PwMode_label = factor(PwMode_label),
+         CMA = factor(sprintf("%03d", as.numeric(CMA))), 
+         est_2 = round(est_2, 5), 
+         est_2 = case_when(Distribution == "exp" ~ NA, 
+                          TRUE ~ est_2), 
+         est_1 = round(est_1, 5),
+         Distribution = case_when(Distribution == "exp" ~ "Exponential",
+                                  Distribution == "gamma" ~ "Gamma",
+                                  Distribution == "lnorm" ~ "Log-normal",
+                                  Distribution == "norm" ~ "Normal",
+                                  Distribution == "unif" ~ "Uniform"), 
+         Distribution = factor(Distribution))
+
+cma_impedance_functions <- cma_impedance_functions %>% 
+  left_join(cma_keys, by = "CMA") %>% 
+  dplyr::select("CMA", "CMANAME","PR", "PRNAME", "PwMode_label", "Distribution", "est_1", "est_2")
 ```
+
 
 ```{r}
 # adding file to the package
@@ -58,26 +162,53 @@ usethis::use_data(cma_impedance_functions,
                   overwrite = TRUE)
 ```
 
+## Province Level 
 
-## PCD Impedance Functions
-```{r}
-# reading file
-pcd_impedance_functions <-read_csv(glue::glue(here::here(), 
-                                              "/data-ignore-inputs/pcd_impedance_functions.csv"))
-```
-
-```{r}
-# adding file to the package
-usethis::use_data(pcd_impedance_functions,
-                  compress = "bzip2",
-                  overwrite = TRUE)
-```
-
-## PR Impedance Functions
 ```{r}
 # reading file
 pr_impedance_functions <- read_csv(glue::glue(here::here(), 
                                               "/data-ignore-inputs/pr_impedance_functions.csv"))
+
+pr_impedance_functions <- pr_impedance_functions %>% 
+  dplyr::select("Pr", 
+                "CMA_type", 
+                "PwMode", "distribution", "est_1", "est_2") %>%
+  rename("PwMode_label" = PwMode, PRNAME = Pr, CMACATEG = CMA_type, 
+         Distribution = distribution) %>%
+  mutate(PwMode_label = case_when(PwMode_label == "Car/motor" ~ "Car-motorized", 
+                                  PwMode_label == "Transit" ~ "Public transit", 
+                                  TRUE ~ PwMode_label),
+         PwMode_label = factor(PwMode_label),
+         CMACATEG = factor(CMACATEG), 
+         est_2 = round(est_2, 5), 
+         est_2 = case_when(Distribution == "exp" ~ NA, 
+                          TRUE ~ est_2), 
+         est_1 = round(est_1, 5),
+         Distribution = case_when(Distribution == "exp" ~ "Exponential",
+                                  Distribution == "gamma" ~ "Gamma",
+                                  Distribution == "lnorm" ~ "Log-normal",
+                                  Distribution == "norm" ~ "Normal",
+                                  Distribution == "unif" ~ "Uniform"), 
+         Distribution = factor(Distribution), 
+         PR = case_when(PRNAME == "Newfoundland and Labrador" ~ 10,
+                        PRNAME == "Prince Edward Island" ~ 11,
+                        PRNAME == "Nova Scotia" ~ 12,
+                        PRNAME == "New Brunswick" ~ 13,
+                        PRNAME == "Quebec" ~ 24,
+                        PRNAME == "Ontario" ~ 35,
+                        PRNAME == "Manitoba" ~ 46,
+                        PRNAME == "Saskatchewan" ~ 47,
+                        PRNAME == "Alberta" ~ 48,
+                        PRNAME == "British Columbia" ~ 59,
+                        PRNAME == "Yukon" ~ 60,
+                        PRNAME == "Northwest Territories" ~ 61, 
+                        PRNAME == "Nunavut" ~ 62), 
+         PR = factor(PR)
+         )
+
+pr_impedance_functions <- pr_impedance_functions %>%
+  select("PR","PRNAME","CMACATEG",
+         "PwMode_label","Distribution","est_1","est_2")
 ```
 
 ```{r}
@@ -87,40 +218,147 @@ usethis::use_data(pr_impedance_functions,
                   overwrite = TRUE)
 ```
 
-## Land Use by mode 
-```{r}
-# reading file
-land_use_CT_mode <-read_csv(glue::glue(here::here(), 
-                                       "/data-ignore-inputs/land_use_CT_mode.csv"))
-```
+# Land Use Tables 
+
+## General Population 
 
 ```{r}
-# adding file to the package
-usethis::use_data(land_use_CT_mode,
+labour_force_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "General")
+
+labour_force_CT_general <- labour_force_CT %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR))
+
+usethis::use_data(labour_force_CT_general,
                   compress = "bzip2",
                   overwrite = TRUE)
 ```
 
-## Land Use general
 ```{r}
-# reading file
-land_use_CT_general <- read_csv(glue::glue(here::here(), 
-                                           "/data-ignore-inputs/land_use_CT_general.csv"))
-```
+jobs_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/jobs_CT.xlsx"), sheet = "General")
 
-```{r}
-# adding file to the package
-usethis::use_data(land_use_CT_general,
+jobs_CT_general <- jobs_CT_general %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR))
+
+usethis::use_data(jobs_CT_general,
                   compress = "bzip2",
                   overwrite = TRUE)
 ```
 
-# Maximum Travel Times PCD
+## Population by transportation mode
+
+```{r}
+labour_force_CT_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Mode")
+
+labour_force_CT_mode <- labour_force_CT_mode %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR), 
+         PwMode = factor(PwMode), 
+         ) %>% 
+  rename(PwMode_label = PwMode)
+
+usethis::use_data(labour_force_CT_mode,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+## Population by education level 
+
+```{r}
+labour_force_CT_education <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Education")
+
+labour_force_CT_education <- labour_force_CT_education %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR), 
+         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship", 
+                               Education == "High school or no certificate" ~ "High school or no certificate",
+                               Education == "University certificate or higher" ~ "University certificate or higher"),
+         Education = factor(Education), 
+         )
+
+usethis::use_data(labour_force_CT_education,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+```{r}
+jobs_CT_occupation <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/jobs_CT.xlsx"), sheet = "Occupation")
+
+jobs_CT_occupation <- jobs_CT_occupation %>% 
+  rename(TEER = `Occupation level`) %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR), 
+         TEER = case_when(TEER == "College or training" ~ "College or apprenticeship (2 - 3)", 
+                               TEER == "High school or no training" ~ "High school or short-term experience (4 - 5)",
+                               TEER == "Management or professional" ~ "Management or professional (0 - 1)"),
+         TEER = factor(TEER), 
+         )
+
+usethis::use_data(jobs_CT_occupation,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+## Population by transportation mode and education level 
+
+```{r}
+labour_force_CT_education_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Education and Mode")
+
+labour_force_CT_education_mode <- labour_force_CT_education_mode %>% 
+  mutate(CTUID = factor(CTUID), 
+         CTNAME = factor(CTNAME), 
+         PCD = factor(PCD), 
+         CMA = factor(CMA), 
+         PR = factor(PR), 
+         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship", 
+                               Education == "High school or no certificate" ~ "High school or no certificate",
+                               Education == "University certificate or higher" ~ "University certificate or higher"),
+         Education = factor(Education), 
+         PwMode = factor(PwMode), 
+         ) %>% 
+  rename(PwMode_label = PwMode)
+
+usethis::use_data(labour_force_CT_education_mode,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+# Maximum Travel Times
+
+## Census Division Level
 
 ```{r}
 # reading file
 pcd_max_travel_times <- read_csv(glue::glue(here::here(), 
                                             "/data-ignore-inputs/pcd_max_travel_times.csv"))
+
+pcd_max_travel_times <- pcd_max_travel_times %>%
+  rename("PwMode_label" = PwMode, Maximum_travel_time = Max_time_value) %>%
+  mutate(PwMode_label = case_when(PwMode_label == "Car/motor" ~ "Car-motorized", 
+                                  PwMode_label == "Transit" ~ "Public transit", 
+                                  TRUE ~ PwMode_label),
+         PwMode_label = factor(PwMode_label),
+         PCD = factor(PCD))
+
+pcd_max_travel_times <- pcd_max_travel_times %>% 
+  left_join(pcd_keys, by = "PCD") %>% 
+  dplyr::select("PCD","PCDNAME","PR","PRNAME","PwMode_label","Maximum_travel_time")
 ```
 
 ```{r}
@@ -130,12 +368,26 @@ usethis::use_data(pcd_max_travel_times,
                   overwrite = TRUE)
 ```
 
-# Maximum Travel Times CMA
+## Census Metropolitan Area Level
 
 ```{r}
 # reading file
 cma_max_travel_times <-read_csv(glue::glue(here::here(), 
                                            "/data-ignore-inputs/cma_max_travel_times.csv"))
+
+cma_max_travel_times <- cma_max_travel_times %>% 
+  filter(CMA > 0, CMA < 996) %>% 
+  rename("PwMode_label" = PwMode, Maximum_travel_time = Max_time_value) %>%
+  mutate(PwMode_label = case_when(PwMode_label == "Car/motor" ~ "Car-motorized", 
+                                  PwMode_label == "Transit" ~ "Public transit", 
+                                  TRUE ~ PwMode_label),
+         PwMode_label = factor(PwMode_label),
+         CMA = factor(sprintf("%03d", as.numeric(CMA)))
+         ) 
+
+cma_max_travel_times <- cma_max_travel_times %>% 
+  left_join(cma_keys, by = "CMA") %>% 
+  dplyr::select("CMA","CMANAME","PR","PRNAME","PwMode_label","Maximum_travel_time")
 ```
 
 ```{r}
@@ -162,6 +414,7 @@ Building the package:
 ```{r}
 devtools::build()
 ```
+
 Updating github webpage:
 ```{r}
 usethis::use_pkgdown_github_pages()

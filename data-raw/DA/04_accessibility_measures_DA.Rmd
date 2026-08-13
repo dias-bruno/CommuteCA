@@ -290,7 +290,7 @@ $$ F_{ij}^{t} = \frac{F_i^{p} \cdot F_{ij}^{(c_ij)}}{\sum_{i}F_i^{p} \cdot F_{ij
 The methodology for obtaining the accessibility measures using the Canadian
 Census consists of the following steps:
 
-1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of dissemination areas of the selected study area. The methodology used to obtain the travel time table is in the *01_travel_times.Rmd*. 
+1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of dissemination areas of the selected study area. 
 
 2.  After this, we extract the commute time to work declared by the Census respondents, in order to calibrate the impedance functions for each transportation mode.
 
@@ -362,7 +362,6 @@ the size of the dataframe and making data processing faster:
 ```{r select-variables-census}
 census <- census %>% 
           dplyr::select("PRCDDA",
-                 "PR",
                  "CMA",
                  "PCD",
                  "CompW1",
@@ -382,7 +381,6 @@ next chunk corrects this problem by turning them into factors:
 ```{r factoring-variables}
 census <- census %>% 
           mutate_at(c("PRCDDA",
-                 "PR",
                  "CMA",
                  "PCD",
                  "LBR_FORC",
@@ -461,30 +459,31 @@ census_filtered <- census_filtered  %>%
                    #filter(PwMode < 10) %>% 
                    mutate(PwMode_label = 
                             case_when(
-                              PwMode == -3 ~ "Not applicable", 
-                              PwMode %in% c(1,2) ~ "Car-motor",
-                              PwMode == 9 ~ "Car-motor",
-                              PwMode >= 3 & PwMode <= 6  ~ "Transit",
+                              PwMode == -3 ~ "Other or non-commuter", 
+                              PwMode %in% c(1,2) ~ "Car-motorized",
+                              PwMode == 9 ~ "Car-motorized",
+                              PwMode >= 3 & PwMode <= 6  ~ "Public transit",
                               PwMode == 7  ~ "Walk",
                               PwMode == 8  ~ "Bike",
-                              PwMode == 10 ~ "Other"),
+                              PwMode == 10 ~ "Other or non-commuter"),
                   PwMode_label = factor(PwMode_label, 
-                                        levels = c("Not applicable", "Bike", "Walk", 
-                                                   "Car-motor", "Transit", "Other")))
+                                        levels = c("Bike", "Walk", 
+                                                   "Car-motorized", "Public transit", "Other or non-commuter")))
 
 census <- census  %>% 
-  mutate(PwMode_label = 
-                          case_when(
-                            PwMode == -3 ~ "Not applicable", 
-                            PwMode %in% c(1,2) ~ "Car-motor",
-                            PwMode == 9 ~ "Car-motor",
-                            PwMode >= 3 & PwMode <= 6  ~ "Transit",
-                            PwMode == 7  ~ "Walk",
-                            PwMode == 8  ~ "Bike",
-                            PwMode == 10 ~ "Other"),
-                PwMode_label = factor(PwMode_label, 
-                                      levels = c("Not applicable", "Bike", "Walk", 
-                                                 "Car-motor", "Transit", "Other")))
+                   #filter(PwMode < 10) %>% 
+                   mutate(PwMode_label = 
+                            case_when(
+                              PwMode == -3 ~ "Other or non-commuter", 
+                              PwMode %in% c(1,2) ~ "Car-motorized",
+                              PwMode == 9 ~ "Car-motorized",
+                              PwMode >= 3 & PwMode <= 6  ~ "Public transit",
+                              PwMode == 7  ~ "Walk",
+                              PwMode == 8  ~ "Bike",
+                              PwMode == 10 ~ "Other or non-commuter"),
+                  PwMode_label = factor(PwMode_label, 
+                                        levels = c("Bike", "Walk", 
+                                                   "Car-motorized", "Public transit", "Other or non-commuter")))
 ```
 
 According to the Census 2021, an 'Employed' person refers to those who,
@@ -562,15 +561,15 @@ df_tt_bike <- census_employed %>%
 
 # Car travel times
 df_tt_car <- census_employed %>% 
-  filter(PwMode_label == 'Car-motor') %>%
+  filter(PwMode_label == 'Car-motorized') %>%
   dplyr::select(PWDUR, CompW1) %>%
-  mutate(mode = "Car-motor")
+  mutate(mode = "Car-motorized")
 
 # Transit travel times
 df_tt_transit <- census_employed %>% 
-  filter(PwMode_label == 'Transit') %>%
+  filter(PwMode_label == 'Public transit') %>%
   dplyr::select(PWDUR, CompW1) %>%
-  mutate(mode = "Transit")
+  mutate(mode = "Public transit")
 
 # Walk travel times
 df_tt_walk <- census_employed %>% 
@@ -588,7 +587,7 @@ tld_empirical <- rbind(df_tt_bike,
       df_tt_transit,
       df_tt_walk) %>%
   mutate(mode = factor(mode,
-                       levels = c("Bike", "Walk", "Car-motor", "Transit")),
+                       levels = c("Bike", "Walk", "Car-motorized", "Public transit")),
          distribution = "empirical") 
 
 tld_empirical$PWDUR <- as.numeric(tld_empirical$PWDUR)
@@ -688,7 +687,7 @@ bike_function
 Obtaining the theoretical impedance function for the car mode:
 
 ```{r car-function}
-mode <- 'Car-motor'
+mode <- 'Car-motorized'
 car_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 car_function
@@ -698,7 +697,7 @@ car_function
 Obtaining the theoretical impedance function for the transit mode:
 
 ```{r transit-function}
-mode <- 'Transit'
+mode <- 'Public transit'
 transit_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 transit_function
@@ -819,16 +818,16 @@ theo_bike <- visualize_impedance(mode_function = bike_function,
                                  name_mode = "Bike")
 
 # Theoretical values for car mode 
-mode <- 'Car-motor'
+mode <- 'Car-motorized'
 theo_car <- visualize_impedance(mode_function = car_function, 
                                 travel_cost = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                name_mode = "Car-motor")
+                                name_mode = "Car-motorized")
 
 # Theoretical values for transit mode 
-mode <- 'Transit'
+mode <- 'Public transit'
 theo_transit <- visualize_impedance(mode_function = transit_function, 
                                     travel_cost = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
-                                    name_mode = "Transit")
+                                    name_mode = "Public transit")
 
 # Theoretical values for walk mode 
 mode <- 'Walk'
@@ -842,7 +841,7 @@ tld_theoretical <- rbind(theo_bike,
       theo_transit,
       theo_walk) %>%
   mutate(mode = factor(mode,
-                       levels = c("Bike", "Walk", "Car-motor", "Transit")))
+                       levels = c("Bike", "Walk", "Car-motorized", "Public transit")))
 ```
 
 Plotting the theoretical (black lines) and the empirical travel time
@@ -907,7 +906,9 @@ weights_df <- census_employed %>%
             .groups = "drop")
 
 ttm <- ttm %>% 
-  left_join(weights_df, by = c("from_id" = "PRCDDA", "to_id" = "PWDA", "PwMode_label" = "PwMode_label"))
+  left_join(weights_df, by = c("from_id" = "PRCDDA", 
+                               "to_id" = "PWDA", 
+                               "PwMode_label" = "PwMode_label"))
 
 if (anyNA(ttm$weights)) {
   ttm$weights[is.na(ttm$weights)] <- 0
@@ -1273,9 +1274,9 @@ function:
 
 #defining the spatial availability function
 
-spatial_availability <- function(df, origin, destination, pop, opp, mode, f) {
+spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
   
-origin <- rlang::enquo(origin)
+    origin <- rlang::enquo(origin)
     destination <- rlang::enquo(destination)
     pop <- rlang::enquo(pop)
     opp <- rlang::enquo(opp)
@@ -1286,7 +1287,7 @@ origin <- rlang::enquo(origin)
     sum_pop <- df %>%
     dplyr::distinct(!!origin, !!mode,  
                   .keep_all = TRUE) %>%
-    dplyr::summarise(pop = (!!pop)) %>%
+    dplyr::summarise(pop = sum(!!pop)) %>%
     dplyr::pull(pop) %>%
     sum()
   
@@ -1374,6 +1375,13 @@ sum(SA$SA_i, na.rm = TRUE)
 Note that the sum of spatial availability matches with the total amount
 of job opportunities in the system. As explained above, this happens
 because this metric is constrained.
+
+## Spatial availability per person 
+
+Now, we will also obtain the spatial availability per person, simply dividing the number of jobs accessible in each transportation mode by the number of people actually taking these modes:
+
+## Considering active accessibility instead of walking and cycling accessibilities
+
 
 # Confidentiality vetting
 

@@ -8,6 +8,7 @@
 .DS_Store
 .quarto
 /data-ignore-inputs/
+/data-raw/old-versions/
 /data-raw/aux-files/PCD3520/
 /data-raw/input/
 /data-raw/output/

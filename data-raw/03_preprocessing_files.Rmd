@@ -1,0 +1,574 @@
+---
+title: "Preprocessing: obtaining census spatial files and calculating travel times"
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+options(htmltools.dir.version = FALSE)
+```
+
+```{r}
+#library('CommuteCA') # Access data sets from CommuteCA R package
+library('cancensus') # Access census spatial files
+library('geojsonsf') # GeoJSON to Simple Feature Converter
+library('data.table') # fast aggregation of large data 
+library('dplyr') # a grammar of Data Manipulation
+library('here') # enable easy file referencing in project-oriented workflows
+library('rJava') # allows creation of objects, calling methods and accessing fields.
+library('r5r') # rapid realistic routing with R5 in R
+library('sf') # support for simple features, a standardized way to encode spatial vector data
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The main objective of the *CommuteCA* package is to develop standardized
+methods for transport analysis in research, especially for studies using
+Statistics Canada surveys. Among the available surveys, we focused our
+efforts on the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+which contain valuable variables for transportation research.
+
+After learning the basics of `R`, the concepts of data and performing
+some exploratory data analysis, we moved on to the next steps to perform
+accessibility analysis. More specifically, we'll demonstrate how to obtain the census spatial data files from the [`cancensus`](https://mountainmath.github.io/cancensus/) library; and how to calculate a travel time matrix for multimodal transport networks (walk, bike, public transport and car-motorized), for an selected area using the [{r5r}](https://ipeagit.github.io/r5r/) R package. 
+
+## Suggested Readings
+
+-   Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., & Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks with R5 in R. Findings, 21262. https://doi.org/10.32866/001c.21262.
+
+# Creating folders to save the spatial files 
+
+First, we will create a folder within the `raw-data` directory
+using the code of our study area. This organization makes it easier
+to manage files if we decide to analyze multiple study areas.
+
+```{r}
+code_label <- "3520"
+directory <- paste0(here::here(), "/data-raw/output/", code_label,"/spatial-files/")
+
+if(!dir.exists(directory)){
+  dir.create(directory, recursive = TRUE)}
+```
+
+# Obtaining data files using the `cancensus` library
+
+We will prepare our data set using the
+[`cancensus`](https://mountainmath.github.io/cancensus/) library, but
+you can also access the data directly from the Census website, by
+clicking in this
+[link](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21).
+
+First, you need install the `cancensus` library [@cancensus]., `cancensus` requires a valid `CensusMapper` API key to use. You can
+obtain a free API key by [signing
+up](https://censusmapper.ca/users/sign_up) for a CensusMapper account.
+To check your API key, just go to “Edit Profile” (in the top-right of
+the CensusMapper menu bar). Once you have your key, you can store it in
+your system environment so it is automatically used in API calls. To do
+so just enter `set_cancensus_api_key('<your_api_key>', install = TRUE)`.
+
+To perform the next steps of our accessibility analysis, we need to
+download/obtain the census spatial files. 
+
+More specifically, we need to have the following data sets:
+
+-   [Census
+    Divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008):
+    Census division (CD) is the general term for provincially legislated
+    areas (such as county, municipalité régionale de comté (MRC) and
+    regional district) or their equivalents in Canada. Census divisions
+    are intermediate geographic areas between the province/territory
+    level and the municipality (census subdivision).
+-   [Census
+    Subdivisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo012): Census subdivision (CSD) is the general term for municipalities or areas treated as municipal equivalents for statistical purposes.
+-   [Dissemination
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo021):
+    A dissemination area (DA) is a small, relatively stable geographic
+    unit composed of one or more adjacent dissemination blocks with an
+    average population of 400 to 700 persons based on data from the
+    previous Census of Population Program. It is the smallest standard
+    geographic area for which all census data are disseminated. *Only
+    for analysis at the Dissemination area's level.*
+-   [Census
+    tracts](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo013):
+    Census tracts (CTs) are small, relatively stable geographic areas
+    that usually have a population of fewer than 7,500 persons, based on
+    data from the previous Census of Population Program. They are
+    located in census metropolitan areas (CMAs) and in census
+    agglomerations (CAs) that had a core population of 50,000 or more in
+    the previous census.
+    
+First, you need install the `cancensus` library [@cancensus]., `cancensus` requires a valid `CensusMapper` API key to use. You can
+obtain a free API key by [signing
+up](https://censusmapper.ca/users/sign_up) for a CensusMapper account.
+To check your API key, just go to “Edit Profile” (in the top-right of
+the CensusMapper menu bar). Once you have your key, you can store it in
+your system environment so it is automatically used in API calls. To do
+so just enter `set_cancensus_api_key('<your_api_key>', install = TRUE)`.
+
+```{r}
+#set_cancensus_api_key('your API ket', install = TRUE, overwrite=TRUE)
+```
+
+You can visualize all available data set in the library by doing:
+
+```{r}
+list_census_datasets()
+```
+
+For this demonstration, we will access the data set related to the City
+of Toronto (Census Divisions (CD) = `3520`).
+
+```{r}
+# As a character! you can change for your city code
+code <- c("3520") 
+
+# You can select more than one subdivision
+# code <- c("3518", # Durham
+#           "3519", # York
+#           "3520", # Toronto
+#           "3521", # Peel
+#           "3524", # Halton
+#           "3525" # Hamilton
+#           ) 
+```
+
+In our case, we are interested on the Census Divisions:
+
+```{r}
+census_divisions <- get_census(dataset='CA21', 
+                               regions=list(CD=code), 
+                               level='CD', 
+                               resolution = 'high',
+                               geo_format = "sf")
+```
+
+Filtering and standarding variable names to be the same as the other datasets:
+
+```{r}
+census_divisions <- census_divisions %>% 
+  dplyr::select(GeoUID, name, PR_UID, Population, `Shape Area`, geometry) %>% 
+  dplyr::rename(PCD = GeoUID, 
+                PCDPOPULATION = Population,
+                PCDNAME = name,
+                PR = PR_UID)
+```
+
+```{r}
+plot(census_divisions["geometry"])
+```
+
+Census subdivisions:  
+
+```{r}
+census_subdivisions <- get_census(dataset='CA21', 
+                               regions=list(CD=code),
+                               level='CSD', 
+                               resolution = "high",
+                               geo_format = "sf")
+```
+
+Filtering and adjusting variable names:
+
+```{r}
+census_subdivisions <- census_subdivisions %>% 
+  # filter(!is.na(CMA_UID)) %>% # Selecting only the CSD within metropolitan areas
+  dplyr::select(GeoUID, name, CD_UID, PR_UID, Population, `Shape Area`, geometry) %>% 
+  dplyr::rename(PCSD = GeoUID, 
+                PCSDNAME = name,
+                pCSDPOPULATION = Population,
+                PR = PR_UID, 
+                PCD = CD_UID) 
+
+census_subdivisions <- census_subdivisions %>% 
+  left_join(census_divisions %>% st_drop_geometry() %>% 
+              dplyr::select(PCD, PCDNAME), by = "PCD" )
+```
+
+```{r}
+plot(census_subdivisions["geometry"])
+```
+Census tracts (it is important to remember that if you city of analysis
+is not within a Census Agglomeration or Census Metropolitan Area, you
+will not have census tract available for your city!):
+
+```{r}
+census_tracts <- get_census(dataset='CA21', 
+                            regions=list(CD=code), 
+                            level='CT',
+                            resolution = "high",
+                            geo_format = "sf")
+```
+
+Filtering and adjusting variable names:
+
+```{r}
+census_tracts <- census_tracts %>% 
+  dplyr::select(GeoUID, name, `Shape Area`, Population, Households, CD_UID, CMA_UID, CSD_UID, geometry) %>% 
+  dplyr::rename(CTUID = GeoUID, 
+                CTNAME = name,
+                PCD = CD_UID,
+                LANDAREA =`Shape Area`,
+                CMA = CMA_UID,
+                PCSD = CSD_UID) %>% 
+  mutate(PR = substr(CMA, start = 1, stop = 2),
+         CMA = substr(CMA, start = 3, stop = 5)) %>% 
+  dplyr::select(CTUID,CTNAME, LANDAREA, PCD, PCSD, CMA, PR, Population, Households, geometry) %>% 
+  left_join(census_subdivisions %>% 
+              dplyr::select(PCSD, PCSDNAME, PCDNAME) %>% 
+              st_drop_geometry(), by = c("PCSD"))
+```
+
+```{r}
+plot(census_tracts["geometry"])
+```
+
+And Dissemination areas:
+
+```{r}
+dissemination_areas <- get_census(dataset='CA21', 
+                                  regions=list(CD=code), 
+                                  level='DA',
+                                  resolution = "high",
+                                  geo_format = "sf")
+```
+
+Filtering and adjusting variable names:
+
+```{r}
+dissemination_areas <- dissemination_areas %>% 
+  dplyr::rename(DAUID = GeoUID, 
+                PCD = CD_UID,
+                PSCD = CSD_UID,
+                LANDAREA =`Shape Area`,
+                CMA = CMA_UID,
+                CTUID = CT_UID) %>% 
+  mutate(PR = substr(CMA, start = 1, stop = 2),
+         CMA = substr(CMA, start = 3, stop = 5)) %>% 
+  dplyr::select(DAUID, LANDAREA, PCD, CTUID, PSCD, CMA, PR, Population, geometry) %>% 
+  left_join(census_subdivisions %>% 
+              dplyr::select(CSDUID, CSDNAME, CDNAME) %>% 
+              st_drop_geometry(), by = c("CSD_UID" = "CSDUID"))
+```
+
+```{r}
+plot(dissemination_areas["geometry"])
+```
+
+# Travel Time Matrix
+
+To create the travel time matrix, we'll need the following data files:
+
+- The spatial unit used as a reference to aggregate Census data and used as places of origin and destination, which can be dissemination areas or census tracts. 
+-   A road network data set from OpenStreetMap in `.pbf` format. We obtained the road network for Ontario from the [OpenStreetMap  Geofabrik](https://download.geofabrik.de/north-america/canada/ontario.html).
+-   Public transport feeds in General Transit Feed
+Specification (GTFS) format, obtained from the [Canadian Public Transit Network
+Database](https://www150.statcan.gc.ca/n1/pub/23-26-0003/232600032025001-eng.htm)
+-   A raster file of Digital Elevation Model data in .tif (optional). We obtained the `.tif` files from [Canadian Digital Surface Model Project](https://open.canada.ca/data/en/dataset/768570f8-5761-498a-bd6a-315eb6cc023d), which provide elevation raster files with around 20 meters of spatial resolution for all Canada.
+
+The {r5r} requires the [Java SE Development Kit 21](https://www.oracle.com/java/technologies/downloads/#java21). Also, it's necessary to set the environmental variable to use Java^[Check: https://confluence.atlassian.com/doc/setting-the-java_home-variable-in-windows-8895.html . Additionally, you may have to set the maximum memory allocation for Java, in this case: run the following code your R console windows: *options(java.parameters = "-Xmx12g")*. 
+
+The number *12* in the code above indicates the total size of RAM you're allocating for java (12 gigabytes). More RAM indicates more fast processing, but it'll depends on your computer operational system. You can allocate more or less memory to Java changing the number *12* for other number, as "-Xmx4g" for 4 gigabytes, or "-Xmx10g" for 10 gigabytes. 
+
+| ⚠️**NOTE:**  allocate memory before loading {r5r}. The memory needs to be consistent with the system where this is run. In BS's laptop this is set to 10 Gigabytes
+```{r java-ram}
+# Allocate memory for routing
+options(java.parameters = "-Xmx30G")
+```
+
+First, define what will be your spatial unit to calculate the travel time: census tract or dissemination areas. In our analysis, we will use the CT level to perform our analsyis: 
+
+```{r}
+# For census tract
+spatial_unit <- census_tracts
+spatial_unit_type <- 'CT'
+
+# For dissemination areas
+# spatial_unit <- dissemination_areas
+# spatial_unit_type <- 'DA' 
+```
+
+Place the GTFS files and the optional raster files `.tif` in the `directory_r5r`:
+
+For the travel time matrix, we will create the following folder:
+
+```{r r5r-core}
+directory_r5r <- paste0(here(), "/data-raw/output/" , code_label, "/", spatial_unit_type , "/travel_times/")
+
+if(!dir.exists(directory_r5r)){
+  dir.create(directory_r5r, recursive = TRUE)}
+```
+
+```{r}
+directory_r5r
+```
+
+## Setting the size of the study area 
+
+For the road network file, we will first reduce it to include only the roads within the study area. To do this, we need to download the [Osmosis](https://wiki.openstreetmap.org/wiki/Osmosis/Installation), a command line Java application for processing OSM data.
+
+After downloading Osmosis, we need to create a variable that refers to its path: 
+```{r}
+osmosis_path <- "C:/Users/brdia/Downloads/osmosis-0.49.2/osmosis-0.49.2/bin/osmosis.bat" #Update this address! 
+```
+
+Then, inform where is located the large road network file:
+```{r}
+large_pbf_path <- "C:/Users/brdia/Downloads/ontario-251221.osm.pbf" #Update this address! 
+```
+
+and then run the following chunk to reduce your road network to select only roads within your study area: 
+
+```{r}
+area_bbox <- sf::st_bbox(spatial_unit)
+
+smaller_pbf <- paste0(directory_r5r, "study_area.pbf")
+
+# Prepare call to osmosis
+osmosis_cmd <- sprintf("%s --read-pbf %s --bounding-box left=%s bottom=%s right=%s top=%s --write-pbf %s",
+                       osmosis_path, large_pbf_path, 
+                       area_bbox$xmin, area_bbox$ymin, area_bbox$xmax, area_bbox$ymax,
+                       smaller_pbf)
+
+# Call to osmosis
+shell(osmosis_cmd, translate = TRUE)
+```
+
+Then, you can create the r5rcore: 
+
+```{r r5r-core}
+r5r_core <- r5r::build_network(data_path = directory_r5r, 
+                               verbose = TRUE, 
+                               overwrite = FALSE)
+```
+
+We will calculate the travel times between each polygon of the spatial unit selected for the analysis, considering their centroid as origins and destinations. Converting the spatial units to simple features and taking the centroids from each polygon:
+
+```{r centroid}
+spatial_unit_centroids <-  data.frame(id = as.data.frame(st_centroid(spatial_unit))[,1], 
+                           st_centroid(spatial_unit) %>%
+                             st_transform(crs = 4326) %>%
+                             st_coordinates())
+
+colnames(spatial_unit_centroids) <- c("id", "lon", "lat")
+```
+
+We'll use the `travel_time_matrix()` function from the {r5r} `R` package to estimate the travel time for each origin-destination pair on a set departure date. The function uses some travel parameters that can be viewed on the [package's documents page](https://ipeagit.github.io/r5r/), but in our case we'll use the following parameters and inputs:
+
+- Origin: the centroids of the selected spatial unit.
+- Destination: the centroids of the selected spatial unit.
+- Mode of transport: walking, cycling, public transport and car.
+- A departure date.
+- Maximum travel time: maximum value of travel time identified for the transportation mode. The {max_travel_times_pcd.rda} and {max_travel_times_cma.rda} tables contain the maximum travel time for each census division and census metropolitan area, respectively, taken from the 2021 Census.^[You can verify the maximum travel time for your census division or census metropolitan area by running: _CommuteCA::cma_max_travel_times_ or _CommuteCA::pcd_max_travel_times_ . To verify the PDC or CMA code of your study area, see: https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo027 .]
+- Walking time: The maximum walking time (in minutes) to access and exit the transit network, to make transfers within the network, or to complete walking-only trips.
+
+Setting the departure time:
+ 
+```{r departure-time}
+departure_datetime <- as.POSIXct("22-12-2025 8:00:00", format = "%d-%m-%Y %H:%M:%S")
+```
+
+## Travel time matrix for car/motor mode
+
+Considering the car/motor mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes. However, we due to the size of study area, we will set a maximum travel time `180` of for this mode.
+
+```{r duration-car}
+max_trip_duration_car <- 180
+```
+
+Generating the travel time:
+
+```{r ttm-car}
+ttm_car <- travel_time_matrix(r5r_core = r5r_core,
+                               origins = spatial_unit_centroids,
+                               destinations = spatial_unit_centroids,
+                               mode = "CAR",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_car,
+                               max_walk_time = 5,
+                               time_window = 3)
+
+ttm_car <- ttm_car %>%
+  
+  mutate(mode = "Car-motorized")
+
+write.csv(ttm_car, paste0(directory_r5r, "ttm_car.csv"), row.names=FALSE)
+```
+
+
+## Travel time matrix for walking mode
+
+Considering the walking mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes. However, we due to the size of study area, we will set a maximum travel time `90` of for this mode.
+
+```{r duration-wak}
+max_trip_duration_walk <- 90
+```
+
+Generating the travel time:
+
+```{r ttm-wak}
+ttm_walk <- travel_time_matrix(r5r_network = r5r_core,
+                          origins = spatial_unit_centroids,
+                          destinations = spatial_unit_centroids,
+                          mode = "WALK",
+                          departure_datetime = departure_datetime,
+                          max_trip_duration = max_trip_duration_walk)
+
+ttm_walk <- ttm_walk %>%
+            mutate(mode = "Walk")
+
+write.csv(ttm_walk, paste0(directory_r5r, "ttm_walk.csv"), row.names=FALSE)
+```
+
+## Travel time matrix for transit mode
+
+Considering the transit mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes. However, we due to the size of study area, we will set a maximum travel time `180` of for this mode.
+
+```{r duration-transit}
+max_trip_duration_transit <- 180
+```
+
+Generating the travel time:
+
+```{r ttm-transit}
+ttm_transit <- travel_time_matrix(r5r_network = r5r_core,
+                               origins = spatial_unit_centroids,
+                               destinations = spatial_unit_centroids,
+                               mode = "TRANSIT",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_transit,
+                               max_walk_time = 15, 
+                               max_rides = 3)
+
+ttm_transit <- ttm_transit %>%
+  mutate(mode = "Public transit")
+
+write.csv(ttm_transit, paste0(directory_r5r, "ttm_transit.csv"), row.names=FALSE)
+```
+
+## Travel time matrix for cycling mode
+
+Considering the cycling mode, the maximum trip duration for the study area, according to the Census, is: 240 minutes.  However, we due to the size of study area, we will set a maximum travel time `240` of for this mode.
+
+```{r duration-cycling}
+max_trip_duration_bike <- 90
+```
+
+Generating the travel time:
+
+```{r ttm-cycling}
+ttm_bike <- travel_time_matrix(r5r_network = r5r_core,
+                               origins = spatial_unit_centroids,
+                               destinations = spatial_unit_centroids,
+                               mode = "BICYCLE",
+                               departure_datetime = departure_datetime,
+                               max_trip_duration = max_trip_duration_bike,
+                               max_walk_time = 5, 
+                               #max_lts = 2
+                               max_lts = 3
+                               )
+
+ttm_bike <- ttm_bike %>%
+  mutate(mode = "Bike")
+
+#write.csv(ttm_bike, paste0(directory_r5r, "ttm_bike_lts2.csv"), row.names=FALSE)
+
+write.csv(ttm_bike, paste0(directory_r5r, "ttm_bike.csv"), row.names=FALSE)
+```
+
+## Travel time matrix for all modes
+
+Combine the travel times for each mode in a unique data frame:
+
+```{r}
+# ttm_bike <- read.csv(paste0(directory_r5r, "ttm_bike_lts2.csv"),
+#                colClasses = c("character","character", "numeric", "character"))
+# ttm_walk <- read.csv(paste0(directory_r5r, "ttm_walk.csv"),
+#                colClasses = c("character","character", "numeric", "character"))
+# ttm_transit <- read.csv(paste0(directory_r5r, "ttm_transit.csv"),
+#                colClasses = c("character","character", "numeric", "character"))
+# ttm_car <- read.csv(paste0(directory_r5r, "ttm_car.csv"),
+#                colClasses = c("character","character", "numeric", "character"))
+```
+
+```{r ttm}
+ttm <- rbind(ttm_bike,
+             ttm_car,
+             ttm_transit,
+             ttm_walk) %>%
+  mutate(mode = factor(mode, levels = c("Bike","Car-motorized","Public ransit","Walk"))) %>%
+  rename(travel_time = travel_time_p50,
+         PwMode_label = mode)
+```
+
+Bring the Census Metropolitan Area information:
+
+```{r ttm-cma}
+names(spatial_unit)[1] <- 'SPUID'
+
+ttm_spatial_unit <- ttm %>%
+  mutate(from_id = as.factor(from_id),
+         to_id = as.factor(to_id),
+         PwMode_label = as.factor(PwMode_label)) %>%
+  left_join(spatial_unit %>% 
+            dplyr::select("SPUID","PCSD","PCSDNAME", "PCD","PCDNAME", "CMA", "PR") %>% 
+              st_drop_geometry(), 
+            by= c("from_id"= "SPUID"))
+```
+
+# Data export
+
+To finalize, we will export the data:
+
+```{r}
+sf::st_write(census_divisions, paste0(directory, "census_divisions.gpkg"), append=FALSE)
+
+sf::st_write(census_subdivisions, paste0(directory, "census_subdivisions.gpkg"), append=FALSE)
+
+sf::st_write(census_tracts, paste0(directory, "census_tracts.gpkg"), append=FALSE)
+
+sf::st_write(dissemination_areas, paste0(directory, "dissemination_areas.gpkg"), append=FALSE)
+```
+
+```{r export-ttm}
+write.csv(ttm_spatial_unit, paste0(directory_r5r, "ttm.csv"), row.names=FALSE)
+```
+
+# References {#references .unnumbered}

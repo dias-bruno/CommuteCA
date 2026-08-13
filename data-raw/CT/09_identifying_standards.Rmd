@@ -1,0 +1,1272 @@
+---
+title: "Defining equity standards based on the relationship between job accessibility and employment outcomes"
+runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
+
+# Section objectives
+
+In the previous section, we developed spatial filters to address the likely endogeneity between accessibility measures and individual outcomes. Building on this, we now develop regression models to examine the relationship between job accessibility and employment outcomes, with the goal of identifying key accessibility thresholds associated with improved results in employment status and job seeking engagement.
+
+We first model the relationship between each dependent variable (employment outcome) and a set of predictor variables, which include job accessibility indicators and socioeconomic characteristics. These models estimate the probability of an outcome occurring, conditional on a linear combination of the predictors. All models are estimated separately for disadvantaged and non-disadvantaged populations, as defined earlier in Section 6.
+
+Following this modelling stage, we identify equity-based accessibility standards: key thresholds of job accessibility for disadvantaged populations that correspond to more favourable employment outcomes.
+
+## Suggested Readings
+
+ -  Bastiaanssen, J., Johnson, D., & Lucas, K. (2025). *The relationship between individual employment probabilities and accessibility to matching jobs: A study of the Netherlands*. Transportation Research Part A: Policy and Practice, 193, 104398. 
+ -  Cunningham, S. (2021). *Causal inference: The mixtape*. Yale
+    university press.
+
+# Let's code!
+
+Load the packages:
+
+```{r load-packages}
+#library(CommuteCA)
+library(dplyr) # A Grammar of Data Manipulation
+library(here) # Enables easy file referencing in project-oriented workflows
+library(survey) # Tools for analyzing complex survey samples with weights, strata, and clustering
+library(svydiags)
+# library(psych) # Procedures for psychological, psychometric, and personality research
+# library(tibble) # Modern reimagining of data frames providing cleaner printing and stricter behavior
+library(tidyr) # Tools for tidying data: reshaping, pivoting, separating, and uniting columns
+#library(purrr) # Functional programming tools for working with lists and iteration
+library(VGAM) # Vector generalized linear and additive models, including multinomial and ordinal models
+library(stringr) # Consistent, simple functions for working with strings
+library(MASS) # Functions and datasets from *Modern Applied Statistics with S*, including statistical models
+library(car) # Applied regression tools, including diagnostics, recoding, and ANOVA utilities
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+#library(RColorBrewer)   # Color schemes for maps (and other graphics) designed
+#library(scales) # Tools for scaling, formatting, and transforming data for visualization
+library(sf) # Support for simple features: a standardized way to encode spatial vector data
+library(tmap) # Thematic maps: static, interactive, and animated cartographic visualizations
+library(openxlsx) # Read, write, and format Excel files
+```
+
+## Data and Folders
+
+Setting the folder with the accessibility measures and spatial filter:
+
+```{r}
+study_area_label <- "GTAH"
+spatial_unit <- "CT"
+spatial_unit_identifier <- "CTUID"
+
+study_area_folder <- paste0(here::here(),"/data-raw/output/",
+study_area_label,"/")
+study_area_folder
+```
+
+
+Reading the dissemination area geometries:
+
+```{r}
+directory_spatial_files <- paste0(study_area_folder,"spatial-files/") # Update this address if necessary
+dissemination_areas <- st_read(paste0(directory_spatial_files, "dissemination_areas.gpkg"))
+
+dissemination_areas <- dissemination_areas %>% 
+  mutate(DAUID = as.numeric(DAUID))
+```
+
+Reading the census tract geometries: 
+
+```{r}
+census_tracts <- st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
+```
+
+Reading the census division geometries:
+
+```{r}
+census_subdivisions <- st_read(paste0(directory_spatial_files, "census_subdivisions.gpkg"))
+```
+
+Setting folders to export files:
+
+```{r directory-export}
+diretorio_export <- paste0(study_area_folder, spatial_unit,  "/standards-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
+
+diretorio_export_images <- paste0(study_area_folder, spatial_unit,"/standards-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_images)){
+  dir.create(diretorio_export_images, recursive = TRUE)}
+```
+
+```{r}
+employment_model_clean <- readRDS(paste0(diretorio_export,"employment_model_clean.rds"))
+employment_model_clean_design<- readRDS(paste0(diretorio_export,"employment_model_clean_design.rds"))
+respondents_employment <- readRDS(paste0(diretorio_export,"respondents_filtered_employment.rds"))
+
+jseek_model <- readRDS(paste0(diretorio_export,"jseek_model.rds"))
+respondents_jseek <- readRDS(paste0(diretorio_export,"respondents_filtered_lokwk.rds"))
+respondents_jseek_design <- svydesign(ids = ~1, data = respondents_jseek, weights = ~CompW1)
+```
+
+```{r}
+ svytable(~Disability, design = respondents_jseek_design)
+
+
+
+
+# 
+# "Gender" = , 
+#                     "Disability" = ,
+#                     "Temporary_or_refugee" = , 
+#                     "Visible_minority" = , 
+#                     "Single_parent" = , 
+#                     "Children0to5" = , 
+#                     "CFCNT_PP" = ,
+#                     "Pop_centre"
+```
+
+
+# Defining Equity Standards
+
+Now, based on the relationship identified between accessibility and employment outcomes, we will identify some key thresholds to employment accessibility, focusing on the disadvantaged population. To do this, we need to control for other variables (indicators of non-accessibility) and vary the accessibility values in order to identify these key thresholds. The following chunks create a data frame with the median values (control) of the socioeconomic variables: 
+
+How accessibility will vary: 
+
+```{r}
+seq_val <- seq(from = 0,
+                      to = round(1.10 * max(respondents_jseek$SA_pp_Transit, na.rm = TRUE),1),
+                      by = 0.005)
+```
+
+
+Define profiles: 
+
+```{r}
+priority_group_name <- "Equity-deserving"
+non_priority_group_name <- "Advantaged group"
+majority_group_name <- "Most common population"
+```
+
+```{r}
+grid_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
+                                                "AGE" = 35,
+                    "Education" = "No certificate or high school only", 
+                    "Gender" = "Woman+", 
+                    "Disability" = "Yes",
+                    "Temporary_or_refugee" = "Yes", 
+                    "Visible_minority" = "Yes", 
+                    "Single_parent" = "Yes", 
+                    "Children0to5" = 1, 
+                    "CFCNT_PP" = 2,
+                    "Pop_centre" = "Large",
+                    "Weeks" = 40, 
+                    "Value" = seq_val, 
+                    "Equity" = priority_group_name))
+
+grid_non_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
+                                                "AGE" = 45,
+                    "Education" = "University degree",
+                    "Gender" = "Man+", 
+                    "Disability" = "No",
+                    "Temporary_or_refugee" = "No", 
+                    "Visible_minority" = "No", 
+                    "Single_parent" = "No", 
+                    "Children0to5" = 0, 
+                    "CFCNT_PP" = 2,
+                    "Pop_centre" = "Small",
+                    "Weeks" = max(respondents_jseek$Weeks), 
+                    "Value" = seq_val, 
+                    "Equity" = non_priority_group_name))
+
+grid_majority <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
+ "AGE" = 40,
+"Education" = names(svytable(~Education, design = respondents_jseek_design))[which.max(svytable(~Education, design = respondents_jseek_design))],
+"Gender" = names(svytable(~Gender, design = respondents_jseek_design))[which.max(svytable(~Gender, design = respondents_jseek_design))], 
+"Disability" = names(svytable(~Disability, design = respondents_jseek_design))[which.max(svytable(~Disability, design = respondents_jseek_design))],
+"Temporary_or_refugee" = names(svytable(~Temporary_or_refugee, design = respondents_jseek_design))[which.max(svytable(~Temporary_or_refugee, design = respondents_jseek_design))], 
+"Visible_minority" = names(svytable(~Visible_minority, design = respondents_jseek_design))[which.max(svytable(~Visible_minority, design = respondents_jseek_design))], 
+"Single_parent" = names(svytable(~Single_parent, design = respondents_jseek_design))[which.max(svytable(~Single_parent, design = respondents_jseek_design))], 
+"Children0to5" = as.numeric(names(svytable(~Children0to5, design = respondents_jseek_design))[which.max(svytable(~Children0to5, design = respondents_jseek_design))])[1], 
+"CFCNT_PP" = as.numeric(names(svytable(~CFCNT_PP, design = respondents_jseek_design))[which.max(svytable(~CFCNT_PP, design = respondents_jseek_design))])[1],
+"Pop_centre" = names(svytable(~Pop_centre, design = respondents_jseek_design))[which.max(svytable(~Pop_centre, design = respondents_jseek_design))],
+"Weeks" = Hmisc::wtd.quantile(respondents_jseek$Weeks, weights = respondents_jseek$fexp_final, probs = 0.5), 
+"Value" = seq_val,
+"Equity" = majority_group_name))
+
+grid_all_vars <- rbind(grid_disadvantaged, grid_non_disadvantaged, grid_majority)
+
+controls_all_vars <- data.frame(SA_pp_Active = Hmisc::wtd.quantile(respondents_jseek$SA_pp_Active, weights = respondents_jseek$fexp_final, probs = 0.5),
+                   SA_pp_Transit = Hmisc::wtd.quantile(respondents_jseek$SA_pp_Transit, weights = respondents_jseek$fexp_final, probs = 0.5),
+                   SA_pp_Car_motor = Hmisc::wtd.quantile(respondents_jseek$SA_pp_Car_motor, weights = respondents_jseek$fexp_final, probs = 0.5), 
+                   unemployment_rate = Hmisc::wtd.quantile(respondents_jseek$unemployment_rate, weights = respondents_jseek$fexp_final, probs = 0.5), 
+                   car_share = Hmisc::wtd.quantile(respondents_jseek$car_share, weights = respondents_jseek$fexp_final, probs = 0.5), 
+                   Pop_density = Hmisc::wtd.quantile(respondents_jseek$Pop_density, weights = respondents_jseek$fexp_final, probs = 0.5), 
+                   SA_pp_Active_Res_IV = 0, 
+                   SA_pp_Transit_Res_IV = 0, 
+                   SA_pp_Car_Res_IV = 0)
+
+grid_control_all_vars <- cbind(grid_all_vars, controls_all_vars)
+
+grid_control_all_vars_ready <- grid_control_all_vars %>%
+  mutate(SA_pp_Active = if_else(Mode == "Active", Value, SA_pp_Active),
+         SA_pp_Transit = if_else(Mode == "Transit", Value, SA_pp_Transit),
+         SA_pp_Car_motor = if_else(Mode == "Car", Value, SA_pp_Car_motor))
+```
+
+We loop over each profile and each mode, compute predictions from the linear and ordinal models, and store the results:
+
+```{r}
+predict_subset <- data.frame()
+
+for(mode in unique(grid_control_all_vars_ready$Mode)){
+for(grupo in unique(grid_control_all_vars_ready$Equity)){
+
+  df <- grid_control_all_vars_ready %>%
+    filter(Equity == grupo, Mode == mode)
+
+## Employment status
+  pred_employment <- predict(employment_model_clean,
+                               newdata = df,
+                               type = "response")
+          
+          pred_employment <- as.data.frame(pred_employment) %>% 
+            rename(Employed = response) 
+          
+          pred_employment$Value <- df$Value
+          
+          pred_employment <- pred_employment %>% 
+            mutate(Unemployed = 1 - Employed,
+                     Mode = mode,
+                     Equity = grupo,
+                     Model  = "Status") %>% 
+            pivot_longer(cols = c("Employed", "Unemployed"), 
+                                  names_to = "Outcome", 
+                                  values_to  = "Probability")
+          
+  
+  
+        pred_jseek <- predict(jseek_model,
+                    newdata = df,
+                    type = "response")
+          
+          pred_jseek <- as.data.frame(pred_jseek)
+          
+          pred_jseek$Value <- df$Value
+          
+          pred_jseek <- pred_jseek %>% 
+              mutate(Mode = mode,
+                     Equity = grupo,
+                     Model  = "Job seeking") %>% 
+            pivot_longer(cols = c("No", 
+                                  "Yes (for part-time work)",
+                                  "Yes (for full-time work)"), names_to = "Outcome", values_to  ="Probability")
+          
+          
+          predict_subset <- predict_subset %>% 
+            dplyr::bind_rows(pred_employment, pred_jseek)
+          }
+}
+```
+
+
+```{r}
+#predict_subset <- readRDS(paste0(diretorio_export,"predictions.rds"))
+```
+
+# Visualizing probabilities
+
+```{r}
+accessibility_lines <- data.frame(Statistic = c("Median", "Maximum"),
+  Value = c(Hmisc::wtd.quantile(respondents_jseek$SA_pp_Transit, weights = respondents_jseek$CompW1, probs = 0.5), 
+            max(respondents_jseek$SA_pp_Transit, na.rm = TRUE)))
+
+median_sa <- Hmisc::wtd.quantile(respondents_jseek$SA_pp_Transit, weights = respondents_jseek$CompW1, probs = 0.5)
+max_sa <- max(respondents_jseek$SA_pp_Transit, na.rm = TRUE)
+mean_sa <- Hmisc::wtd.mean(respondents_jseek$SA_pp_Transit, weights = respondents_jseek$CompW1)
+```
+
+# Visualizing the Accessibility Effect
+
+Plotting a graph of the accessibility effect
+
+```{r}
+# Order of outcomes 
+outcome_order <- c("Employed", 
+                   "Unemployed", 
+                   "Yes (for full-time work)", 
+                   "Yes (for part-time work)", 
+                   "No")
+
+my_colors <- c("#1f78b4","#e31a1c","#33a02c", "#b2df8a","#cab2d6")
+
+names(my_colors) <- outcome_order
+
+Probabilities <- predict_subset %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Mode + Equity, ncol = 3)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility_effect.jpg"),
+       plot = Probabilities,
+       width = 18,
+       height = 24,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"accessibility_effect.jpg"))
+```
+
+Create a way to confirm that the graphics are correct for transit:
+
+```{r}
+transit_dis_model1 <- grid_df %>% 
+  filter(Mode == "Transit", 
+         Equity == "Disadvantaged",
+         Model == "Status", 
+         Outcome == "Employed") 
+
+pred_employment <- predict(employment_dis_model,
+                               newdata = transit_dis_model1,
+                               type = "response")
+
+pred_employment <- as.data.frame(pred_employment)
+
+transit_dis_model1$m1_Emp <- pred_employment$response
+```
+
+```{r}
+transit_dis_model1 %>% 
+  ggplot(aes(x = Value, y = m1_Emp, color = Outcome)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+```
+
+```{r}
+transit_dis_model2 <- grid_df %>% 
+  filter(Mode == "Transit", 
+         Equity == "Disadvantaged",
+         Model == "Job seeking") 
+
+pred_jseek <- predict(jseek_dis_model,
+                    newdata = transit_dis_model2,
+                    type = "response")
+          
+pred_jseek <- as.data.frame(pred_jseek)
+          
+pred_jseek$Value <- transit_dis_model2$Value
+          
+pred_jseek <- pred_jseek %>% 
+              mutate(Mode = "Transit",
+                     Equity = "Disadvantaged",
+                     Model  = "Job seeking") %>% 
+            pivot_longer(cols = c("No", 
+                                  "Yes (for part-time work)",
+                                  "Yes (for full-time work)"), names_to = "Outcome", values_to  ="Probability")
+
+transit_dis_model2 <- transit_dis_model2 %>% 
+  left_join(pred_jseek, by = c("Mode", "Equity", "Model", "Outcome", "Value"))
+```
+
+```{r}
+transit_dis_model2 %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Mode + Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+```
+
+Saving a figure just for the transit accessibility: 
+
+```{r}
+transit_probabilities <- predict_subset %>% 
+  filter(Mode == "Transit") %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, linetype = Model)) +
+  geom_line(size = 0.75, alpha = 0.95) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = NULL) +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() + 
+  facet_wrap(~Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors) +
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+
+ggsave(file = paste0(diretorio_export_images,"transit-accessibility-effect.jpg"),
+       plot = transit_probabilities,
+       width = 18,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"transit-accessibility-effect.jpg"))
+```
+
+# Key Thresholds
+
+Identifying key thresholds for transit accessibility: 
+
+```{r}
+##################################
+##################################
+
+pop <- "Non-disadvantaged" # Change for Disadvantaged when using real data!
+
+##################################
+##################################
+
+# part-time > No
+standard_df <- predict_subset %>% 
+  dplyr::select(Value, Outcome, Probability, Mode, Equity, Model) %>%
+  pivot_wider(names_from = Outcome, values_from = Probability)
+
+# When Model 2 - Part-time > No
+conservative_threshold <-  standard_df %>% 
+  filter(Mode == "Transit",
+         Model == "Job seeking",
+         Equity == pop) %>%    
+  filter(`Yes (for part-time work)` > No) %>%
+  slice(1) %>%
+  pull(Value)
+
+# When Model 2 - Full-time > No
+progressive_threshold <-  standard_df %>% 
+  filter(Mode == "Transit",
+         Model == "Job seeking",
+         Equity == pop) %>%    
+  filter(`Yes (for full-time work)` > No) %>%
+  slice(1) %>%
+  pull(Value)
+
+# Between conservative and progressive
+intermediate_threshold <- (progressive_threshold - conservative_threshold)/2 + conservative_threshold
+```
+
+```{r}
+conservative_threshold
+intermediate_threshold
+progressive_threshold
+```
+
+Identifying priority areas based on their transit accessibility gap: 
+
+```{r}
+priority_geo_areas <- respondents %>% 
+  filter(!is.na(SA_Transit)) %>% 
+  group_by(PRCDDA, Equity) %>% 
+  dplyr::summarise(SA_Transit = first(SA_Transit, na_rm = TRUE),
+               Unweighted_Pop = n(),
+               Weighted_Pop = sum(CompW1, na.rm = TRUE)) %>% 
+  mutate(range_cons = conservative_threshold - SA_Transit, 
+         range_prog = progressive_threshold - SA_Transit, 
+         range_inte = intermediate_threshold - SA_Transit, 
+         AFI_cons = range_cons * Weighted_Pop, 
+         AFI_prog = range_prog * Weighted_Pop, 
+         AFI_inte = range_inte * Weighted_Pop)
+
+# Conservative threshold 
+cons_classification <- priority_geo_areas %>% 
+  filter(range_cons > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(cons_classification$AFI_cons, 0.25, na.rm = TRUE)   
+q50 <- quantile(cons_classification$AFI_cons, 0.50, na.rm = TRUE)   
+q75 <- quantile(cons_classification$AFI_cons, 0.75, na.rm = TRUE) 
+
+cons_classification <- cons_classification %>% 
+  mutate(priority_cons = case_when(AFI_cons > q75 ~ "Very-high priority",
+                              AFI_cons > q50 & AFI_cons <= q75 ~ "High priority",
+                              AFI_cons > q2  & AFI_cons <= q50 ~ "Moderate priority",
+                              AFI_cons <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_cons)
+
+# Progressive threshold 
+
+prog_classification <- priority_geo_areas %>% 
+  filter(range_prog > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(prog_classification$AFI_prog, 0.25, na.rm = TRUE)   
+q50 <- quantile(prog_classification$AFI_prog, 0.50, na.rm = TRUE)   
+q75 <- quantile(prog_classification$AFI_prog, 0.75, na.rm = TRUE) 
+
+prog_classification <- prog_classification %>% 
+  mutate(priority_prog = case_when(AFI_prog > q75 ~ "Very-high priority",
+                              AFI_prog > q50 & AFI_prog <= q75 ~ "High priority",
+                              AFI_prog > q2  & AFI_prog <= q50 ~ "Moderate priority",
+                              AFI_prog <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_prog)
+
+# Intermediate threshold 
+
+inte_classification <- priority_geo_areas %>% 
+  filter(range_inte > 0, Equity == "Disadvantaged")
+
+q2  <- quantile(inte_classification$AFI_inte, 0.25, na.rm = TRUE)   
+q50 <- quantile(inte_classification$AFI_inte, 0.50, na.rm = TRUE)   
+q75 <- quantile(inte_classification$AFI_inte, 0.75, na.rm = TRUE) 
+
+inte_classification <- inte_classification %>% 
+  mutate(priority_inte = case_when(AFI_inte > q75 ~ "Very-high priority",
+                              AFI_inte > q50 & AFI_inte <= q75 ~ "High priority",
+                              AFI_inte > q2  & AFI_inte <= q50 ~ "Moderate priority",
+                              AFI_inte <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(PRCDDA, priority_inte)
+
+
+priority_geo_areas <- priority_geo_areas %>% 
+  left_join(cons_classification, by = "PRCDDA") %>% 
+  left_join(prog_classification, by = "PRCDDA") %>% 
+  left_join(inte_classification, by = "PRCDDA")
+```
+
+Calculating FGT measures:
+
+```{r}
+fgt_equity <- function(df, threshold, grouping_var) {
+  N <- df %>% 
+    group_by(eval(parse(text = grouping_var))) %>%
+    summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <-
+    df %>%
+    group_by(eval(parse(text  = grouping_var))) %>%
+    filter(SA_Transit <= threshold) %>%
+    summarize(fgt0_toSum = sum(Weighted_Pop),
+              Unweighted = n(), 
+              fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+              fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2))
+
+    fg <- mutate(headcount,
+               Weighted_Pop = N$Weighted_Pop, 
+               fgt0 = fgt0_toSum / Weighted_Pop,
+               fgt1 = fgt1_toSum / Weighted_Pop,
+               fgt2 = fgt2_toSum / Weighted_Pop,
+               quant = threshold)
+}
+
+fgt_equity_intermediate <- fgt_equity(df = priority_geo_areas, 
+                        threshold = intermediate_threshold, 
+                        grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Intermediate")
+
+fgt_equity_conservative <- fgt_equity(df = priority_geo_areas, 
+                               threshold = conservative_threshold, 
+                               grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Conservative")
+
+fgt_equity_progressive <- fgt_conservative <- fgt_equity(df = priority_geo_areas, 
+                                                  threshold = progressive_threshold, 
+                                                  grouping_var = "Equity") %>%
+  as.data.frame() %>% 
+  rename(Equity = `eval(parse(text = grouping_var))`) %>% 
+  mutate(priority = "General", Threshold = "Progressive")
+
+fgt_priorities <- function(df, threshold, grouping_var, priority) {
+  N <- df %>% 
+    group_by(.data[[grouping_var]]) %>%
+    summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <- df %>%
+    filter(SA_Transit <= threshold) %>%
+    group_by(.data[[priority]], .data[[grouping_var]]) %>%
+    summarize(fgt0_toSum = sum(Weighted_Pop),
+                            Unweighted = n(), 
+      fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+      fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2),
+      .groups = "drop")
+  
+  fg <- headcount %>% 
+    left_join(N, by = grouping_var) %>% 
+    mutate(
+      fgt0 = fgt0_toSum / Weighted_Pop,
+      fgt1 = fgt1_toSum / Weighted_Pop,
+      fgt2 = fgt2_toSum / Weighted_Pop,
+      quant = threshold)
+  
+  return(fg)
+}
+
+fgt_prior_intermediate <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = intermediate_threshold,
+  grouping_var = "Equity",
+  priority = "priority_inte") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_inte) %>% 
+  mutate(Threshold = "Intermediate")
+  
+
+fgt_prior_conservative <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = conservative_threshold,
+  grouping_var = "Equity",
+  priority = "priority_cons") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_cons) %>% 
+  mutate(Threshold = "Conservative")
+
+fgt_prior_progressive <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = progressive_threshold,
+  grouping_var = "Equity",
+  priority = "priority_prog") %>% 
+  rename(priority = priority_prog) %>%
+  as.data.frame() %>% 
+  mutate(Threshold = "Progressive")
+
+fgt_measures <- bind_rows(fgt_equity_intermediate, fgt_equity_conservative, fgt_equity_progressive,
+                           fgt_prior_intermediate, fgt_prior_conservative, fgt_prior_progressive) %>% 
+  filter(!is.na(priority)) 
+```
+
+Plotting graphs of FGT measures: 
+
+```{r}
+plot_fgt_data <-  fgt_measures %>% 
+  pivot_longer(cols = c(fgt0, fgt1, fgt2)) %>%
+  mutate(name = ifelse(name == "fgt0", "FGT-0",
+                ifelse(name == "fgt1", "FGT-1", "FGT-2")))
+
+priority_order <- c("General", 
+                   "Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#525252","#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+plot_fgt <- plot_fgt_data %>% 
+  mutate(priority = factor(priority, levels = priority_order)) %>%
+  ggplot(aes(y = Equity, x = value, color = priority)) + 
+  geom_point(size = 2.5, alpha = 0.9)  + 
+  scale_x_continuous(limits = c(0, 1)) + 
+  scale_color_manual(values = my_colors) +
+  facet_wrap(~ Threshold + name, labeller = labeller(.multi_line = FALSE)) + 
+  theme_minimal() +
+  xlab(NULL) + ylab("Equity Group") + 
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank())
+
+ggplot2::ggsave(plot = plot_fgt, 
+          filename = paste0(diretorio_export_images,"FGT_plots.jpg"), 
+          width = 18, 
+          height= 8, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/FGT_plots.jpg"))
+```
+
+Plotting priority areas for each standard: 
+
+```{r}
+priority_geo_areas <- priority_geo_areas %>%
+   mutate(priority_cons = replace_na(priority_cons, "No deficit"),
+          priority_prog = replace_na(priority_prog, "No deficit"),
+          priority_inte = replace_na(priority_inte, "No deficit"))
+
+priority_geo_areas_long_a <- priority_geo_areas %>% 
+  pivot_longer(cols = c("AFI_cons", "AFI_prog", "AFI_inte"),
+               names_to = c("AFI_type"), 
+               values_to  ="AFI_value") %>%
+  mutate(AFI_type = case_when(AFI_type == 'AFI_cons' ~ "Conservative", 
+                   AFI_type == 'AFI_prog' ~ "Progressive", 
+                   AFI_type == 'AFI_inte' ~ "Intermediate")) %>%
+    dplyr::select("PRCDDA","AFI_type", "AFI_value")
+
+  
+priority_geo_areas_long_b <- priority_geo_areas %>% 
+  pivot_longer(cols = c("priority_cons", "priority_prog", "priority_inte"),
+               names_to = c("Priority_type"), 
+               values_to  = "Priority_value") %>%
+  mutate(Priority_type = case_when(Priority_type == 'priority_cons' ~ "Conservative", 
+                   Priority_type == 'priority_prog' ~ "Progressive", 
+                   Priority_type == 'priority_inte' ~ "Intermediate")) %>% 
+      dplyr::select("PRCDDA","Priority_type", "Priority_value")
+
+
+priority_geo_areas_long <- priority_geo_areas_long_a %>% 
+  left_join(priority_geo_areas_long_b, 
+            by = c("PRCDDA" = "PRCDDA", 
+                   "AFI_type" = "Priority_type")) %>% 
+  distinct(PRCDDA, AFI_type, .keep_all = TRUE) %>%
+  full_join(dissemination_areas, by = c("PRCDDA" = "DAUID"))
+
+priority_order <- c("Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+priority_geo_areas_long <- priority_geo_areas_long %>% 
+  mutate(Priority_value = factor(Priority_value, levels = priority_order)) 
+
+
+priority_geo_areas_long <- priority_geo_areas_long %>%
+  st_as_sf(crs = st_crs(dissemination_areas))
+
+priority_plot <- tm_shape(priority_geo_areas_long) + 
+  tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = "Priority Level") +
+  tm_facets(by="AFI_type", showNA = FALSE, ncol = 3)  + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.position = c("left", "bottom")) 
+
+tmap_save(priority_plot, 
+          paste0(diretorio_export_images,"geographical_priorities.jpg"), 
+          width = 18, 
+          height= 5, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities.jpg"))
+```
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be
+released by the Research Data Center to ensure that confidentiality
+risks for StatCan respondents are minimized.
+
+The following rules apply to our results:
+
+-   *Statistics must not be released for identifiable areas with less
+    than 40 persons (*$\sum{CompW1} ≥ 40$). Statistics must not be
+    released for identifiable areas with less than 40 persons. This
+    condition is usually met with geography levels used at the RDCs. The
+    population threshold can be applied to the (long form) weighted
+    population estimate.
+-   *All statistics must be based on weighted data.*
+-   *Statistics must be based on at least 5 respondents, whose sum of
+    weights is at least 10*.
+-   *Statistics (Means and total sums) are subject to a simplistic
+    percent rounding by deterministically rounding to the nearest
+    multiple of a rounding base.* The rounding base is set so that the
+    rounded value is never more than p% away from the unrounded value.
+    The value of p% is determined by the associated nonzero population
+    size of the mean or total. It is the weighted number of records with
+    a nonzero value. The table below outlines the maximum percentage
+    difference (p%) from the unrounded value, based on its associated
+    nonzero population size.
+
+| Nonzero Pop. size | \<10 | 10-\<20 | 20-\<40 | 40-\<80 | 80-\<160 | 160-\<320 | 320-\<640 | 640-\<1280 | \>=1280 |
+|----|----|----|----|----|----|----|----|----|----|
+| p% | 16.67% | 16.67% | 10% | 5% | 2.5% | 1.25% | 0.625% | 0.313% | 0.156% |
+
+
+For FGT: 
+
+```{r}
+fgt_measures_support <- fgt_measures %>% 
+  rename(Priority = priority,
+         Weighted_Pop = Weighted_Pop, 
+         Weighted_subset = fgt0_toSum, 
+         Threshold_value = quant) %>% 
+  dplyr::select(Threshold, Threshold_value, 
+                Equity, Priority, Unweighted, Weighted_subset, Weighted_Pop, 
+                fgt0, fgt1, fgt2)
+
+fgt_measures_release <- fgt_measures_support %>% 
+  dplyr::select(Threshold, Threshold_value, 
+                Equity, Priority, fgt0, fgt1, fgt2)
+```
+
+For priority geographical areas: 
+
+```{r da-vetting}
+weighted_DA <- census %>%
+  filter(PCD == code, 
+         (LBR_FORC == 1 | LBR_FORC == 2)) %>% 
+  group_by(PRCDDA) %>%
+  dplyr::summarize(Weighted_Pop_DA = sum(CompW1),
+            Unweighted_DA = n(),
+            .groups = "drop") %>% 
+  filter(Weighted_Pop_DA > 40)
+
+priority_geo_areas_support <- priority_geo_areas_long %>% 
+  st_drop_geometry()  %>%
+  left_join(weighted_DA, by = "PRCDDA") %>% 
+  filter(Weighted_Pop_DA > 40, Unweighted_DA > 5) %>% 
+  dplyr::select(PRCDDA, AFI_type, Priority_value, Unweighted_DA, Weighted_Pop_DA) %>% rename(Threshold = AFI_type)
+
+priority_geo_areas_release <- priority_geo_areas_support %>% 
+  dplyr::select(PRCDDA, Threshold, Priority_value)
+```
+
+# Export files 
+
+Priority areas: 
+
+```{r}
+
+######## SUPPORT ###########
+
+pa_support_excel <- createWorkbook()
+
+addWorksheet(pa_support_excel, "Sheet1")
+
+writeData(pa_support_excel, "Sheet1",
+          priority_geo_areas_support)
+
+## Commenting and highlighting the general sheet
+
+writeComment(pa_support_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Identification of the Dissemination area", author = "Author"))
+
+writeComment(pa_support_excel, "Sheet1", col =2 , row = 1, 
+             comment = createComment("Accessibility threshold category."))
+               
+writeComment(pa_support_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(pa_support_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Number of respondents (unweighted count) in this DA.", author = "Author"))
+
+writeComment(pa_support_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
+               
+cols_with_values_general <- which(sapply(pa_support_excel, function(x) any(!is.na(x))))
+
+addStyle(pa_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(priority_geo_areas_support)+1),
+         cols = c(1:3),
+         gridExpand = TRUE)
+
+saveWorkbook(pa_support_excel, paste0(diretorio_export, "priority_areas_support.xlsx"), overwrite = TRUE)
+
+######## RELEASE ###########
+
+pa_release_excel <- createWorkbook()
+
+addWorksheet(pa_release_excel, "Sheet1")
+
+writeData(pa_release_excel, "Sheet1",
+          priority_geo_areas_release)
+
+## Commenting and highlighting the general sheet
+
+writeComment(pa_release_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Identification of the Dissemination area", author = "Author"))
+
+writeComment(pa_release_excel, "Sheet1", col =2 , row = 1, 
+             comment = createComment("Accessibility threshold category."))
+               
+writeComment(pa_release_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+addStyle(pa_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(priority_geo_areas_release)+1),
+         cols = c(1:3),
+         gridExpand = TRUE)
+
+saveWorkbook(pa_release_excel, paste0(diretorio_export, "priority_areas_release.xlsx"), overwrite = TRUE)
+``` 
+
+
+```{r}
+
+######## SUPPORT ###########
+
+fgt_support_excel <- createWorkbook()
+
+addWorksheet(fgt_support_excel, "Sheet1")
+
+writeData(fgt_support_excel, "Sheet1",
+          fgt_measures_support)
+
+## Commenting and highlighting the general sheet
+
+writeComment(fgt_support_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Accessibility threshold category."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Accessibility threshold value."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Equity group in terms of transporation."))
+
+writeComment(fgt_support_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(fgt_support_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("Number of respondents (unweighted count) with accessibility below the thrshold.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 6, row = 1, 
+             comment = createComment("Total population (weighted) with accessibility below the thrshold. Value used to calculate FGT measures", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 7, row = 1, 
+             comment = createComment("Total population (weighted) in the city in this equity category.", author = "Author"))
+
+
+writeComment(fgt_support_excel, "Sheet1", col = 8, row = 1, 
+             comment = createComment("FGT-0, Foster-Greer-Thorbecke measure considering a alpha = 0. It measures inequality, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 9, row = 1, 
+             comment = createComment("FGT-1, Foster-Greer-Thorbecke measure considering a alpha = 1. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_support_excel, "Sheet1", col = 10, row = 1, 
+             comment = createComment("FGT-2, Foster-Greer-Thorbecke measure considering a alpha = 2. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+cols_with_values_general <- which(sapply(fgt_support_excel, function(x) any(!is.na(x))))
+
+addStyle(fgt_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(fgt_measures_support)+1),
+         cols = c(1,2,3,4,8,9,10),
+         gridExpand = TRUE)
+
+saveWorkbook(fgt_support_excel, paste0(diretorio_export, "fgt_measures_support.xlsx"), overwrite = TRUE)
+
+######## RELEASE ###########
+
+fgt_release_excel <- createWorkbook()
+
+addWorksheet(fgt_release_excel, "Sheet1")
+
+writeData(fgt_release_excel, "Sheet1",
+          fgt_measures_release)
+
+## Commenting and highlighting the general sheet
+
+writeComment(fgt_release_excel, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Accessibility threshold category."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Accessibility threshold value."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Equity group in terms of transporation."))
+
+writeComment(fgt_release_excel, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Classification of the DA when comparing its accessibility score to the threshold.", author = "Author"))               
+
+writeComment(fgt_release_excel, "Sheet1", col = 5, row = 1, 
+             comment = createComment("FGT-0, Foster-Greer-Thorbecke measure considering a alpha = 0. It measures inequality, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_release_excel, "Sheet1", col = 6, row = 1, 
+             comment = createComment("FGT-1, Foster-Greer-Thorbecke measure considering a alpha = 1. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+writeComment(fgt_release_excel, "Sheet1", col = 7, row = 1, 
+             comment = createComment("FGT-2, Foster-Greer-Thorbecke measure considering a alpha = 2. It measures inequality of accessibility, values close to 1 indicate higher inequality, while close to 0 indicates more equality.", author = "Author"))
+
+cols_with_values_general <- which(sapply(fgt_release_excel, function(x) any(!is.na(x))))
+
+addStyle(fgt_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(fgt_measures_release)+1),
+         cols = c(1:7),
+         gridExpand = TRUE)
+
+saveWorkbook(fgt_release_excel, paste0(diretorio_export, "fgt_measures_release.xlsx"), overwrite = TRUE)
+```
+
+Descriptive measures:
+
+```{r export-original-files}
+# Descriptive analysis 
+write.csv(descriptive_analysis, paste0(diretorio_export, "descriptive_analysis_original.csv"), row.names=FALSE)
+
+descriptive_analysis_release <- descriptive_analysis %>% 
+  dplyr::select("Equity", "Total_pop_rounded", 
+                "SA_Walk_mean_rounded", "SA_Walk_sd_rounded",
+                "SA_Bike_mean_rounded", "SA_Bike_sd_rounded",
+                "SA_Transit_mean_rounded", "SA_Transit_sd_rounded", 
+                "SA_Car_mean_rounded", "SA_Car_sd_rounded", 
+                "AGE_mean_rounded", "AGE_sd_rounded", 
+                "CFKID0T5_mean_rounded", "CFKID0T5_sd_rounded", 
+                "CFCNT_mean_rounded", "CFCNT_sd_rounded", 
+                "WEEKS_mean_rounded", "WEEKS_sd_rounded", 
+                "woman_prop", "disability_prop", "racialized_prop", 
+                "low_educated_prop", "single_parent_prop", 
+                "employed_prop", "full_time_prop", 
+                "part_time_prop", "no_prop")
+
+da_support_excel <- createWorkbook()
+
+addWorksheet(da_support_excel, "Sheet1")
+
+writeData(da_support_excel, "Sheet1", x = descriptive_analysis)  
+
+writeComment(da_support_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Population equity category in terms of transportation conditions. “Disadvantaged” means a population with low access to employment opportunities, considering the current transportation infrastructure, and “not disadvantaged” means the opposite. This is a subset of the labour force population.", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Unweighted population ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Weighted Population (sum of CompW1)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 5, row = 1,  comment = createComment("Unweighted population within the labour force", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 6, row = 1,  comment = createComment("Weighted Population within labour fource (sum of CompW1)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 7, row = 1,  comment = createComment("Rounded unweighted population within the labour force (rounded in multiples of 5)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 8, row = 1,  comment = createComment("Mean value of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 9, row = 1,  comment = createComment("Standard deviation of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 10, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 11, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 12, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 13, row = 1,  comment = createComment("Mean value of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 14, row = 1,  comment = createComment("Standard deviation of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 15, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 16, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 17, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 18, row = 1,  comment = createComment("Mean value of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 19, row = 1,  comment = createComment("Standard deviation of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 20, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 21, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 22, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 23, row = 1,  comment = createComment("Mean value of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 24, row = 1,  comment = createComment("Standard deviation of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 25, row = 1,  comment = createComment("Non-zero population size ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 26, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 27, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 28, row = 1,  comment = createComment("Mean value of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 29, row = 1,  comment = createComment("Standard deviation of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 30, row = 1,  comment = createComment("Non-zero population size ofage of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 31, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of age of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 32, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofage of the respondents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 33, row = 1,  comment = createComment("Mean value of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 34, row = 1,  comment = createComment("Standard deviation of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 35, row = 1,  comment = createComment("Non-zero population size ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 36, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 37, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 38, row = 1,  comment = createComment("Mean value of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 39, row = 1,  comment = createComment("Standard deviation of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 40, row = 1,  comment = createComment("Non-zero population size ofsize of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 41, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of size of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 42, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofsize of the family", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 43, row = 1,  comment = createComment("Mean value of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 44, row = 1,  comment = createComment("Standard deviation of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 45, row = 1,  comment = createComment("Non-zero population size ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 46, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of number of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 47, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 48, row = 1,  comment = createComment("Unweighted population of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 49, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 50, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 51, row = 1,  comment = createComment("Proportion of woman", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 52, row = 1,  comment = createComment("Unweighted population of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 53, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 54, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 55, row = 1,  comment = createComment("Proportion of disable person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 56, row = 1,  comment = createComment("Unweighted population of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 57, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 58, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 59, row = 1,  comment = createComment("Proportion of racialized person", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 60, row = 1,  comment = createComment("Unweighted population of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 61, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 62, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 63, row = 1,  comment = createComment("Proportion of low educated person (less than high school)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 64, row = 1,  comment = createComment("Unweighted population of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 65, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 66, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 67, row = 1,  comment = createComment("Proportion of single parents", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 68, row = 1,  comment = createComment("Unweighted population of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 69, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 70, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 71, row = 1,  comment = createComment("Proportion of employed population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 72, row = 1,  comment = createComment("Unweighted population of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 73, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 74, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 75, row = 1,  comment = createComment("Proportion of people who looked for full-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 76, row = 1,  comment = createComment("Unweighted population of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 77, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 78, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 79, row = 1,  comment = createComment("Proportion of people who looked for part-time job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 80, row = 1,  comment = createComment("Unweighted population of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 81, row = 1,  comment = createComment("Weighted Population (sum of CompW1) of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 82, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5) of people who did not looked for a job", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 83, row = 1,  comment = createComment("Proportion of people who did not looked for a job", author = "Author"))
+
+cols_with_values_general <- which(sapply(descriptive_analysis, 
+                                         function(x) any(!is.na(x))))
+addStyle(da_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(descriptive_analysis)+1),
+         cols = c(1,4,seq(from = 12, to = 48, by = 5), seq(from = 12, to = 48, by = 5) + 1, seq(from = 12, to = 48, by = 5), seq(from = 51, to = 83, by = 4)),
+         gridExpand = TRUE)
+
+saveWorkbook(da_support_excel, paste0(diretorio_export, "descriptive_analysis_support.xlsx"), overwrite = TRUE)
+
+da_release_excel <- createWorkbook()
+
+addWorksheet(da_release_excel, "Sheet1")
+
+writeData(da_release_excel, "Sheet1", 
+          x = descriptive_analysis_release)  
+
+writeComment(da_release_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Population equity category in terms of transportation conditions. “Disadvantaged” means a population with low access to employment opportunities, considering the current transportation infrastructure, and “not disadvantaged” means the opposite. This is a subset of the labour force population.", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Rounded Weighted Population (sum of CompW1, rounded in multiple of 5)", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (walking mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 5, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 6, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (cycling mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 7, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 8, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (public transit mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 9, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of accessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 10, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofaccessibility to employment (motorized mode) ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 11, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of age of the respondents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 12, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofage of the respondents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 13, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of children under 5 years of age in each household ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 14, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofchildren under 5 years of age in each household ", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 15, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of size of the family", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 16, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofsize of the family", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 17, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of number of weeks worked last year", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 18, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation ofnumber of weeks worked last year", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 19, row = 1,  comment = createComment("Proportion of woman", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 20, row = 1,  comment = createComment("Proportion of disable person", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 21, row = 1,  comment = createComment("Proportion of racialized person", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 22, row = 1,  comment = createComment("Proportion of low educated person (less than high school)", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 23, row = 1,  comment = createComment("Proportion of single parents", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 24, row = 1,  comment = createComment("Proportion of employed population", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 25, row = 1,  comment = createComment("Proportion of people who looked for full-time job", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 26, row = 1,  comment = createComment("Proportion of people who looked for part-time job", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 27, row = 1,  comment = createComment("Proportion of people who did not looked for a job", author = "Author"))
+
+cols_with_values_general <- which(sapply(descriptive_analysis_release, 
+                                         function(x) any(!is.na(x))))
+addStyle(da_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(descriptive_analysis_release)+1),
+         cols = c(1:27),
+         gridExpand = TRUE)
+
+saveWorkbook(da_release_excel, paste0(diretorio_export, "descriptive_analysis_release.xlsx"), overwrite = TRUE)
+```
+
+Exporting models: 
+
+```{r}
+# First stage regressions
+capture.output( summary(stage1_walk),
+  file = paste0(diretorio_export, "stage1_walk.txt"))
+
+capture.output( summary(stage1_transit),
+  file = paste0(diretorio_export, "stage1_transit.txt"))
+
+capture.output( summary(stage1_bike),
+  file = paste0(diretorio_export, "stage1_bike.txt"))
+
+capture.output( summary(stage1_car),
+  file = paste0(diretorio_export, "stage1_car.txt"))
+
+# Second stage regressions
+capture.output( summary(employment_ndis_model),
+  file = paste0(diretorio_export, "model_1_employment_status.txt"))
+
+capture.output( summary(employment_dis_model),
+  file = paste0(diretorio_export, "model_2_employment_status.txt"))
+
+capture.output( summary(jseek_ndis_model),
+  file = paste0(diretorio_export, "model_3_job_seeking.txt"))
+
+capture.output( summary(jseek_dis_model),
+  file = paste0(diretorio_export, "model_4_job_seeking.txt"))
+```
+

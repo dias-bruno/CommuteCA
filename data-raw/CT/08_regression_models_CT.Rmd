@@ -1,0 +1,1761 @@
+---
+title: "Defining equity standards based on the relationship between job accessibility and employment outcomes"
+runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_html: default
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
+
+# Section objectives
+
+In the previous section, we developed spatial filters to address the likely endogeneity between accessibility measures and individual outcomes. Building on this, we now develop regression models to examine the relationship between job accessibility and employment outcomes, with the goal of identifying key accessibility thresholds associated with improved results in employment status and job seeking engagement.
+
+We first model the relationship between each dependent variable (employment outcome) and a set of predictor variables, which include job accessibility indicators and socioeconomic characteristics. These models estimate the probability of an outcome occurring, conditional on a linear combination of the predictors. All models are estimated separately for disadvantaged and non-disadvantaged populations, as defined earlier in Section 6.
+
+Following this modelling stage, we identify equity-based accessibility standards: key thresholds of job accessibility for disadvantaged populations that correspond to more favourable employment outcomes.
+
+## Suggested Readings
+
+ -  Bastiaanssen, J., Johnson, D., & Lucas, K. (2025). *The relationship between individual employment probabilities and accessibility to matching jobs: A study of the Netherlands*. Transportation Research Part A: Policy and Practice, 193, 104398. 
+ -  Cunningham, S. (2021). *Causal inference: The mixtape*. Yale
+    university press.
+
+# Let's code!
+
+Load the packages:
+
+```{r load-packages}
+library(dplyr) # A Grammar of Data Manipulation
+library(here) # Enables easy file referencing in project-oriented workflows
+library(survey) # Tools for analyzing complex survey samples with weights, strata, and clustering
+library(svydiags)
+library(tidyr) # Tools for tidying data: reshaping, pivoting, separating, and uniting columns
+library(VGAM) # Vector generalized linear and additive models, including multinomial and ordinal models
+library(stringr) # Consistent, simple functions for working with strings
+library(MASS) # Functions and datasets from *Modern Applied Statistics with S*, including statistical models
+library(car) # Applied regression tools, including diagnostics, recoding, and ANOVA utilities
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(sf) # Support for simple features: a standardized way to encode spatial vector data
+library(openxlsx) # Read, write, and format Excel files
+```
+
+
+```{r}
+# install order for the packages 
+packages <- c("VGAM", "cli",  "generics",     
+"glue",          "magrittr",      "R6",           
+"rlang",         "utf8",          "pkgconfig",    
+"withr",         "rprojroot",     "lattice",      
+"numDeriv",      "Rcpp",          "DBI",          
+"cpp11",         "stringi",       "MASS",         
+"carData",       "abind",         "Formula",      
+ "nnet",          "boot",          "nloptr",       
+ "SparseM",       "farver",        "labeling",     
+"RColorBrewer",  "viridisLite",   "backports",    
+ "Deriv",         "microbenchmark","rbibutils",    
+"colorspace",    "fracdiff",      "timeDate",     
+"S7",            "KernSmooth",    "wk",           
+"proxy",         "zip",           "lifecycle",    
+ "here",          "Matrix",        "nlme",         
+ "zoo",           "minqa",         "RcppArmadillo",
+ "RcppEigen",     "units",         "mitools",      
+ "isoband",       "class",         "Rdpack",       
+ "s2",            "openxlsx",      "vctrs",        
+ "scales",        "gtable",        "survival",     
+ "MatrixModels",  "mgcv",          "urca",         
+ "lmtest",        "e1071",         "reformulas",   
+ "stringr",       "pillar",        "tidyselect",   
+ "purrr",         "ggplot2",       "survey",       
+ "quantreg",      "classInt",      "lme4",         
+ "tibble",        "cowplot",       "forecast",     
+ "svydiags",      "sf",            "dplyr",        
+ "tidyr",         "broom",         "modelr",       
+ "doBy",          "pbkrtest",      "car")
+
+zip_folder <- "Z:/VRDC-PROJ-10840/Santos_10840/santosb/MCM-BRUNO-10840/"
+
+zip_files <- paste0(zip_folder,packages,".zip")
+
+zip_files
+```
+
+## Data and Folders
+
+Reading census data and creating a R data frame[^2]:
+
+[^2]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all locations
+    in Canada, *update* the address in the chunk.
+
+```{r}
+# For the original Census data set
+files_address <- paste0(here(),"/data-ignore-inputs/census_test_GTAH.csv") # insert-the-RDC-address!!!
+census <- read.csv(files_address, header = TRUE)
+census_backup <- census
+```
+
+If the original Census dataset available in the RDC is not in .csv
+(comma-separated values) format but is instead provided in other formats
+such as SPSS, SAS, or SAS Data, you can use the foreign package (a
+built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' window and explore additional functions for reading your file. 
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
+
+```{r load-census-data}
+# data("census_test_toronto")
+# census <- census_test_toronto
+```
+
+| ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+
+
+Setting the folder with the accessibility measures and spatial filter:
+
+```{r}
+study_area_label <- "GTAH"
+spatial_unit <- "CT"
+spatial_unit_identifier <- "CTUID"
+
+study_area_folder <- paste0(here::here(),"/data-raw/output/",
+study_area_label,"/")
+study_area_folder
+```
+
+
+```{r read-accessibility}
+# Folder  
+measures_folder <- paste0(study_area_folder,"/",spatial_unit,"/spatial-filter-measures/")
+
+# Read file
+SA_mode <- read.csv(paste0(measures_folder, "spatial_filters.csv"), colClasses = c("character", "character", 
+                              "numeric","numeric",
+                              "numeric","numeric", 
+                              "numeric","numeric")) %>% 
+  mutate(PwMode_label = case_when(PwMode_label == "Car-motor" ~ "Car_motor",
+    TRUE ~ PwMode_label ))
+```
+
+```{r}
+SA_mode_wide <- SA_mode %>%
+  rename(SA = SA_im, 
+         HT = HT_im,
+         SA_pp = SA_pp_im) %>%
+  pivot_wider(id_cols = spatial_unit_identifier,
+              names_from = PwMode_label, 
+              values_from = c(SA, SA_pp, HT, Sf_dist_SA, Sf_dist_SA_pp, Sf_dist_HT),
+              names_sep = "_") 
+
+SA_mode_wide
+```
+
+Reading the dissemination area geometries:
+
+```{r}
+directory_spatial_files <- paste0(study_area_folder,"spatial-files/") # Update this address if necessary
+dissemination_areas <- st_read(paste0(directory_spatial_files, "dissemination_areas.gpkg"))
+
+dissemination_areas <- dissemination_areas %>% 
+  mutate(DAUID = as.numeric(DAUID))
+```
+
+Reading the census tract geometries: 
+
+```{r}
+census_tracts <- st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
+```
+
+Reading the census division geometries:
+
+```{r}
+census_subdivisions <- st_read(paste0(directory_spatial_files, "census_subdivisions.gpkg"))
+```
+
+Setting folders to export files:
+
+```{r directory-export}
+diretorio_export <- paste0(study_area_folder, spatial_unit,  "/standards-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
+
+diretorio_export_images <- paste0(study_area_folder, spatial_unit,"/standards-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_images)){
+  dir.create(diretorio_export_images, recursive = TRUE)}
+```
+
+## Preprocessing files
+
+We will filter the census data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations)[^3]. The chunk below shows how to make this
+procedure:
+
+[^3]: As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
+
+```{r filter-boundaries}
+pcd_codes <- c("3518", # Durham
+          "3519", # York
+          "3520" ,  # Toronto
+          "3521", # Peel
+          "3524", # Halton
+          "3525" # Hamilton
+          ) 
+
+# Filtering by census division
+ census_filtered <- census %>%
+                    filter(PCD %in% pcd_codes) # Only select respondents who live in  Toronto
+```
+
+According to the census code book, the variable 'PwMode' has the
+following possible values:
+
+-   -3: Not applicable.
+-   1: Car, truck or van - as a driver.
+-   2: Car, truck or van - as a passenger.
+-   3: Bus.
+-   4: Subway or elevated rail.
+-   5: Light rail, streetcar or commuter train.
+-   6: Passenger ferry.
+-   7: Walked.
+-   8: Bicycle.
+-   9: Motorcycle, scooter or moped.
+-   10: Other method.
+
+We'll rename the travel modes to facilitate the readability of the data.
+Additionally, we'll remove from our analysis travel modes signed as
+'Other methods':
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^4]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^4]: Those who, during the reference period: (a) Did any work at all at
+    a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force
+
+```{r lf-selection}
+census_vetting <- census_filtered  %>%
+  dplyr::select("Frame_ID", "PRCDDA", "PR", "CMA",  "PCD", "POP_CNTR_IND","CompW1",
+                
+                "LBR_FORC", "CfInc_AT", "CFCNT_PP", "CF_PnCF_NumEarners", "PWDA",
+                "PWPR", "PWCD", "PWCMA", "PWDUR", "PWDist", "PwMode", "AGE",
+                #"MRNFY", 
+                "GENDER_BINARY", "LoLICOA", "LoLIMA", "ACTLMFLG", 
+                "CFAMSTSIMPLE", "IMMCAT5", "PerImmA", "DVisMin", 
+                "HCDD", "CFKID0T5", "Weeks", "LOKWK","Mob5", "GovtI_SocAssist", 
+                #"EMPLOYED","LF71"
+                )
+
+census_filtered <- census_filtered %>% 
+  filter(LBR_FORC == 1 | LBR_FORC == 2) %>%
+  dplyr::select(names(census_vetting))
+```
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^5]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^5]: Those who, during the reference period: (a) Did any work at all at
+    a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years (already previously excluded from
+    our dataset)
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force (already previously excluded from our
+    dataset)
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:[^6]
+
+[^6]: Given that the non-binary population is small, data aggregation to
+    a two-category gender variable is sometimes necessary to protect the
+    confidentiality of responses provided. In these cases, individuals
+    in the category “non-binary persons” are distributed into the other
+    two gender categories and are denoted by the “+” symbol.
+
+-   1: Woman+.
+-   2: Man+.
+
+According to the census code book, the variable 'GENDER_BINARY' has the
+following possible values:
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Concept not applicable (territories or reserves) - not in low
+    income
+-   4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LoLICOA' has the
+following possible values:[\^]
+
+[\^] Refers to the income situation of a person in relation to the
+Low-income cut-offs, after-tax (LICO-AT). Persons with income that is
+below this low-income line are considered to be in low income.
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Concept not applicable (territories or reserves) - not in low
+    income
+-   4: Concept not applicable (territories or reserves) - in low income
+
+According to the census code book, the variable 'LoLIMA' has the
+following possible values:[\^]
+
+[\^] Refers to the income situation of a person in relation to the
+Low-income measure, after-tax (LIM-AT). Persons with income that is
+below this low-income line are considered to be in low income.
+
+-   -3: Concept not applicable (collective households)
+-   1: Not in low income
+-   2: In low income
+-   3: Not in low income (territories or reserves)
+-   4: In low income (territories or reserves)
+-   5: Concept not applicable (collective households) - not in low
+    income
+-   6: Concept not applicable (collective households) - in low income
+
+We will use the variable *ACTLMFLG - Activities of daily living: Flag*
+as an indicative of disability, because the Census of Population does
+not have a variable regarding disability. The question on activities of
+daily living refers to difficulties a person may have doing certain
+activities as a result of physical, cognitive, mental, or other
+health-related conditions or problems. We will select all those
+respondents who affirm to have frequent (always) difficulties to develop
+regular activities. According to the census code book, the variable
+'ACTLMFLG' has the following possible values:
+
+-   -2: Not stated
+-   1: Yes, always
+-   2: Yes, often
+-   3: Yes, sometimes
+-   4: No
+
+According to the census code book, the variable 'CFAMSTSIMPLE' has the
+following possible values:
+
+-   1: Married spouse or common-law partner
+-   2: Parent in a one-parent family
+-   3: Child
+-   4: Person not in a census family
+
+According to the census code book, the variable 'IMMCAT5' has the
+following possible values:
+
+-   1: Non-immigrants
+-   2: Non-permanent residents3 Immigrants admitted before 1980
+-   100010: Economic immigrants - Principal applicants
+-   100020: Economic immigrants - Secondary applicants
+-   200000: Immigrants sponsored by family
+-   300000: Refugees
+-   400000: Other immigrants
+
+According to the census code book, "Visible minority" refers to whether
+a person is a visible minority as defined by the Employment Equity Act.
+The Employment Equity Act defines visible minorities as "persons, other
+than Aboriginal peoples, who are non-Caucasian in race or non-white in
+colour." The visible minority population consists mainly of the
+following groups: South Asian, Chinese, Black, Filipino, Arab, Latin
+American, Southeast Asian, West Asian, Korean and Japanese. The variable
+'DVisMin' has the following possible values:
+
+-   1: Other (not a visible minority)
+-   2: South Asian
+-   3: Chinese
+-   4: Black
+-   5: Filipino
+-   6: Arab
+-   7: Latin American
+-   8: Southeast Asian
+-   9: West Asian
+-   10: Korean
+-   11: Japanese
+-   12: Visible minority, n.i.e.
+-   13: Multiple visible minorities
+-   14: Indigenous peoples
+
+In the next chunk, we will rename the travel modes to facilitate the
+readability of the data.
+
+```{r labelling-variables}
+census_filtered_labeled <- census_filtered %>%
+                   mutate(PwMode_label = 
+                            case_when(PwMode > 0 & PwMode <= 2 ~ "Car_motor",
+                                      PwMode == 9 ~ "Car_motor",
+                                      PwMode >= 3 & PwMode <= 6  ~ "Transit",
+                                      PwMode == 7  ~ "Walk",
+                                      PwMode == 8  ~ "Bike", 
+                                      PwMode == 10 ~ "Other",
+                                      PwMode == -3 ~ "Not applicable"),
+                          PwMode_label = factor(PwMode_label, levels = c("Bike", "Walk", "Car_motor", "Transit","Not applicable","Other")),
+                          # Walk 
+                          Walk = 
+                            case_when(PwMode == 7  ~ "Yes",
+                                      TRUE ~ "No"),
+                          Walk = factor(Walk, levels = c("No", "Yes")),
+                     # Bike 
+                          Bike = 
+                            case_when(PwMode == 8 ~ "Yes",
+                                      TRUE ~ "No"),
+                          Bike = factor(Bike, levels = c("No", "Yes")),
+                     # Active 
+                          Transit = 
+                            case_when(PwMode_label == "Transit"  ~ "Yes",
+                                      TRUE ~ "No"),
+                          Transit = factor(Transit, levels = c("No", "Yes")),
+                     # Active 
+                          Active = 
+                            case_when(PwMode == 7  ~ "Yes",
+                                      PwMode == 8  ~ "Yes", 
+                                      TRUE ~ "No"),
+                          Active = factor(Active, levels = c("No", "Yes")),
+                     # Labour force
+                     LBR_FORC_label = 
+                            case_when(LBR_FORC == 1 ~ "Employed",
+                                      LBR_FORC == 2 ~ "Unemployed"),
+                          LBR_FORC_label = factor(LBR_FORC_label), 
+                     # Gender 
+                          Gender = 
+                            case_when(GENDER_BINARY == 1 ~ "Woman+",
+                                      GENDER_BINARY == 2 ~ "Man+"),
+                          Gender = factor(Gender, levels = c("Man+", "Woman+")),
+                     # Low income population - LoLICOA
+                     LoLICOA_label = 
+                       case_when(LoLICOA == -3 ~ "Not in low income", 
+                                 LoLICOA == 1 ~ "Not in low income",
+                                 LoLICOA == 2 ~ "In low income",
+                                 LoLICOA == 3 ~ "Not in low income",
+                                 LoLICOA == 4 ~ "In low income"),
+                     LoLICOA_label = factor(LoLICOA_label), 
+                    LoLIMA_label = 
+                       case_when(LoLIMA == -3 ~ "Not in low income", 
+                                 LoLIMA == 1 ~ "Not in low income",
+                                 LoLIMA == 2 ~ "In low income",
+                                 LoLIMA == 3 ~ "Not in low income",
+                                 LoLIMA == 4 ~ "In low income",
+                                 LoLIMA == 5 ~ "Not in low income",
+                                 LoLIMA == 6 ~ "In low income"),
+                     LoLIMA_label = factor(LoLIMA_label), 
+                    Low_Income_label = 
+                      case_when(LoLIMA_label == "In low income" | LoLICOA_label == "In low income" ~ "In low income",
+                                TRUE ~ "Not in low income"), 
+                    Low_Income_label = factor(Low_Income_label, levels = c("Not in low income", "In low income")), 
+                    # Disability
+                    Disability = 
+                       case_when(ACTLMFLG == -2 ~ "No", 
+                                 ACTLMFLG == 1 ~ "Yes",
+                                 ACTLMFLG == 2 ~ "No",
+                                 ACTLMFLG == 3 ~ "No",
+                                 ACTLMFLG == 4 ~ "No"),
+                    Disability = factor(Disability, levels = c("No", "Yes")), 
+                    # Single-parent family
+                    Single_parent = 
+                       case_when(CFAMSTSIMPLE == 1 ~ "No",
+                                 CFAMSTSIMPLE == 2 ~ "Yes",
+                                 CFAMSTSIMPLE == 3 ~ "No",
+                                 CFAMSTSIMPLE == 4 ~ "No"),
+                     Single_parent = factor(Single_parent, levels = c("No", "Yes")), 
+                    # Citizenship
+                    Temporary_or_refugee = 
+                       case_when(IMMCAT5 == 2 ~ "Yes",
+                         IMMCAT5 == 300000 ~ "Yes",
+                                 TRUE ~ "No"),
+                     Temporary_or_refugee = factor(Temporary_or_refugee, levels = c("No","Yes")), 
+                    # New immigrant
+                    PerImmA_label = 
+                       case_when(PerImmA == 10 ~ "New immigrant",
+                                 PerImmA != 10 ~ "Not a new immigrant"),
+                     PerImmA_label = factor(PerImmA_label),
+                    # Visible Minority (binary)
+                    Visible_minority = 
+                       case_when(DVisMin == 1 ~ "No",
+                                 DVisMin != 1 ~ "Yes"),
+                     Visible_minority = factor(Visible_minority, 
+                                                   levels = c("No","Yes")), 
+                    # Visible Minority (full-group)
+                    DVisMin_label = 
+                      case_when(DVisMin == 1  ~ "Other (not a visible minority)",
+                                DVisMin == 2  ~ "South Asian",
+                                DVisMin == 3  ~ "Chinese",
+                                DVisMin == 4  ~ "Black",
+                                DVisMin == 5  ~ "Filipino",
+                                DVisMin == 6  ~ "Arab",
+                                DVisMin == 7  ~ "Latin American",
+                                DVisMin == 8  ~ "Southeast Asian",
+                                DVisMin == 9  ~ "West Asian",
+                                DVisMin == 10 ~ "Korean",
+                                DVisMin == 11 ~ "Japanese",
+                                DVisMin == 12 ~ "Visible minority, n.i.e.",
+                                DVisMin == 13 ~ "Multiple visible minorities",
+                                DVisMin == 14 ~ "Indigenous peoples"),
+                    DVisMin_label = factor(DVisMin_label),
+                    # AGE
+                    AGE_label = 
+                      case_when(AGE <= 24 ~ "Youth",
+                                TRUE  ~ "Adult"),
+                    AGE_label = factor(AGE_label), 
+                    # Number of Weeks worked in 2020 
+                    Weeks = 
+                      case_when(Weeks < 0 ~ 0, 
+                                TRUE ~ Weeks), 
+                    # Low educated 
+                    HCDD_label =
+                      case_when(HCDD == 1 ~ "Low educated", 
+                                TRUE ~ "High-school diploma"),
+                    HCDD_label = factor(HCDD_label, levels = c("High-school diploma", 
+                                                               "Low educated")),
+                    # Education
+                    Education = case_when(HCDD < 3  ~ "No certificate or high school only",
+                      HCDD %in% 3:8 ~ "Post-secondary non-degree",
+                      HCDD %in% 9:13 ~ "University degree"),
+                    Education = factor(Education, levels = c("No certificate or high school only", "Post-secondary non-degree", "University degree")),
+                    # Looked for paid work in the previous month 
+                    LOKWK_label = 
+                      case_when(LOKWK == -5 ~ "Employed",
+                                LOKWK == -3 ~ "Not applicable",
+                                LOKWK == 1 ~  "No",
+                                LOKWK == 2 ~  "Yes (for full-time work)",
+                                LOKWK == 3 ~ "Yes (for part-time work)"),
+                    LOKWK_label = factor(LOKWK_label, levels = c("Yes (for full-time work)",
+                                                     "Yes (for part-time work)", 
+                                                     "No", 
+                                                     "Employed", 
+                                                     "Not applicable")), 
+                    # Population centre
+                    Pop_centre =
+                      case_when(POP_CNTR_IND == 1 ~ "Rural",
+                                POP_CNTR_IND == 2 ~ "Small",
+                                POP_CNTR_IND == 3 ~  "Medium",
+                                POP_CNTR_IND == 4 ~  "Large"),
+                    Pop_centre = factor(Pop_centre, levels = c("Rural", "Small", "Medium", "Large")), 
+                    Children0to5 = case_when(is.na(CFKID0T5) ~ 0,
+                                             TRUE ~ CFKID0T5)
+                    
+                    )
+```
+
+Creating dummy variables for Woman+, Low educated, Disability, Racialized and Single Parents:
+
+```{r}
+census_filtered_labeled <- census_filtered_labeled %>%
+                    mutate(woman_dummy = if_else(Gender == "Woman+", 1L, 0L),
+                           low_educated_dummy = if_else(HCDD_label == "Low educated", 1L, 0L),
+                           disability_dummy = if_else(Disability == "Yes", 1L, 0L),
+                           racialized_dummy = if_else(Visible_minority == "Yes", 1L, 0L),
+                           single_parent_dummy = if_else(Single_parent == "yes", 1L, 0L),
+                           employed_dummy = if_else(LBR_FORC_label == "Employed", 1L, 0L))
+```
+
+Creating neighborhood variables: unemployed rate, percentage of car commuters, and DA population density.
+
+```{r}
+# Unemployment rate by DA
+unemp_rate <- census_filtered_labeled %>%
+  group_by(PRCDDA) %>%
+  summarise(employed_w = sum(CompW1[LBR_FORC == 1], na.rm = TRUE),
+    unemployed_w = sum(CompW1[LBR_FORC == 2], na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(unemployment_rate = (unemployed_w / (employed_w + unemployed_w)) * 100)
+
+# Car commuters rate 
+car_rate <- census_filtered_labeled %>%
+  filter(PwMode_label != "Not applicable") %>%
+  group_by(PRCDDA) %>%
+  summarise(car_w   = sum(CompW1[PwMode_label == "Car_motor"], na.rm = TRUE),
+    total_w = sum(CompW1, na.rm = TRUE), 
+    .groups = "drop") %>%
+  mutate(car_share = (car_w / total_w) * 100)
+
+# DA Population Density
+
+pop_density_da <- dissemination_areas %>%
+  mutate(Pop_density = Population / LANDAREA) %>% 
+  dplyr::select(DAUID, Pop_density) %>% 
+  st_drop_geometry()
+
+census_filtered_labeled <- census_filtered_labeled %>%
+  left_join(pop_density_da,
+            by = c("PRCDDA" = "DAUID")) %>%
+  left_join(unemp_rate[,c("PRCDDA","unemployment_rate")],
+            by = "PRCDDA") %>%
+  left_join(car_rate[,c("PRCDDA","car_share")],
+            by = "PRCDDA") %>% 
+  mutate(     car_share = case_when(is.na(car_share) ~ 0, 
+                               TRUE ~ car_share)
+  )
+```
+
+View summary statistics from the data frame:
+
+```{r census-summary}
+summary(census_filtered_labeled)
+```
+
+Now, we create a table called respondents that will serve as the base for building the regression models. To better approximate a causal relationship between accessibility and employment outcomes, we restrict the sample according to the following criteria:
+
+- We include only respondents who have lived at the same address for at least five years, in order to reduce residence self-selection bias.
+- Because the Census does not contain information on household car ownership, and because car ownership is endogenous to employment outcomes, we select only individuals living in areas where no more than 50% of commuters travel by car.
+- We exclude individuals who did not work the full year due to illness or disability; pregnancy, maternity, or parental leave; full-time studies or training; caregiving responsibilities; or retirement. This restriction focuses the analysis on respondents for whom accessibility is more likely to influence employment outcomes.
+
+```{r respondents}
+keys <- read.csv(paste0(here(), "/data-raw/input/census_spatial_keys.csv"), 
+                 colClasses = c("character", "character", 
+                              "character","character",
+                              "character","character", 
+                              "character"))
+keys_identifier = "CTUID"
+
+SA_mode_wide <- SA_mode_wide %>%
+  left_join(keys, by = keys_identifier) %>% 
+  dplyr::select(-PCD)
+  
+respondents <- census_filtered_labeled %>% 
+  mutate(PRCDDA = as.character(PRCDDA)) %>%
+  left_join(SA_mode_wide, by = c("PRCDDA" = "DAUID"))
+```
+
+```{r}
+respondents_filtered <- respondents %>%
+  filter(
+    Mob5 == 6, # Place of residence 5 years ago, code 6: Same address (dwelling)
+    #MRNFY %in% c(-5,5,7,8,9), 
+    !is.na(SA_pp_Transit), # Cases without accessibility values
+    !is.na(SA_pp_Active), 
+    !is.na(SA_pp_Car_motor),
+    #!LF71 %in% c(-3,1,3,4), 
+    !is.na(employed_dummy)
+    )
+```
+
+Visualizing the unweighted summary: 
+
+```{r}
+respondents_filtered %>%
+  dplyr::select(LOKWK_label, SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, 
+                AGE, Education, Gender, Disability, Temporary_or_refugee, 
+                Visible_minority, Single_parent, Children0to5, CFCNT_PP, 
+                Weeks, unemployment_rate, car_share, Pop_centre, Pop_density) %>%
+  summary()
+```
+
+
+# Models
+
+We now develop regression models to examine the relationship between employment outcomes and neighbourhood accessibility. First, we model the link between accessibility and employment status. Next, we restrict the sample to unemployed individuals (those in the labour force but not employed) and analyse the relationship between job search engagement and neighbourhood accessibility. 
+
+| Model | Population                       | Dependent variable                                                            |
+| ----- | -------------------------------- | ----------------------------------------------------------------------------- |
+| **1** | Non-disadvantaged                | Employment status (“Employed full-time” as the base category)                 |
+| **2** | Disadvantaged                    | Employment status (“Employed full-time” as the base category)                 |
+| **3** | Unemployed and non-disadvantaged | Job search engagement (“Yes, looked for full-time work” as the base category) |
+| **4** | Unemployed and disadvantaged     | Job search engagement (“Yes, looked for full-time work” as the base category) |
+
+Based on the literature, we include the following socioeconomic and demographic control variables in all models:
+
+- Respondent's age and age squared (divided by 100)
+- Educational background
+- Number of children under age 5 in the household
+- Gender
+- Disability indicator
+- Racialized identity
+- Number of Weeks worked in the previous year
+- Single-parent household
+- Family size
+- Neighbourhood unemployment rate (to capture job competition)
+- Car share in the neighbourhood
+- Population centre category
+- Population density
+
+In addition, we include the instrumental variables generated using the spatial filters. 
+
+Because the dependent variables are categorical, and to address potential endogeneity, we apply the Two-Stage Residual Inclusion (2SRI) method. This approach involves two steps:
+- First stage: Regress each endogenous accessibility variable on its instrumental variable(s) and all exogenous covariates, then extract the residuals.
+- Second stage: Include these residuals as additional regressors in the main models to correct for endogeneity.
+
+## First stage
+
+We will start the first stage of regression by creating a formula to regress accessibility based on spatial filters and other variables. 
+
+```{r}
+design_respondents <- svydesign(ids = ~1, 
+                                data = respondents_filtered, 
+                                weights = ~CompW1)
+```
+
+## Active IV
+
+Creating the first stage for cycling accessibility: 
+
+```{r}
+stage1_active <- svyglm(SA_pp_Active ~ 
+                              Sf_dist_SA_pp_Active + 
+                              SA_pp_Transit + 
+                              `SA_pp_Car_motor` +
+                              AGE + 
+                              Education + 
+                              Gender + 
+                              Disability +
+                              Temporary_or_refugee + 
+                              Visible_minority + 
+                              Single_parent + 
+                              Children0to5 + 
+                              CFCNT_PP + 
+                              Weeks + 
+                               
+                               # Neighbourhood 
+                              unemployment_rate + 
+                              car_share + 
+                              Pop_centre + 
+                              Pop_density, design = design_respondents)
+
+summary(stage1_active, diagnostics = TRUE)
+```
+
+```{r}
+regTermTest(stage1_active, ~ Sf_dist_SA_pp_Active)
+```
+
+## Transit IV 
+
+Creating the first stage for transit accessibility: 
+
+```{r}
+stage1_transit <- svyglm(SA_pp_Transit ~ 
+                              SA_pp_Active + 
+                              Sf_dist_SA_pp_Transit + 
+                              `SA_pp_Car_motor` +
+                              AGE + 
+                              Education + 
+                              Gender + 
+                              Disability +
+                              Temporary_or_refugee + 
+                              Visible_minority + 
+                              Single_parent + 
+                              Children0to5 + 
+                              CFCNT_PP + 
+                              Weeks + 
+                               
+                              # Neighbourhood 
+                              unemployment_rate + 
+                              car_share + 
+                              Pop_centre + 
+                              Pop_density, design = design_respondents)
+
+summary(stage1_transit, diagnostics = TRUE)
+```
+
+```{r}
+regTermTest(stage1_transit, ~ Sf_dist_SA_pp_Transit)
+```
+
+## Car IV 
+
+Creating the first stage for car/motorized accessibility: 
+
+```{r}
+stage1_car <- svyglm(SA_pp_Car_motor ~ 
+                              SA_pp_Active + 
+                              SA_pp_Transit + 
+                              Sf_dist_SA_pp_Car_motor +
+                              AGE + 
+                              Education + 
+                              Gender + 
+                              Disability +
+                              Temporary_or_refugee + 
+                              Visible_minority + 
+                              Single_parent + 
+                              Children0to5 + 
+                              CFCNT_PP + 
+                              Weeks + 
+                               
+                               # Neighbourhood 
+                              unemployment_rate + 
+                              car_share + 
+                              Pop_centre + 
+                              Pop_density, design = design_respondents)
+
+summary(stage1_car, diagnostics = TRUE)
+```
+
+```{r}
+regTermTest(stage1_car, ~ Sf_dist_SA_pp_Car_motor)
+```
+
+Adding the residuals to the data frame: 
+
+```{r}
+respondents_filtered <- respondents_filtered %>%
+  mutate(SA_pp_Transit_IV = predict(stage1_transit, newdata = ., type = "response"),
+    SA_pp_Car_IV = predict(stage1_car, newdata = ., type = "response"),
+    SA_pp_Active_IV = predict(stage1_active, newdata = ., type = "response"),
+    SA_pp_Transit_Res_IV = SA_pp_Transit - SA_pp_Transit_IV,  
+    SA_pp_Car_Res_IV = `SA_pp_Car_motor` - SA_pp_Car_IV,  
+    SA_pp_Active_Res_IV = SA_pp_Active - SA_pp_Active_IV)
+```
+
+# Employment status
+
+```{r}
+design_employment <- svydesign(ids = ~1, data = respondents_filtered, weights = ~CompW1)
+
+employment_formula <- as.formula(employed_dummy ~ 
+                                     SA_pp_Active + 
+                                     SA_pp_Transit + 
+                                     SA_pp_Car_motor + 
+                                     AGE + 
+                                     Education + 
+                                     Gender + 
+                                     Disability + 
+                                     Temporary_or_refugee + 
+                                     Visible_minority + 
+                                     Single_parent + 
+                                     Children0to5 + 
+                                     CFCNT_PP + 
+                                     Weeks + 
+                                     unemployment_rate + 
+                                     car_share + 
+                                     Pop_centre + 
+                                     Pop_density + 
+                                     SA_pp_Active_Res_IV + 
+                                     SA_pp_Transit_Res_IV + 
+                                     SA_pp_Car_Res_IV)
+```
+
+
+```{r}
+employment_model <- survey::svyglm(employment_formula, 
+                                   design = design_employment,
+                                   family = binomial())
+
+summary(employment_model)
+```
+
+Plotting some diagnostic graphs. The first is Cook's distance (Hint: it needs to be lower than 2): 
+
+```{r}
+#plot(svydiags::svyCooksD(employment_model))
+```
+
+Viewing the standard deviation of the residuals (Hint: no greater than 3):
+ 
+```{r}
+svydiags::svystdres(employment_model, doplot = TRUE)
+```
+
+```{r}
+null_model <- svyglm(employed_dummy ~ 1, design = design_employment, family = binomial())
+
+pseudo_r2 <- 1 - as.numeric(logLik(employment_model)) / as.numeric(logLik(null_model))
+
+pseudo_r2
+```
+
+For each outcome, we fit the model, then iteratively remove outliers with absolute studentised residuals > 3 (using `svystdres`) to improve robustness. This is repeated up to 10 times.
+
+
+```{r}
+formula_current <- employment_formula
+model_current <- employment_model
+design_current <- design_employment
+```
+
+
+```{r}
+max_iter <- 10
+iter <- 0
+outliers_removed <- 0
+
+while (iter < max_iter) {
+  # survey-weighted standardized residuals
+  stdres_obj <- svystdres(model_current)
+  stdres_vals <- stdres_obj$stdresids
+
+  influential <- which(abs(stdres_vals) > 3)
+  
+  if (length(influential) == 0) {
+    cat("No more outliers with |stdres| > 3. Stopping.\n")
+    break
+  }
+  
+  cat("Iteration", iter + 1, ": removing", length(influential), "outliers\n")
+  
+  keep <- !(seq_len(nrow(design_current$variables)) %in% influential)
+  design_new <- subset(design_current, keep)
+  
+  # refit the model
+  model_new <- svyglm(formula_current,
+                      design = design_new)
+  
+  design_current <- design_new
+  model_current <- model_new
+  iter <- iter + 1
+  outliers_removed <- outliers_removed + length(influential)
+}
+
+cat("Total outliers removed:", outliers_removed, "\n")
+```
+
+```{r}
+pseudo_r2 <- 1 - as.numeric(logLik(model_current)) / as.numeric(logLik(null_model))
+
+pseudo_r2
+```
+
+```{r}
+summary(model_current)
+```
+
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+ 
+```{r}
+car::vif(model_current)
+```
+
+```{r}
+regTermTest(model_current, ~  SA_pp_Active + SA_pp_Transit + 
+    SA_pp_Car_motor)
+``` 
+
+```{r}
+svydiags::svystdres(model_current, doplot = TRUE)
+```
+
+```{r}
+summary(svydiags::svystdres(model_current)$stdresids)
+```
+
+```{r}
+employment_model_clean <- model_current
+employment_model_clean_design <- design_current
+```
+
+
+```{r}
+compute_or_table <- function(svy_model, 
+                                      remove_intercept = TRUE, 
+                                      round_digits = 3,
+                                      alpha = 0.05,
+                                      include_se = TRUE) {
+  # Get model summary
+  model_summary <- summary(svy_model)
+  
+  # Extract coefficients and standard errors
+  coefs <- coef(svy_model)
+  se <- sqrt(diag(vcov(svy_model)))
+  
+  # Degrees of freedom for t-distribution
+  df_resid <- degf(svy_model$survey.design)
+  
+  # Calculate t-statistics and p-values
+  t_stats <- coefs / se
+  p_values <- 2 * pt(-abs(t_stats), df = df_resid)  # Two-tailed
+  
+  # Calculate confidence intervals using t-distribution
+  t_critical <- qt(1 - alpha/2, df = df_resid)
+  ci_lower <- coefs - t_critical * se
+  ci_upper <- coefs + t_critical * se
+  
+  # Create results table
+  results <- data.frame(
+    Variable = names(coefs),
+    Coef = coefs,
+    SE = se,
+    t_value = t_stats,
+    OR = exp(coefs),
+    OR_lower = exp(ci_lower),
+    OR_upper = exp(ci_upper),
+    p_value = p_values,
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate percentage change
+  results$Change <- (results$OR - 1) * 100
+  
+  # Determine effect direction with more precise logic
+  results$Effect <- with(results, {
+    case_when(
+      p_value >= alpha ~ "Insignificant",
+      OR > 1.001 ~ "Positive",  # Small buffer for rounding
+      OR < 0.999 ~ "Negative",
+      TRUE ~ "No Effect"  # OR ~= 1
+    )
+  })
+  
+  # Add significance stars if desired
+  results$Sig <- with(results, {
+    case_when(
+      p_value < 0.001 ~ "***",
+      p_value < 0.01  ~ "**",
+      p_value < 0.05  ~ "*",
+      p_value < 0.1   ~ ".",
+      TRUE ~ ""
+    )
+  })
+  
+  # Remove intercept if requested
+  if (remove_intercept && "(Intercept)" %in% results$Variable) {
+    results <- results[results$Variable != "(Intercept)", ]
+  }
+  
+  # Round numeric columns
+  num_cols <- c("Coef", "SE", "t_value", "OR", "OR_lower", 
+                "OR_upper", "Change")
+  results[num_cols] <- lapply(results[num_cols], round, round_digits)
+  results$p_value <- signif(results$p_value, 3)  # Better for p-values
+  
+  # Reorder columns
+  col_order <- c("Variable", "Coef", if(include_se) "SE", "t_value", 
+                 "OR", "OR_lower", "OR_upper", "Change", "p_value", 
+                 "Sig", "Effect")
+  col_order <- col_order[col_order %in% names(results)]
+  
+  results <- results[, col_order]
+  
+  # Add interpretation column
+  results$Interpretation <- with(results, {
+    case_when(
+      Effect == "Positive" ~ sprintf(
+        "%s%% increase in odds (95%% CI: %s to %s)",
+        round(Change, 1), round(OR_lower, 2), round(OR_upper, 2)
+      ),
+      Effect == "Negative" ~ sprintf(
+        "%s%% decrease in odds (95%% CI: %s to %s)",
+        round(-Change, 1), round(OR_lower, 2), round(OR_upper, 2)
+      ),
+      TRUE ~ "No significant effect"
+    )
+  })
+  
+  return(results)
+}
+
+compute_elasticities <- function(model, alpha = 0.05) {
+  mf <- model.frame(model$survey.design)
+  w  <- weights(model$survey.design)
+  
+  pred_probs <- predict(model, type = "response")
+  
+  coefs <- coef(model)
+  vcov_mat <- vcov(model)
+  
+  cont_vars <- intersect(names(coefs), colnames(mf))
+  cont_vars <- cont_vars[cont_vars != "(Intercept)"]
+  cont_vars <- cont_vars[sapply(mf[cont_vars], function(x) length(unique(na.omit(x))) > 2)]
+  cont_vars <- cont_vars[cont_vars %in% names(coefs)]
+  
+  elas <- sapply(cont_vars, function(v) {
+    x_mean <- weighted.mean(mf[[v]], w, na.rm = TRUE)
+    p_mean <- weighted.mean(pred_probs, w, na.rm = TRUE)
+    elas_val <- coefs[v] * x_mean / p_mean
+    elas_se <- sqrt((x_mean / p_mean)^2 * vcov_mat[v, v])
+    CI_lower <- elas_val - qnorm(1 - alpha/2) * elas_se
+    CI_upper <- elas_val + qnorm(1 - alpha/2) * elas_se
+    return(c(Elasticity = elas_val, `2.5%` = CI_lower, `97.5%` = CI_upper))
+  })
+  
+  elas_df <- as.data.frame(t(elas))
+  colnames(elas_df) <- c("Elasticity", "2.5%", "97.5%")
+  elas_df$Variable <- rownames(elas_df)
+  
+  elas_df$Effect <- ifelse(elas_df$`2.5%` > 0, "Positive",
+                           ifelse(elas_df$`97.5%` < 0, "Negative", "Insignificant"))
+  
+  elas_df <- elas_df[, c("Variable", "Elasticity", "2.5%", "97.5%", "Effect")]
+  
+  numeric_cols <- c("Elasticity", "2.5%", "97.5%")
+  elas_df[numeric_cols] <- round(elas_df[numeric_cols], 3)
+  rownames(elas_df) <- NULL
+  
+  return(elas_df)
+}
+
+compute_marginal_effects <- function(model, categorical_vars, alpha = 0.05) {
+  # Extract survey design and weights
+  design <- model$survey.design
+  mf <- model.frame(design)           # original data (with factors)
+  w  <- weights(design)               # survey weights
+  
+  # Ensure categorical_vars are factors in the model frame
+  categorical_vars <- intersect(categorical_vars, names(mf))
+  if (length(categorical_vars) == 0) 
+    stop("None of the supplied variables are factors in the model frame.")
+  
+  # Model matrix and coefficient vectors
+  X_orig <- model.matrix(model)       # includes intercept and all dummy columns
+  beta   <- coef(model)
+  vcov_mat <- vcov(model)             # full variance‑covariance matrix
+  
+  # For each categorical variable, identify its dummy columns in X_orig
+  colnames_X <- colnames(X_orig)
+  
+  results <- list()   # store results for each level
+  
+  for (var in categorical_vars) {
+    # Get levels and contrast coding from the factor
+    fac <- mf[[var]]
+    if (!is.factor(fac)) stop(paste(var, "is not a factor. Convert it before fitting."))
+    levs <- levels(fac)
+    ref <- levs[1]                     # assumes treatment contrasts (R default)
+    non_ref <- levs[-1]
+    
+    # Find dummy column indices for this factor (format "varNameLevel")
+    pattern <- paste0("^", var)
+    dummy_cols <- grep(pattern, colnames_X, value = TRUE)
+    # Map each level to its column name (if it exists)
+    level_to_col <- setNames(dummy_cols, gsub(pattern, "", dummy_cols))
+    # Only keep levels that actually appear in the model matrix
+    available_levels <- intersect(non_ref, names(level_to_col))
+    if (length(available_levels) == 0) {
+      warning(paste("No dummy columns found for", var, "- skipping."))
+      next
+    }
+    
+    for (lev in available_levels) {
+      col_lev <- level_to_col[[lev]]
+      
+      # --- 1. Construct X_L and X_R matrices (same as X_orig but with dummy columns adjusted)
+      X_L <- X_R <- X_orig
+      # For the factor's dummy columns: set all to 0 for reference
+      X_R[, dummy_cols] <- 0
+      # For X_L: set the dummy of the target level to 1, others to 0
+      X_L[, dummy_cols] <- 0
+      X_L[, col_lev] <- 1
+      
+      # --- 2. Predicted probabilities under each scenario
+      eta_L <- X_L %*% beta
+      eta_R <- X_R %*% beta
+      pred_L <- plogis(eta_L)
+      pred_R <- plogis(eta_R)
+      
+      # Weighted average difference (marginal effect)
+      me <- weighted.mean(pred_L - pred_R, w, na.rm = TRUE)
+      
+      # --- 3. Gradient vector for delta method
+      # derivative for each coefficient k:
+      # d_i_k = pred_L*(1-pred_L)*X_L[i,k] - pred_R*(1-pred_R)*X_R[i,k]
+      # then grad[k] = weighted.mean( d_i_k )
+      grad <- numeric(length(beta))
+      for (k in seq_along(beta)) {
+        d <- pred_L * (1 - pred_L) * X_L[, k] - pred_R * (1 - pred_R) * X_R[, k]
+        grad[k] <- weighted.mean(d, w, na.rm = TRUE)
+      }
+      names(grad) <- names(beta)
+      
+      # Standard error using delta method
+      se <- sqrt(t(grad) %*% vcov_mat %*% grad)
+      
+      # Confidence interval
+      z <- qnorm(1 - alpha/2)
+      ci_lower <- me - z * se
+      ci_upper <- me + z * se
+      
+      # Interpretation
+      effect <- ifelse(ci_lower > 0, "Positive",
+                       ifelse(ci_upper < 0, "Negative", "Insignificant"))
+      
+      # Store results
+      results[[length(results)+1]] <- data.frame(
+        Variable = paste0(var, ": ", lev, " vs ", ref),
+        MarginalEffect = me,
+        Lower = ci_lower,
+        Upper = ci_upper,
+        Effect = effect,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  
+  if (length(results) == 0) stop("No marginal effects could be computed.")
+  
+  final <- do.call(rbind, results)
+  # Round numeric columns
+  final$MarginalEffect <- round(final$MarginalEffect, 3)
+  final$Lower <- round(final$Lower, 3)
+  final$Upper <- round(final$Upper, 3)
+  
+  # Rename columns for clarity
+  names(final) <- c("Variable", "Marginal Effect", "2.5%", "97.5%", "Effect")
+  return(final)
+}
+```
+
+Calculation of the odds ratio ($e^β$): 
+ 
+```{r}
+OR_table_employment <- compute_or_table(employment_model_clean)
+OR_table_employment
+```
+
+Visualizing elasticity (the impact of a 1% increase in the outcome for numerical variables):
+
+```{r}
+elasticity_table_employment <- compute_elasticities(employment_model_clean)
+elasticity_table_employment
+```
+
+Viewing the marginal effect (for categorical variables): 
+
+```{r}
+categorical_vars  <- c("Education", "Gender",
+                                     "Disability",
+                                     "Temporary_or_refugee",
+                                     "Visible_minority",
+                                     "Single_parent",
+                                     "Pop_centre")
+
+margins_employment <- compute_marginal_effects(employment_model_clean, 
+                                               categorical_vars)
+margins_employment
+```
+
+# Job seeking
+
+For the second outcome, we need to filter the respondents to left only unemployed people:
+
+```{r}
+respondents_filtered_lokwk <- respondents_filtered %>%
+  filter(LOKWK_label %in% c("Yes (for full-time work)", 
+                            "Yes (for part-time work)", 
+                            "No"),
+         employed_dummy == 0) %>% 
+  mutate(LOKWK_label = factor(LOKWK_label, levels = c("No",
+                                                      "Yes (for part-time work)", 
+                                                      "Yes (for full-time work)")))
+```
+
+```{r}
+summary(respondents_filtered_lokwk$LOKWK_label)
+```
+
+Creating the formula: 
+
+```{r}
+job_seeking_formula <- as.formula(LOKWK_label ~ 
+                                     SA_pp_Active + 
+                                     SA_pp_Transit + 
+                                     SA_pp_Car_motor + 
+                                     AGE + 
+                                     Education + 
+                                     Gender + 
+                                     Disability + 
+                                     Temporary_or_refugee + 
+                                     Visible_minority + 
+                                     Single_parent + 
+                                     Children0to5 + 
+                                     CFCNT_PP + 
+                                     Weeks + 
+                                     unemployment_rate + 
+                                     car_share + 
+                                     Pop_centre + 
+                                     Pop_density + 
+                                     SA_pp_Active_Res_IV + 
+                                     SA_pp_Transit_Res_IV + 
+                                     SA_pp_Car_Res_IV)
+```
+
+```{r}
+jseek_model <- vglm(job_seeking_formula,
+                          family = multinomial(refLevel = 1),
+                          data = respondents_filtered_lokwk,
+                          weights = CompW1)
+
+summary(jseek_model)
+```
+
+Assessing the existence of multicollinearity (Tip: VIF < 10):
+
+```{r}
+# m <- lm(job_seeking_formula, 
+#                data = respondents_filtered_lokwk, 
+#                weights = respondents_filtered_lokwk$CompW1)
+# 
+# car::vif(jseek_model)
+```
+
+Comparing our model with a null model:
+
+```{r}
+jseek_ndis_model_nulo <- vglm(update(job_seeking_formula, LOKWK_label ~ 1),
+                          family = multinomial(),
+                          data = respondents_filtered_lokwk,
+                          weights = CompW1)
+```
+
+ANOVA: 
+
+```{r}
+anova(jseek_model, jseek_ndis_model_nulo, type = 'I')
+```
+
+```{r}
+car::Anova(jseek_model)
+```
+
+Calculation of the odds ratio ($e^β$): 
+
+```{r}
+make_multinom_OR_table <- function(model) {
+    coef_mat <- coef(summary(model))
+  
+  est <- coef_mat[, "Estimate"]
+  se  <- coef_mat[, "Std. Error"]
+  p   <- coef_mat[, "Pr(>|z|)"]
+  
+  OR <- exp(est)
+  CI_low  <- exp(est - 1.96 * se)
+  CI_high <- exp(est + 1.96 * se)
+  
+  df <- tibble(raw_term = rownames(coef_mat),
+    OR = OR,
+    CI_low = CI_low,
+    CI_high = CI_high,
+    p_value = p)
+  
+  categories <- model@misc$ynames       
+  ref_cat <- categories[1]             
+  
+  df <- df %>%
+    mutate(Variable = str_replace(raw_term, ":(.*)$", ""),
+      Cat = str_extract(raw_term, "(?<=:)\\d+"),
+      Cat = as.integer(Cat),
+      Comparison = paste0(categories[Cat + 1], " vs ", ref_cat)) %>%
+    dplyr::select(Variable, Comparison, OR, p_value, CI_low, CI_high)
+  
+  df <- df %>%
+    rowwise() %>%
+    mutate(Interpretation = case_when(
+        is.na(p_value) ~ "",
+        p_value > 0.05 ~ "No significant effect",
+        OR > 1 ~ "Increase in odds",
+        OR < 1 ~ "Decrease in odds",
+        TRUE ~ "No effect")) %>%
+    ungroup()
+  
+  return(df)
+}
+```
+
+```{r}
+OR_table_jseek_model <- make_multinom_OR_table(jseek_model)
+OR_table_jseek_model
+```
+
+# Descriptive analysis
+
+Before we perform the second stage, we will visualize some descriptive statistics about the variables used in the model.
+
+```{r}
+# Long format table
+total_pop_rounded <- respondents_filtered %>%
+  summarise(total = sum(CompW1, na.rm = TRUE)) %>%
+  pull(total) %>%
+  { round(. / 5) * 5 }
+
+total_pop_study_area <- census_vetting %>%
+  summarise(total = sum(CompW1, na.rm = TRUE)) %>%
+  pull(total)
+
+num_vars <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
+  "AGE", "Children0to5", "CFCNT_PP", "Weeks",
+  "unemployment_rate", "car_share", "Pop_density")
+
+cat_vars <- c("Education", "Gender", "Disability", "Temporary_or_refugee",
+              "Visible_minority", "Single_parent", "Pop_centre", "LOKWK_label", "LBR_FORC_label")
+
+num_table <- respondents_filtered %>%
+  dplyr::select(all_of(num_vars), CompW1) %>%
+  pivot_longer(cols = all_of(num_vars),
+    names_to = "Variable",
+    values_to = "Value") %>%
+  group_by(Variable) %>%
+  summarise(Unweighted_n = sum(!is.na(Value)),
+            Weighted_pop = sum(CompW1, na.rm = TRUE),
+            Total_pop_Study_area = total_pop_study_area, 
+    Weighted_mean = sum(Value * CompW1, na.rm = TRUE) / sum(CompW1, na.rm = TRUE),
+    Weighted_sd = sqrt(sum(CompW1 * (Value - Weighted_mean)^2, na.rm = TRUE) / sum(CompW1, na.rm = TRUE)),
+    Weighted_nonzero = sum((Value > 0) * CompW1, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(across(c(Weighted_mean, Weighted_sd, Weighted_nonzero), ~ round(., 3)))
+
+cat_table <- respondents_filtered %>%
+  dplyr::select(all_of(cat_vars), CompW1) %>%
+  pivot_longer(cols = all_of(cat_vars),
+    names_to = "Variable",
+    values_to = "Level") %>%
+  filter(!is.na(Level)) %>%
+  group_by(Variable, Level) %>%
+  summarise(Unweighted_n = n(),
+    Weighted_sum = sum(CompW1, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(Weighted_rounded = round(Weighted_sum / 5) * 5,
+    Proportion = Weighted_rounded / total_pop_rounded) %>%
+  mutate(Proportion = round(Proportion, 4), 
+         Total_pop_Study_area = total_pop_study_area)
+
+cat_table <- cat_table %>%
+  mutate(Description = case_when(Variable == "Education" ~ "Highest level of education",
+                                 Variable == "Gender" ~ "Gender identity",
+                                 Variable == "Disability" ~ "Disability status",
+                                 Variable == "Temporary_or_refugee" ~ "Temporary or refugee status",
+                                 Variable == "Visible_minority" ~ "Visible minority status",
+                                 Variable == "Single_parent"  ~ "Single parent status",
+                                 Variable == "Pop_centre" ~ "Population centre type",
+                                 Variable == "LOKWK_label" ~ "Looked for work",
+                                 Variable == "LBR_FORC_label" ~ "Labour fource",
+                                 TRUE ~ Variable))
+
+cat_table <- cat_table %>%
+  dplyr::select(Variable, Description, Level, Unweighted_n, Weighted_sum, 
+         Weighted_rounded, Proportion, everything())
+```
+
+```{r}
+get_p_percentage <- function(nonzero_pop) {
+  case_when(nonzero_pop < 10 ~ 0.1667, # 16.67%
+    nonzero_pop < 20 ~ 0.1667, # 16.67%
+    nonzero_pop < 40 ~ 0.10, # 10%
+    nonzero_pop < 80 ~ 0.05, # 5%
+    nonzero_pop < 160 ~ 0.025, # 2.5%
+    nonzero_pop < 320 ~ 0.0125, # 1.25%
+    nonzero_pop < 640 ~ 0.00625, # 0.625%
+    nonzero_pop < 1280 ~ 0.00313, # 0.313%
+    TRUE ~ 0.00156 # 0.156%
+  )
+}
+
+round_statistic <- function(value, nonzero_pop) {
+  if (is.na(value) || value == 0) return(value)
+  
+  p_percent <- get_p_percentage(nonzero_pop)
+  allowed_error <- abs(value) * p_percent
+  rounding_base <- 2 * allowed_error
+  
+  if (rounding_base == 0) return(value)
+  
+  return(round(value / rounding_base) * rounding_base)
+}
+```
+
+
+```{r}
+num_table_rounded <- num_table %>%
+  group_by(Variable) %>%
+  mutate(Weighted_mean_rounded = mapply(round_statistic, Weighted_mean, Weighted_nonzero),
+    Weighted_sd_rounded   = mapply(round_statistic, Weighted_sd,   Weighted_nonzero)) %>%
+  ungroup()
+
+num_table_rounded <- num_table_rounded %>% 
+  mutate(Description = case_when(Variable == "AGE" ~ "Age",
+                   Variable == "CFCNT_PP" ~ "Family size",
+                   Variable == "Children0to5" ~ "Number of children aged 0 to 5",
+                   Variable == "Pop_density" ~ "Population Density of the Dissemination Area",
+                   Variable == "SA_pp_Car_motor" ~ "Car accessibility",
+                   Variable == "SA_pp_Transit" ~ "Transit accessibility",
+                   Variable == "SA_pp_Active" ~ "Active accessibility",
+                   Variable == "Weeks" ~ "Number of Weeks worked in the previous year",
+                   Variable == "car_share" ~ "Percentual de car commuters in the DA",
+                   Variable == "unemployment_rate" ~ "Unemployment rate of the DA", 
+                   TRUE ~ Variable))
+
+
+num_table_rounded <- num_table_rounded %>% 
+   relocate(Description, .after = 1) 
+```
+
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be
+released by the Research Data Center to ensure that confidentiality
+risks for StatCan respondents are minimized.
+
+The following rules apply to our results:
+
+-   *Statistics must not be released for identifiable areas with less
+    than 40 persons (*$\sum{CompW1} ≥ 40$). Statistics must not be
+    released for identifiable areas with less than 40 persons. This
+    condition is usually met with geography levels used at the RDCs. The
+    population threshold can be applied to the (long form) weighted
+    population estimate.
+-   *All statistics must be based on weighted data.*
+-   *Statistics must be based on at least 5 respondents, whose sum of
+    weights is at least 10*.
+-   *Statistics (Means and total sums) are subject to a simplistic
+    percent rounding by deterministically rounding to the nearest
+    multiple of a rounding base.* The rounding base is set so that the
+    rounded value is never more than p% away from the unrounded value.
+    The value of p% is determined by the associated nonzero population
+    size of the mean or total. It is the weighted number of records with
+    a nonzero value. The table below outlines the maximum percentage
+    difference (p%) from the unrounded value, based on its associated
+    nonzero population size.
+
+| Nonzero Pop. size | \<10 | 10-\<20 | 20-\<40 | 40-\<80 | 80-\<160 | 160-\<320 | 320-\<640 | 640-\<1280 | \>=1280 |
+|----|----|----|----|----|----|----|----|----|----|
+| p% | 16.67% | 16.67% | 10% | 5% | 2.5% | 1.25% | 0.625% | 0.313% | 0.156% |
+
+
+# Export files 
+
+Descriptive measures:
+
+```{r export-original-files}
+# Descriptive analysis (numerical variables)
+write.csv(num_table_rounded, paste0(diretorio_export, "descriptive_analysis_numeric_original.csv"), row.names=FALSE)
+
+da_support_excel <- createWorkbook()
+
+addWorksheet(da_support_excel, "Sheet1")
+
+writeData(da_support_excel, "Sheet1", x = num_table_rounded)  
+
+writeComment(da_support_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Variable name used in the model.", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Variable label.", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Unweighted population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Weighted Population (sum of CompW1)", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 5, row = 1,  comment = createComment("Total GTAH population", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 6, row = 1,  comment = createComment("Mean value of the variable", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 7, row = 1,  comment = createComment("Standard deviation of the variable", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 8, row = 1,  comment = createComment("Non-zero population size of the variable", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 9, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of the variable", author = "Author"))
+writeComment(da_support_excel, "Sheet1", col = 10, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation of the variable", author = "Author"))
+
+cols_with_values_general <- which(sapply(num_table_rounded, 
+                                         function(x) any(!is.na(x))))
+
+addStyle(da_support_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(num_table_rounded)+1),
+         cols = c(1,2,9,10),
+         gridExpand = TRUE)
+
+saveWorkbook(da_support_excel, paste0(diretorio_export, "descriptive_analysis_numeric_support.xlsx"), overwrite = TRUE)
+
+num_table_rounded_release <- num_table_rounded %>% 
+  dplyr::select(Variable, Description, Weighted_mean_rounded, Weighted_sd_rounded)
+
+da_release_excel <- createWorkbook()
+
+addWorksheet(da_release_excel, "Sheet1")
+
+writeData(da_release_excel, "Sheet1", 
+          x = num_table_rounded_release)  
+
+writeComment(da_release_excel, "Sheet1", col = 1, row = 1,  comment = createComment("Variable name used in the model.", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 2, row = 1,  comment = createComment("Variable label.", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 3, row = 1,  comment = createComment("Rounded (based on the non-zero population size) mean of the variable", author = "Author"))
+writeComment(da_release_excel, "Sheet1", col = 4, row = 1,  comment = createComment("Rounded (based on the non-zero population size) standard deviation of the variable", author = "Author"))
+
+cols_with_values_general <- which(sapply(num_table_rounded_release, 
+                                         function(x) any(!is.na(x))))
+addStyle(da_release_excel, sheet = c("Sheet1"),
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(num_table_rounded_release)+1),
+         cols = c(1:4),
+         gridExpand = TRUE)
+
+saveWorkbook(da_release_excel, paste0(diretorio_export, "descriptive_analysis_numeric_release.xlsx"), overwrite = TRUE)
+```
+
+
+```{r}
+# Descriptive analysis (categorical variables)
+write.csv(cat_table, paste0(diretorio_export, "descriptive_analysis_categorical_original.csv"), 
+          row.names = FALSE)
+
+da_cat_support <- createWorkbook()
+addWorksheet(da_cat_support, "Sheet1")
+writeData(da_cat_support, "Sheet1", x = cat_table)
+
+writeComment(da_cat_support, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Variable name used in the model.", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Descriptive label of the variable.", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Category level.", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Unweighted count.", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 5, row = 1, 
+             comment = createComment("Weighted sum (CompW1).", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 6, row = 1, 
+             comment = createComment("Weighted sum rounded to nearest 5.", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 7, row = 1, 
+             comment = createComment("Proportion (rounded sum / total rounded population).", author = "Author"))
+writeComment(da_cat_support, "Sheet1", col = 8, row = 1, 
+             comment = createComment("Total GTAH population.", author = "Author"))
+
+addStyle(da_cat_support, sheet = "Sheet1",
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(cat_table) + 1),
+         cols = c(1, 2, 3, 7),
+         gridExpand = TRUE)
+
+saveWorkbook(da_cat_support, 
+             paste0(diretorio_export, "descriptive_analysis_categorical_support.xlsx"), 
+             overwrite = TRUE)
+
+cat_table_release <- cat_table %>%
+  dplyr::select(Variable, Description, Level, Proportion)
+
+da_cat_release <- createWorkbook()
+addWorksheet(da_cat_release, "Sheet1")
+writeData(da_cat_release, "Sheet1", x = cat_table_release)
+
+writeComment(da_cat_release, "Sheet1", col = 1, row = 1, 
+             comment = createComment("Variable name used in the model.", author = "Author"))
+writeComment(da_cat_release, "Sheet1", col = 2, row = 1, 
+             comment = createComment("Descriptive label of the variable.", author = "Author"))
+writeComment(da_cat_release, "Sheet1", col = 3, row = 1, 
+             comment = createComment("Category level.", author = "Author"))
+writeComment(da_cat_release, "Sheet1", col = 4, row = 1, 
+             comment = createComment("Proportion of total population.", author = "Author"))
+
+addStyle(da_cat_release, sheet = "Sheet1",
+         style = createStyle(fgFill = "yellow"),
+         rows = 1:(nrow(cat_table_release) + 1),
+         cols = 1:4,
+         gridExpand = TRUE)
+
+saveWorkbook(da_cat_release, 
+             paste0(diretorio_export, "descriptive_analysis_categorical_release.xlsx"), 
+             overwrite = TRUE)
+```
+
+Exporting models: 
+
+```{r}
+# First stage regressions
+capture.output( summary(stage1_active),
+  file = paste0(diretorio_export, "stage1_active.txt"))
+
+capture.output( summary(stage1_transit),
+  file = paste0(diretorio_export, "stage1_transit.txt"))
+
+capture.output( summary(stage1_car),
+  file = paste0(diretorio_export, "stage1_car.txt"))
+
+# Second stage regressions
+capture.output(summary(employment_model_clean),
+  file = paste0(diretorio_export, "model_employment_status.txt"))
+
+capture.output(summary(jseek_model),
+  file = paste0(diretorio_export, "model_job_seeking.txt"))
+```
+
+For future consultations: 
+
+```{r}
+saveRDS(employment_model_clean, paste0(diretorio_export,"employment_model_clean.rds"))
+saveRDS(employment_model_clean_design, paste0(diretorio_export,"employment_model_clean_design.rds"))
+
+saveRDS(jseek_model, paste0(diretorio_export,"jseek_model.rds"))
+saveRDS(respondents_filtered, paste0(diretorio_export,"respondents_filtered_employment.rds"))
+saveRDS(respondents_filtered_lokwk, paste0(diretorio_export,"respondents_filtered_lokwk.rds"))
+```
+
+```{r}
+write.csv(margins_employment, paste0(diretorio_export, "margins_employment.csv"), row.names = FALSE)
+
+write.csv(elasticity_table_employment, paste0(diretorio_export, "elasticity_table_employment.csv"), row.names = FALSE)
+
+write.csv(OR_table_employment, paste0(diretorio_export, "OR_table_employment.csv"), row.names = FALSE)
+
+write.csv(OR_table_jseek_model, paste0(diretorio_export, "OR_table_jseek_model.csv"), row.names = FALSE)
+```
+

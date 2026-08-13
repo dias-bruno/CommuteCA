@@ -165,7 +165,7 @@ we will use the test version of the survey. If you want to use the
 original survey, please remember to ***update*** the address in the
 chunk below. You may also need to update the file address if you opened
 this R markdown in another project or if the test data is stored in a
-different folder that does not follow the pattern of the `COMMUCECA21`
+different folder that does not follow the pattern of the `CommuteCA`
 package.
 
 ```{r census-file-address}
@@ -212,7 +212,11 @@ example, for our census table we have[^6]:
 
 ```{r}
 census <-  census %>% 
-  select("Frame_ID", "PRCDDA", "Pr","CMA","PCD","CompW1","LBR_FORC","CfInc_AT","CFCNT","CF_PnCF_NumEarners","PWDA","PWPR","PWCD","PWCMA","PWDUR","PWDist","PwMode")
+  select("Frame_ID", "PRCDDA","Pr","CMA",
+         "PCD","CompW1","LBR_FORC",
+         "CfInc_AT","CFCNT","CF_PnCF_NumEarners",
+         "PWDA","PWPR","PWCD","PWCMA",
+         "PWDUR","PWDist","PwMode")
   
 
 summary(census)
@@ -267,13 +271,17 @@ census  <- census  %>%
           filter(PwMode < 10) %>% 
           mutate(PwMode_label = case_when(
                   PwMode == -3 ~ "Not applicable",
-                  PwMode > 0 & PwMode <= 2 ~ "Car/motor",
-                  PwMode == 9 ~ "Car/motor",
-                  PwMode >= 3 & PwMode <= 6  ~ "Transit",
+                  PwMode > 0 & PwMode <= 2 ~ "Car-motorized",
+                  PwMode == 9 ~ "Car-motorized",
+                  PwMode >= 3 & PwMode <= 6  ~ "Public transit",
                   PwMode == 7  ~ "Walk",
                   PwMode == 8  ~ "Bike"),
          
-          PwMode_label = factor(PwMode_label, levels = c("Bike", "Walk", "Car/motor", "Transit", "Not applicable")))
+          PwMode_label = factor(PwMode_label, 
+                                levels = c("Bike", "Walk", 
+                                           "Car-motorized", 
+                                           "Public transit", 
+                                           "Not applicable")))
 ```
 
 Now let's visualize the `PwMode` label summary:
@@ -305,7 +313,9 @@ census <- census  %>%
                   LBR_FORC == 2  ~ "Unemployed",
                   LBR_FORC == 3 ~ "Not in LF"),
          
-          LBR_FORC_label = factor(LBR_FORC_label, levels = c("Employed", "Unemployed", "Not in LF", "Not applicable")))
+          LBR_FORC_label = factor(LBR_FORC_label, 
+                                  levels = c("Employed", "Unemployed", 
+                                             "Not in LF", "Not applicable")))
 ```
 
 Next chunk update all `-3` values to `Not applicable` for the other
@@ -923,7 +933,8 @@ census %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>% 
   ggplot(aes(x = LBR_FORC_label, y = Pr_label)) +
   geom_point(aes(size = weighted_n), color = "steelblue", alpha = 0.6) + 
-  theme_minimal()
+  theme_minimal() + 
+  scale_x_discrete(guide = guide_axis(angle = 90))
 ```
 
 Count plots are a visual alternative to a cross-tabulation.
