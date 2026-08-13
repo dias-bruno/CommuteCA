@@ -130,6 +130,7 @@ For provinces, the calibrated job impedance functions are split by
 urbanity level or Indigenous Territory affiliation.
 
 ``` r
+
 library("CommuteCA")
 library('dplyr')
 #> 
@@ -174,6 +175,7 @@ and job counts for census tracts. The code below visualizes Toronto’s
 labour force distribution by transportation mode:
 
 ``` r
+
 data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
 
 land_use_3520 <- land_use_CT_mode %>%
@@ -217,6 +219,7 @@ availability).
 You can install the development version of *CommuteCA* from:
 
 ``` r
+
 install.packages("pak")
 pak::pak("dias-bruno/CommuteCA")
 ```
