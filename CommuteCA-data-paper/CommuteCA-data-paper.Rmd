@@ -260,6 +260,11 @@ datasets. These datasets were created with the intention of providing
 all the data required to calculate job accessibility models for any
 study area in Canada.
 
+```{r process-figure, echo=FALSE, out.width="100%", fig.cap=paste0("CommuteCA datasets obtained from the 2021 Canadian Census microdata files."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/CommuteCA_datasets.jpeg"))
+```
+
 Acessibility refers to the ease of reaching spatially distributed
 opportunities [@hansen1959] and results from the interaction between
 land use and transportation systems [@geurs2004], we grouped the inputs
@@ -353,7 +358,7 @@ accessibility thresholds. Thus, the package provides a transparent and
 standardized methodology for conducting transportation analyses using
 the 2021 Canadian Census.
 
-Figure \ref{fig:process-figure} presents a diagram illustrating the R
+Figure \ref{fig:templates-figure} presents a diagram illustrating the R
 Markdown templates available in {CommuteCA}. As shown in the figure,
 these templates enable analysts to estimate accessibility models at the
 CT level for multiple CMAs and CAs without requiring special access to
@@ -363,6 +368,11 @@ metropolitan areas, at the Dissemination Area (DA) level - a spatial
 unit smaller than the CT, with a population between 400 and 700 people,
 which was not included in the package datasets because of the
 confidentiality restrictions imposed by Statistics Canada.
+
+```{r templates-figure, echo=FALSE, out.width="100%", fig.cap=paste0("R Markdown templates available in CommuteCA to perfom accessibility analyses."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/CommuteCA_rmarkdown_template.png"))
+```
 
 In total, {CommuteCA} contains eight `R` Markdown templates that guide
 analysts through an accessibility analysis, from an introduction to `R`
@@ -405,7 +415,7 @@ were excluded during the Statistics Canada vetting process because of
 confidentiality restrictions. Almost 14.7 million people in the labour
 force are represented within the included CTs, representing around 77%
 of the Canadian labour force. The labour force not included in the
-dataset is mainly composed by people who do not live in metropolitan
+dataset is composed by people who do not live in metropolitan
 areas or who live in CTs excluded during the Statistics Canada vetting
 process. In addition, 11.8 million job opportunities are included in the
 dataset, representing almost 70% of the jobs available in Canada. Again,
@@ -431,9 +441,8 @@ car/motorized travel (identified in Kitikmeot, Nunavut).
 
 In most cases (80%), the municipalities have impedance functions for all
 four transportation modes. In some cases, the package does not include
-an impedance function because there were no labour force respondents who
-reported commuting using a given mode in the sample, or because of
-Statistics Canada vetting rules. For almost 15% of the municipalities,
+an impedance function because there were no minimal labour force respondents who
+reported commuting using a given mode in the sample. For almost 15% of the municipalities,
 only three impedance functions were provided, while for less than 6%
 only two functions were provided. We were able to estimate impedance
 functions for car/motorized travel and walking in all municipalities,
