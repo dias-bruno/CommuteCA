@@ -226,9 +226,9 @@ usethis::use_data(pr_impedance_functions,
 ## General Population 
 
 ```{r}
-labour_force_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "General")
+labour_force_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/labour_force_CT_fixed.xlsx"), sheet = "General")
 
-labour_force_CT_general <- labour_force_CT %>% 
+labour_force_CT_general <- labour_force_CT_general %>% 
   mutate(CTUID = factor(CTUID), 
          CTNAME = factor(CTNAME), 
          PCD = factor(PCD), 
@@ -241,7 +241,7 @@ usethis::use_data(labour_force_CT_general,
 ```
 
 ```{r}
-jobs_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/jobs_CT.xlsx"), sheet = "General")
+jobs_CT_general <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/jobs_CT_fixed.xlsx"), sheet = "General")
 
 jobs_CT_general <- jobs_CT_general %>% 
   mutate(CTUID = factor(CTUID), 
@@ -258,7 +258,7 @@ usethis::use_data(jobs_CT_general,
 ## Population by transportation mode
 
 ```{r}
-labour_force_CT_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Mode")
+labour_force_CT_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/labour_force_CT_fixed.xlsx"), sheet = "Mode")
 
 labour_force_CT_mode <- labour_force_CT_mode %>% 
   mutate(CTUID = factor(CTUID), 
@@ -274,11 +274,90 @@ usethis::use_data(labour_force_CT_mode,
                   compress = "bzip2",
                   overwrite = TRUE)
 ```
+### Distributing non-commuters between the transportation modes 
 
+```{r}
+# Total commuters by CTUID and PwMode_label
+commuters <- labour_force_CT_mode %>%
+  filter(!PwMode_label == "Other or non-commuter") %>% 
+  rename(commuters_mode = labour_force_rounded)
+
+# commuter population by CTUID
+commuters <- commuters %>%
+             group_by(CTUID) %>% 
+             mutate(all_commuters = sum(commuters_mode), 
+                   perc_mode =  commuters_mode/all_commuters) 
+
+# For cases when the CTUID there's only non_commuters respondents
+general_perc_mode <- commuters %>%
+  group_by(PCD, PwMode_label) %>%
+  summarise(general_pop_mode = sum(commuters_mode)) %>%
+  mutate(general_pop = sum(general_pop_mode),
+         perc_pcd = general_pop_mode/general_pop)
+
+commuters <- commuters %>% 
+  left_join(general_perc_mode %>% dplyr::select(PCD, PwMode_label, perc_pcd), by = c("PCD", "PwMode_label")) 
+
+# Total non commuters population by CTUID
+non_commuters <- labour_force_CT_mode %>%
+  filter(PwMode_label == "Other or non-commuter") %>% # Considering the category 'Other' as non-commuter
+  rename(all_non_commuters = labour_force_rounded) 
+
+# Allocating the non_commuters according to the share of each population mode
+grid_exp <- expand.grid(CTUID = unique(labour_force_CT_mode$CTUID), 
+                        PwMode_label = unique(commuters$PwMode_label))
+
+commuters_exp <- grid_exp %>% 
+  left_join(commuters %>% dplyr::select("CTUID", PwMode_label, 
+                                        "commuters_mode", 
+                                        "all_commuters",
+                                        "perc_mode", 
+                                        "perc_pcd"), 
+            by = c("CTUID", "PwMode_label"))
+
+labour_force_support <- commuters_exp %>% 
+  left_join(non_commuters %>% dplyr::select("CTUID", 
+                                        all_non_commuters), 
+            by = c("CTUID"))
+
+labour_force_support <- labour_force_support %>%
+  mutate(perc_final = if_else(is.na(perc_mode), as.numeric(perc_pcd), perc_mode)) %>%
+  group_by(CTUID) %>%
+  mutate(perc_final = perc_final / sum(perc_final, na.rm = TRUE)) %>%
+  ungroup() # making sure that the sum of mode percentages is equal to 1
+
+labour_force_support <- labour_force_support %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0)))
+
+labour_force_support <- labour_force_support %>%
+  mutate(est_labour_force = (all_non_commuters * perc_final) + commuters_mode) 
+```
+
+
+
+```{r selecting-var-labour-table}
+estimated_labour_force_CT_mode <- labour_force_support %>% 
+  dplyr::select(CTUID, PwMode_label, est_labour_force) %>% 
+  left_join(labour_force_CT_mode %>% 
+              dplyr::select("CTUID","CTNAME",
+                            "PCD", "CMA",
+                            "PR") %>% 
+              distinct(),
+            by = "CTUID") %>% 
+  dplyr::select("CTUID","CTNAME","PCD","CMA",
+                "PR","PwMode_label","est_labour_force")
+```
+```{r}
+sum(estimated_labour_force_CT_mode$est_labour_force) == sum(labour_force_CT_mode$labour_force_rounded)
+
+usethis::use_data(estimated_labour_force_CT_mode,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
 ## Population by education level 
 
 ```{r}
-labour_force_CT_education <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Education")
+labour_force_CT_education <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/labour_force_CT_fixed.xlsx"), sheet = "Education")
 
 labour_force_CT_education <- labour_force_CT_education %>% 
   mutate(CTUID = factor(CTUID), 
@@ -286,7 +365,7 @@ labour_force_CT_education <- labour_force_CT_education %>%
          PCD = factor(PCD), 
          CMA = factor(CMA), 
          PR = factor(PR), 
-         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship", 
+         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship certificate", 
                                Education == "High school or no certificate" ~ "High school or no certificate",
                                Education == "University certificate or higher" ~ "University certificate or higher"),
          Education = factor(Education), 
@@ -298,7 +377,7 @@ usethis::use_data(labour_force_CT_education,
 ```
 
 ```{r}
-jobs_CT_occupation <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/jobs_CT.xlsx"), sheet = "Occupation")
+jobs_CT_occupation <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/jobs_CT_fixed.xlsx"), sheet = "Occupation")
 
 jobs_CT_occupation <- jobs_CT_occupation %>% 
   rename(TEER = `Occupation level`) %>% 
@@ -321,7 +400,7 @@ usethis::use_data(jobs_CT_occupation,
 ## Population by transportation mode and education level 
 
 ```{r}
-labour_force_CT_education_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08122026/labour_force_CT.xlsx"), sheet = "Education and Mode")
+labour_force_CT_education_mode <- read_excel(paste0(here::here(),"/data-ignore-inputs/release_RDC_08172026/labour_force_CT_fixed.xlsx"), sheet = "Education and Mode")
 
 labour_force_CT_education_mode <- labour_force_CT_education_mode %>% 
   mutate(CTUID = factor(CTUID), 
@@ -329,7 +408,7 @@ labour_force_CT_education_mode <- labour_force_CT_education_mode %>%
          PCD = factor(PCD), 
          CMA = factor(CMA), 
          PR = factor(PR), 
-         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship", 
+                  Education = case_when(Education == "College or certificate" ~ "College or apprenticeship certificate", 
                                Education == "High school or no certificate" ~ "High school or no certificate",
                                Education == "University certificate or higher" ~ "University certificate or higher"),
          Education = factor(Education), 
@@ -342,6 +421,110 @@ usethis::use_data(labour_force_CT_education_mode,
                   overwrite = TRUE)
 ```
 
+### Distributing non-commuters between the transportation modes and education level
+
+```{r}
+# Total commuters by CTUID, Education, and PwMode_label
+commuters <- labour_force_CT_education_mode %>%
+  filter(!PwMode_label == "Other or non-commuter") %>%
+  rename(commuters_mode = labour_force_rounded)
+
+# share of each mode within CTUID - Education
+commuters <- commuters %>%
+  group_by(CTUID, Education) %>%
+  mutate(all_commuters_ct_edu = sum(commuters_mode),
+         perc_mode_ct_edu = commuters_mode / all_commuters_ct_edu) %>%
+  ungroup()
+
+# share of each mode within PCD - Education 
+general_perc_mode_pcd_edu <- commuters %>%
+  group_by(PCD, Education, PwMode_label) %>%
+  summarise(commuters_mode_sum = sum(commuters_mode), .groups = "drop") %>%
+  group_by(PCD, Education) %>%
+  mutate(all_commuters_pcd_edu = sum(commuters_mode_sum),
+         perc_mode_pcd_edu = commuters_mode_sum / all_commuters_pcd_edu) %>%
+  ungroup()
+
+# share of each mode within CTUID, ignoring Education
+general_perc_mode_ct <- commuters %>%
+  group_by(CTUID, PwMode_label) %>%
+  summarise(commuters_mode_sum = sum(commuters_mode), .groups = "drop") %>%
+  group_by(CTUID) %>%
+  mutate(all_commuters_ct = sum(commuters_mode_sum),
+         perc_mode_ct = commuters_mode_sum / all_commuters_ct) %>%
+  ungroup()
+
+# share of each mode within PCD, ignoring Education 
+general_perc_mode_pcd <- commuters %>%
+  group_by(PCD, PwMode_label) %>%
+  summarise(commuters_mode_sum = sum(commuters_mode), .groups = "drop") %>%
+  group_by(PCD) %>%
+  mutate(all_commuters_pcd = sum(commuters_mode_sum),
+         perc_mode_pcd = commuters_mode_sum / all_commuters_pcd) %>%
+  ungroup()
+
+# non-commuters population by CTUID and Education
+non_commuters <- labour_force_CT_education_mode %>%
+  filter(PwMode_label == "Other or non-commuter") %>%
+  rename(all_non_commuters = labour_force_rounded) %>%
+  dplyr::select(CTUID, Education, all_non_commuters)
+
+ct_pcd_lookup <- labour_force_CT_education_mode %>% distinct(CTUID, PCD)
+ct_edu_combos <- labour_force_CT_education_mode %>% distinct(CTUID, Education)
+
+grid_exp <- ct_edu_combos %>%
+  tidyr::crossing(PwMode_label = unique(commuters$PwMode_label)) %>%
+  left_join(ct_pcd_lookup, by = "CTUID")
+
+labour_force_support <- grid_exp %>%
+  left_join(commuters %>% dplyr::select(CTUID, Education, 
+                                        PwMode_label,
+                                         commuters_mode,perc_mode_ct_edu),
+            by = c("CTUID", "Education","PwMode_label")) %>%
+  left_join(general_perc_mode_pcd_edu %>%
+              dplyr::select(PCD, Education,PwMode_label,perc_mode_pcd_edu),
+            by = c("PCD", "Education","PwMode_label")) %>%
+  left_join(general_perc_mode_ct %>%
+              dplyr::select(CTUID, PwMode_label, perc_mode_ct),
+            by = c("CTUID","PwMode_label")) %>%
+  left_join(general_perc_mode_pcd %>%
+              dplyr::select(PCD, PwMode_label, perc_mode_pcd),
+            by = c("PCD","PwMode_label")) %>%
+  left_join(non_commuters, by = c("CTUID","Education"))
+
+labour_force_support <- labour_force_support %>%
+  mutate(perc_final = case_when(!is.na(perc_mode_ct_edu) ~ perc_mode_ct_edu,
+                                !is.na(perc_mode_pcd_edu) ~ perc_mode_pcd_edu,
+                                !is.na(perc_mode_ct) ~ perc_mode_ct,
+                                TRUE ~ perc_mode_pcd)) %>%
+  group_by(CTUID, Education)%>%
+  mutate(perc_final = perc_final/sum(perc_final, na.rm=TRUE))%>%
+  ungroup()
+
+labour_force_support <- labour_force_support %>%
+  mutate(across(where(is.numeric), ~replace_na(.x, 0)))
+
+labour_force_support <- labour_force_support %>%
+  mutate(est_labour_force = (all_non_commuters*perc_final) + commuters_mode)
+```
+
+```{r}
+estimated_labour_force_CT_education_mode <- labour_force_support %>%
+  dplyr::select(CTUID, Education, PwMode_label, est_labour_force) %>%
+  left_join(labour_force_CT_education_mode %>%
+              dplyr::select(CTUID, CTNAME, PCD, CMA, PR) %>%
+              distinct(),
+            by = "CTUID") %>%
+  dplyr::select(CTUID, CTNAME, PCD, CMA, PR, Education, PwMode_label, est_labour_force)
+```
+
+```{r}
+sum(estimated_labour_force_CT_education_mode$est_labour_force) == sum(labour_force_CT_education_mode$labour_force_rounded)
+
+usethis::use_data(estimated_labour_force_CT_education_mode,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
 # Maximum Travel Times
 
 ## Census Division Level

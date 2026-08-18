@@ -1,0 +1,152 @@
+---
+title: "Transfering SAM measures"
+author: "Bruno D. dos Santos"
+format: html
+jupyter: python3
+---
+
+## Introduction
+
+This notebook is a component of the GEO712 course's final project at the School of Earth, Environment & Society of McMaster University. The main objective of the final project is to analyze and compare job accessibility levels across different spatial patterns, focusing on the Greater Golden Horseshoe area (GGH) in Ontario, Canada.
+
+Within this notebook, we present a methodology for transferring Spatial Access Measures onto a hexagonal grid. The input files for this notebook include:
+-   Hexagonal grid _(hexagon_500m2.shp)_: A cell grid comprised of hexagons with an area of 500 m². Remote sensing imagery and road network data attributes will be transferred to this grid. This data was obtained with QGIS's create grid function.
+-   Spatial Access Measures (SAM) _(acs_walking.csv, acs_cycling.csv, acs_public_transit_offpeak.csv,  acs_public_transit_peak.csv)_: A national dataset in CSV format that measures accessibility to various opportunities, considering different modes of transport. The SAM database computed for each dissemination block accessibility score in a scale of zero to one (0 - 1), where zero means the least and one means maximum accessibility. For this work, we used only the accessibility measures for employments based on the transportation modes: access via public transit during peak hours, access via public transit during off-peak hours, access via cycling and access via walking.
+-   Dissemination blocks _(dissemination_blocks_study_area.shp)_: spatial unit used by the SAM project to aggregate accessibility metrics. We selected the dissemination blocks that touch the study area using QGIS, in order to reduce the size of the data. 
+
+The output from this notebook includes shapefiles containing the SAM variables in the cell grid.
+
+## Quarto
+
+Load python libraries used in the notebook:
+```{python load-libraries}
+import geopandas as gpd
+import pandas as pd
+from tobler.area_weighted import area_interpolate
+from sklearn.preprocessing import MinMaxScaler
+```
+
+Reading the cell grid and creating a GeoDataFrame.
+```{python reading-grid}
+grid = gpd.read_file("vectors\\input\\hexagon_500m2.shp", geometry = 'geometry')
+```
+
+Creating a spatial index for the hexagonal grid to expedite spatial relations between geometries:
+```{python spatial-index-grid}
+grid.sindex
+```
+Reading SAM metrics and creating new datasets. Each line refers to a mode of transport: 
+```{python reading-csv}
+walking = pd.read_csv("csvs\\input\\acs_walking.csv", sep=',', encoding = "ISO-8859-1") #Walking
+cycling = pd.read_csv("csvs\\input\\acs_cycling.csv", sep=',', encoding = "ISO-8859-1") #Cycling
+pto = pd.read_csv("csvs\\input\\acs_public_transit_offpeak.csv", sep=',', encoding = "ISO-8859-1") #Public Transit (off peak)
+ptp = pd.read_csv("csvs\\input\\acs_public_transit_peak.csv", sep=',', encoding = "ISO-8859-1") #Public Transit (peak)
+```
+
+Selecting only the columns that we will use for each metric.
+```{python select-columns}
+walking = walking[['DBUID', 'acs_idx_emp']]
+cycling = cycling[['DBUID','acs_idx_emp']]
+pto = pto[['DBUID','acs_idx_emp']]
+ptp = ptp[['DBUID','acs_idx_emp']]
+```
+
+Rename the columns to differentiate each one.
+```{python rename-columns}
+walking.columns = ['DBUID','wa_ac_emp']
+cycling.columns = ['DBUID','cy_ac_emp']
+pto.columns = ['DBUID','pto_ac_emp']
+ptp.columns = ['DBUID','ptp_ac_emp']
+```
+
+Merging the data and creating a new data set with all the accessibility measures.
+```{python merge-data}
+SAM = pd.merge(walking, cycling, left_on= 'DBUID', right_on='DBUID')
+SAM = pd.merge(SAM, pto, left_on= 'DBUID', right_on='DBUID')
+SAM = pd.merge(SAM, ptp, left_on= 'DBUID', right_on='DBUID')
+```
+
+Display of the SAM dataset.
+```{python sam}
+SAM
+```
+
+Reading the dissemination blocks.
+```{python read-db}
+db = gpd.read_file("vectors\\input\\dissemination_blocks_study_area.shp", geometry = 'geometry')
+```
+
+Creating a spatial index for the dissemination blocks to expedite spatial relations between geometries:
+```{python spatial-index-db}
+db.sindex
+```
+
+Display of the dissemination blocks.
+```{python db}
+db
+```
+
+Merging work accessibility measures into the disclosure blocks.
+```{python transfer-sam-to-db}
+db['DBUID'] = db['DBUID'].astype(str)
+SAM['DBUID'] = SAM['DBUID'].astype(str)
+db_sam = db.merge(SAM, left_on= 'DBUID', right_on='DBUID', how = 'left' )
+```
+
+Converting the regular DataFrame into a GeoDataFrame.
+```{python geodataframe-db-sam}
+db_sam = gpd.GeoDataFrame(db_sam, geometry = 'geometry')
+```
+
+Plotting a map of the dissemination blocks.
+```{python db-map}
+db_sam.plot()
+```
+
+Filling in 'na' values.
+```{python filling-na}
+db_sam.iloc[:,-4:] = db_sam.iloc[:,-4:].fillna(0)
+```
+
+## Transfering data
+
+Data interpolation. In this cell, we will transfer the variables from one spatial unit (dissemination blocks) to another spatial unit (grid of cells):
+```{python interpolation}
+interpolate =  grid
+
+for coluna in db_sam.iloc[:,-4:]:
+    ct_area_interp_gdf = area_interpolate(source_df=db_sam, 
+                                          target_df=grid,
+                                          intensive_variables=[coluna])
+    
+    interpolate[coluna] = ct_area_interp_gdf[coluna]
+```
+
+Map of the variable "Job accessibility (public transit - off peak)" of the dissemination blocks.
+```{python db-pto-map}
+db_sam.plot(column="pto_ac_emp", legend=True)
+```
+
+Map of the variable "Job accessibility (public transit - off peak)" of the cell grid.
+```{python grid-pto-map}
+interpolate.plot(column="pto_ac_emp", legend=True)
+```
+
+Reorganizing the columns.
+```{python reorg-column}
+interpolate = interpolate[['id','cy_ac_emp', 'pto_ac_emp', 'ptp_ac_emp', 'wa_ac_emp', 'geometry']]
+
+```
+
+Data rescaling using the MinMax approach.
+```{python scalling-data}
+scaler = MinMaxScaler()
+interpolate.iloc[:,-5:-1] = scaler.fit(interpolate.iloc[:,-5:-1]).transform(interpolate.iloc[:,-5:-1])
+```
+
+## Export data
+
+Exporting the grid with SAM variables.
+```{python export-data}
+interpolate.to_file("vectors//output//grid_sam.shp")
+```
