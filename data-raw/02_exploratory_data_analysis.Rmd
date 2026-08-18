@@ -323,7 +323,8 @@ categorical variables:
 
 ```{r}
 census <- census %>%
-  mutate(across(c(PWDA, PWPR, PWCD, PWCMA), ~ ifelse(. == -3, "Not applicable", .)))
+  mutate(across(c(PWDA, PWPR, 
+                  PWCD, PWCMA), ~ ifelse(. == -3, "Not applicable", .)))
 ```
 
 Finishing the pre-processing step, to increase the readability of the
@@ -399,8 +400,9 @@ mass of the data. For instance, given a sequence of quantitative values,
 such as:
 
 ```{r}
-example_list <- c(20, 30, 32, 34, 41, 41, 45, 46, 48, 51, 53, 54, 54, 56, 57, 58, 58, 59, 
-  60, 61, 64, 65, 65, 69, 71, 74, 77, 79, 88, 94)
+example_list <- c(20, 30, 32, 34, 41, 41, 45, 46, 48, 51, 
+                  53, 54, 54, 56, 57, 58, 58, 59, 60, 61, 
+                  64, 65, 65, 69, 71, 74, 77, 79, 88, 94)
 ```
 
 This sequence can be visualized in a
@@ -471,7 +473,8 @@ weights, we can use the `Hmisc` library:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5))
+  dplyr::summarise(Median = Hmisc::wtd.quantile(CfInc_AT, 
+                                                weights = CompW1, probs = 0.5))
 ```
 
 This value is slightly different (but needs to be considered!) than the
@@ -576,9 +579,12 @@ quantiles by running the chunk below:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.25),
-                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5), 
-                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.75))
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, 
+                                                  weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc_AT, 
+                                                weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, 
+                                                 weights = CompW1, probs = 0.75))
 ```
 
 To obtain the inter-quantile range (IQR) we just need to subtract the
@@ -586,9 +592,12 @@ second quantile from the third quantile:
 
 ```{r}
 census_city %>% 
-  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.25),
-                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5), 
-                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.75),
+  dplyr::summarise(Second_Q = Hmisc::wtd.quantile(CfInc_AT, 
+                                                  weights = CompW1, probs = 0.25),
+                   Median = Hmisc::wtd.quantile(CfInc_AT, 
+                                                weights = CompW1, probs = 0.5), 
+                   Third_Q = Hmisc::wtd.quantile(CfInc_AT, 
+                                                 weights = CompW1, probs = 0.75),
                    IQR = Third_Q - Second_Q)
 ```
 
@@ -646,8 +655,10 @@ maximum of `CfInc_AT` (total income of census family):
 ```{r}
 CfInc_AT_statistics <- census_city %>% 
   dplyr::summarise(Mean = Hmisc::wtd.mean(CfInc_AT, weights = CompW1),
-                   Median = Hmisc::wtd.quantile(CfInc_AT, weights = CompW1, probs = 0.5),
-                   SD = sqrt(Hmisc::wtd.var(CfInc_AT, weights = CompW1)), 
+                   Median = Hmisc::wtd.quantile(CfInc_AT, 
+                                                weights = CompW1, probs = 0.5),
+                   SD = sqrt(Hmisc::wtd.var(CfInc_AT, 
+                                            weights = CompW1)), 
                    Max = max(CfInc_AT),
                    Min = min(CfInc_AT))
 ```
@@ -718,7 +729,8 @@ turning the long table into a wide one like a contingency table:
 census_city %>%
   group_by(Pr_label, PwMode_label) %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = PwMode_label, values_from = weighted_n, values_fill = 0)
+  pivot_wider(names_from = PwMode_label, 
+              values_from = weighted_n, values_fill = 0)
 ```
 
 What do we learn from this table? The output of the previous chunk can
@@ -730,7 +742,8 @@ bottom of the table:
  census_city %>%
   group_by(Pr_label, PwMode_label) %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = PwMode_label, values_from = weighted_n, values_fill = 0) %>%
+  pivot_wider(names_from = PwMode_label, 
+              values_from = weighted_n, values_fill = 0) %>%
   adorn_totals("row") %>%               
   adorn_totals("col") %>%               
   adorn_percentages("row") %>%          
@@ -771,7 +784,8 @@ a pipe-friendly manner:
 # PWDUR: Commuting duration
 # PWDist: Distance (straight-line) from home to work
 
-weights::wtd.cor(x = census_city$PWDUR, y = census_city$PWDist, weight = census_city$CompW1)
+weights::wtd.cor(x = census_city$PWDUR, 
+                 y = census_city$PWDist, weight = census_city$CompW1)
 ```
 
 The code above shows that the variables `PWDUR` and `PWDist` have a very

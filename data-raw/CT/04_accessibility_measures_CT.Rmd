@@ -240,8 +240,6 @@ The methodology for obtaining the accessibility measures for Census Tract:
 
 6.  Finally, we perform the Hansen accessibility type and the spatial availability.
 
-![Methodology to obtain the accessibility measures.](rmarkdown_figures/Flowchart_transparent.png) 
-
 Load the packages:
 
 ```{r load-packages}
@@ -305,6 +303,7 @@ land_use_exp %>%
   dplyr::select(jobs) %>%
   sum(na.rm = TRUE)
 ```
+
 # Impedance functions
 
 All of the impedance functions mentioned require the analyst to define
@@ -491,7 +490,10 @@ generate_impedance <- function(mode_function, travel_cost){
 ```{r impedance-function-CT, warning = FALSE, message = FALSE}
 ttm_f <- data.frame()
 
-ttm[ttm$travel_time == 0,]$travel_time <- 0.1
+# Updating cases in which the travel time is equal to 0 to 1 minute
+ttm <- ttm %>% 
+  mutate(travel_time = case_when(travel_time == 0 ~ 1, 
+                                 TRUE ~ travel_time))
 
 for(mode in unique(ttm$PwMode)){
   

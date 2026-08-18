@@ -297,3 +297,306 @@
 #' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
 "land_use_CT_mode"
 
+##########################
+####### FUNCTIONS ########
+##########################
+
+#' Calculate spatial availability (SA_ij) for a given mode and impedance
+#'
+#' This function computes the spatial availability of opportunities (jobs, services, etc.)
+#' from each origin to each destination (see Soukhov et al 2024, https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0299077.)
+#'
+#' @param df A data frame containing origin, destination, population, opportunity,
+#'   mode, and impedance columns.
+#' @param origin Unquoted column name identifying the origin zone (e.g., `PRCDDA`, `CTUID`, `from_id`).
+#' @param destination Unquoted column name identifying the destination zone (e.g., `PWDA`, `to_id`).
+#' @param pop Unquoted column name for the population (or labour force) at each origin.
+#' @param opp Unquoted column name for the opportunities (e.g., jobs) at each destination.
+#' @param mode Unquoted column name for the travel mode (used only for grouping).
+#' @param f Unquoted column name containing the impedance value (e.g., `f` from `generate_impedance`).
+#'
+#' @return A data frame (the input `df` with additional columns: `sum_pop`, `f_c`, `f_p`,
+#'   `sum_pa`, `f_t`, and `SA_ij` – the final spatial availability).
+#' @export
+#'
+#' @importFrom dplyr distinct summarise pull group_by summarize left_join mutate
+#' @importFrom rlang enquo as_name sym
+#' @importFrom magrittr %>%
+#' @examples
+#' \dontrun{
+#' accessibility_table %>%
+#'   spatial_availability(origin = PRCDDA,
+#'                        destination = PWDA,
+#'                        pop = labour_force,
+#'                        mode = PwMode_label,
+#'                        opp = jobs,
+#'                        f = f)
+#' }
+calculate_spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
+
+  origin <- rlang::enquo(origin)
+  destination <- rlang::enquo(destination)
+  pop <- rlang::enquo(pop)
+  opp <- rlang::enquo(opp)
+  mode <- rlang::enquo(mode)
+  f <- rlang::enquo(f)
+
+  # Calculate sum of population in the system
+  sum_pop <- df %>%
+    dplyr::distinct(!!origin, !!mode,
+                    .keep_all = TRUE) %>%
+    dplyr::summarise(pop = sum(!!pop)) %>%
+    dplyr::pull(pop) %>%
+    sum()
+
+  df$sum_pop <- sum_pop
+
+  # Calculate f_p: population factor
+  f_p <- dplyr::pull(df, !!pop)/ sum_pop
+
+  # Calculate sum of impedance
+  sum_impedance <- df %>%
+    dplyr::group_by(!!destination) %>%
+    dplyr::summarize(sum_impedance = sum(!!f))
+
+  df <- df %>%
+    dplyr::left_join(sum_impedance, by = rlang::as_name(destination))
+
+  # Calculate f_c: impedance factor
+  f_c <- dplyr::pull(df, !!f) / df$sum_impedance
+
+  df$f_c <- f_c
+  df$f_p <- f_p
+
+  # Calculate f_p * f_c  (using !! with explicit symbols for new columns)
+  sum_pa <- df %>%
+    dplyr::group_by(!!destination) %>%
+    dplyr::summarize(sum_pa = sum(!!rlang::sym("f_p") * !!rlang::sym("f_c")))
+
+  df <- df %>%
+    dplyr::left_join(sum_pa,
+                     by = rlang::as_name(destination))
+
+  # Calculate f_t: balancing factor
+  df$f_t <- (f_p * f_c) / dplyr::pull(df, sum_pa)
+
+  # Calculate the Spatial Availability (use !! for f_t as well)
+  df %>%
+    dplyr::mutate(SA_ij = !!opp * !!rlang::sym("f_t"))
+}
+
+
+#' Generate impedance values for a given travel cost
+#'
+#' @param impedance_function A list (or a 1‑row data frame) with elements/columns
+#'   containing the distribution name and its two parameters.
+#' @param travel_cost A numeric vector of travel costs.
+#' @param col_distribution Name of the element/column for the distribution type.
+#'   Defaults to `"distribution"`.
+#' @param col_est1 Name of the element/column for the first parameter.
+#'   Defaults to `"est_1"`.
+#' @param col_est2 Name of the element/column for the second parameter.
+#'   Defaults to `"est_2"`.
+#' @return A numeric vector of impedance values (same length as `travel_cost`).
+#' @importFrom scales rescale
+#' @export
+#' @examples
+#' impedance <- list(distribution = "lnorm", est_1 = 0.5, est_2 = 0.8)
+#' generate_impedance(impedance, 1:10)
+#'
+#' # With custom names and alias
+#' impedance2 <- list(dist_type = "Lognormal", param1 = 0.5, param2 = 0.8)
+#' generate_impedance(impedance2, 1:10,
+#'                    col_distribution = "dist_type",
+#'                    col_est1 = "param1",
+#'                    col_est2 = "param2")
+generate_impedance <- function(impedance_function,
+                               travel_cost = 60,
+                               col_distribution = "distribution",
+                               col_est1 = "est_1",
+                               col_est2 = "est_2"){
+
+  # Input validation (allow both list and 1-row data frame)
+  if (is.data.frame(impedance_function) && nrow(impedance_function) == 1){
+    impedance_function <- as.list(impedance_function)
+  }
+  stopifnot(is.list(impedance_function),
+    all(c(col_distribution, col_est1, col_est2) %in% names(impedance_function)),
+    is.numeric(travel_cost))
+
+  normalize_dist <- function(x){
+    x <- tolower(trimws(x))
+    x <- gsub("[-_ ]", "", x)  # remove hyphens, underscores, spaces
+    switch(x,
+           lognormal = "lnorm",
+           lnorm = "lnorm",
+           gamma = "gamma",
+           normal = "norm",
+           norm = "norm",
+           exponential = "exp",
+           exp ="exp",
+           uniform = "unif",
+           unif = "unif",
+           stop("Unknown distribution alias: ", x, call. = FALSE))
+  }
+
+
+ dist_raw <- impedance_function[[col_distribution]]
+  a <- impedance_function[[col_est1]]
+  b <- impedance_function[[col_est2]]
+
+  dist <- normalize_dist(dist_raw)
+
+  f <- switch(dist,
+              lnorm = dlnorm(travel_cost, meanlog = a, sdlog = b),
+              unif = dunif(travel_cost, min = 0, max = b),   # as in original: min=0, max=est_2
+              exp = rescale(dexp(travel_cost, rate = a)),   # original used rescale
+              gamma = dgamma(travel_cost, shape = a, rate = b),
+              norm = dnorm(travel_cost, mean = a, sd = b),
+              stop("Unsupported distribution (after normalisation): ", dist, call. = FALSE)
+  )
+
+  return(f)
+}
+
+#' Generate theoretical impedance curves for combinations of categorical fields
+#'
+#' This function creates a data frame of impedance values (`f`) for a sequence of travel
+#' costs (`t`), based on distribution parameters stored in a dataframe. The user can
+#' specify which categorical columns (e.g., `PwMode_label`, `PCD`, `Education`) define the unique
+#' curves, and also provide custom column names for the distribution type and parameters.
+#'
+#' @param df_functions A data frame containing columns for distribution, parameters,
+#'   and the categorical grouping columns.
+#' @param travel_cost A numeric value – the maximum travel cost. The function creates a
+#'   sequence from 1 to `travel_cost` in steps of 0.5.
+#' @param group_cols A character vector naming the columns in `df_functions` that define
+#'   the unique impedance functions (e.g., `c("PwMode_label", "PCD")`). Defaults to
+#'   `c("PwMode_label", "PCD")` for backward compatibility.
+#' @param col_distribution Name of the column that contains the distribution name.
+#'   Defaults to `"distribution"`.
+#' @param col_est1 Name of the column for the first parameter (e.g., meanlog, shape).
+#'   Defaults to `"est_1"`.
+#' @param col_est2 Name of the column for the second parameter (e.g., sdlog, rate).
+#'   Defaults to `"est_2"`.
+#'
+#' @return A data frame with columns: `t` (travel cost), `f` (impedance), and each of the
+#'   grouping columns.
+#' @export
+#'
+#' @importFrom dplyr distinct filter across all_of bind_rows
+#' @importFrom rlang sym
+#' @examples
+#' \dontrun{
+#' # Default: group by PwMode_label and PCD
+#' curves <- theoretical_impedance(functions_df, travel_cost = 30)
+#'
+#' # With three grouping columns and custom parameter column names
+#' curves <- theoretical_impedance(functions_df, travel_cost = 30,
+#'                                 group_cols = c("PwMode_label", "PCD", "Education"),
+#'                                 col_distribution = "dist_type",
+#'                                 col_est1 = "param1",
+#'                                 col_est2 = "param2")
+#' }
+theoretical_impedance <- function(df_functions,
+                                  travel_cost = 60,
+                                  group_cols = c("PwMode_label", "PCD"),
+                                  col_distribution = "distribution",
+                                  col_est1 = "est_1",
+                                  col_est2 = "est_2"){
+
+  stopifnot(is.data.frame(df_functions),
+    is.numeric(travel_cost), length(travel_cost) == 1,
+    is.character(group_cols), length(group_cols) >= 1,
+    all(group_cols %in% names(df_functions)),
+    all(c(col_distribution, col_est1, col_est2) %in% names(df_functions)))
+
+  normalize_dist <- function(x){
+    x <- tolower(trimws(x))
+    x <- gsub("[-_ ]", "", x)  # remove hyphens, underscores, spaces
+    switch(x,
+           lognormal = "lnorm",
+           lnorm = "lnorm",
+           gamma = "gamma",
+           normal = "norm",
+           norm = "norm",
+           exponential = "exp",
+           exp ="exp",
+           uniform = "unif",
+           unif = "unif",
+           stop("Unknown distribution alias: ", x, call. = FALSE))
+  }
+
+  # Create the t sequence
+  t_seq <- seq(1, travel_cost, by = 0.5)
+
+  # Get all unique combinations of the grouping columns
+  combos <- df_functions %>%
+    dplyr::distinct(dplyr::across(dplyr::all_of(group_cols)))
+
+  # Initialize an empty list to store results
+  result_list <- list()
+
+  # Loop over each combination
+  for (i in seq_len(nrow(combos))) {
+    combo <- combos[i, , drop = FALSE]
+
+    # Build filter expression: column == value for each group
+    filter_expr <- NULL
+    for (col in group_cols) {
+      val <- combo[[col]]
+      if (is.null(filter_expr)) {
+        filter_expr <- rlang::expr(!!rlang::sym(col) == !!val)
+      } else {
+        filter_expr <- rlang::expr(!!filter_expr & !!rlang::sym(col) == !!val)
+      }
+    }
+
+    # Subset the function parameters for this combination
+    subset <- df_functions %>% dplyr::filter(!!filter_expr)
+
+    # Ensure we have exactly one row (take the first if multiple)
+    if (nrow(subset) == 0) {
+      warning("No parameters found for combination: ",
+              paste(paste(group_cols, combo[1, ], sep = "="), collapse = ", "),
+              " – skipping")
+      next
+    }
+    subset <- subset[1,]
+
+    combo_msg <- paste(paste(group_cols, combo[1, ], sep = "="), collapse = ", ")
+    message("Processing: ", combo_msg)
+
+    dist_raw <- subset[[col_distribution]]
+    a <- subset[[col_est1]]
+    b <- subset[[col_est2]]
+
+    # distribution name
+    dist <- normalize_dist(dist_raw)
+
+    # Compute impedance values
+    f_vals <- switch(dist,
+                     lnorm = dlnorm(t_seq, meanlog = a, sdlog = b),
+                     gamma = dgamma(t_seq, shape = a, rate = b),
+                     norm = dnorm(t_seq, mean = a, sd = b),
+                     exp = dexp(t_seq, rate = a),
+                     unif = dunif(t_seq, min = a, max = b),
+                     stop("Unsupported distribution (after normalisation): ", dist, call. = FALSE))
+
+    # Build a data frame for this combination
+    temp_df <- data.frame(t = t_seq, f = f_vals, stringsAsFactors = FALSE)
+
+    # Add each grouping column as a separate column
+    for (col in group_cols) {
+      temp_df[[col]] <- combo[[col]]
+    }
+
+    # Store in list
+    result_list[[i]] <- temp_df
+  }
+
+  # Combine all results
+  result <- dplyr::bind_rows(result_list)
+
+  return(result)
+}

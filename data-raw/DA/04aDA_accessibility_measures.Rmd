@@ -314,6 +314,7 @@ library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored
 library(scales) # Scale data column-wise in a computationally efficient way
 library(here) # enable easy file referencing in project-oriented workflows
 library(openxlsx) # To save files in excel format
+library(tidyr) # To create tidy data
 ```
 
 Reading census data and creating a R data frame[^9]:
@@ -456,7 +457,6 @@ Additionally, we'll remove from our analysis travel modes signed as
 
 ```{r rename-PwMode}
 census_filtered <- census_filtered  %>% 
-                   #filter(PwMode < 10) %>% 
                    mutate(PwMode_label = 
                             case_when(
                               PwMode == -3 ~ "Other or non-commuter", 
@@ -471,7 +471,6 @@ census_filtered <- census_filtered  %>%
                                                    "Car-motorized", "Public transit", "Other or non-commuter")))
 
 census <- census  %>% 
-                   #filter(PwMode < 10) %>% 
                    mutate(PwMode_label = 
                             case_when(
                               PwMode == -3 ~ "Other or non-commuter", 
@@ -644,21 +643,6 @@ lowest_aic <- function(values){
 }
 
 # Test the distributions
-test_distributions <- function(x, weights){
-  gamma_ <<- fitdistrplus::fitdist(data=x, "gamma", method="mme", weights = weights)
-  lnorm_ <<- fitdistrplus::fitdist(data=x, "lnorm", method="mme", weights = weights)
-  norm_ <<- fitdistrplus::fitdist(data=x, "norm", method="mme", weights = weights)
-  exp_ <<- fitdistrplus::fitdist(data=x, "exp", method="mme", weights = weights)
-  unif_ <<- fitdistrplus::fitdist(data=x, "unif", method="mme", weights = weights)
-  
-  values <- c(lnorm_$aic, gamma_$aic, unif_$aic, norm_$aic, exp_$aic)
-  values <- values[!is.na(values)]
-  
-  chosen_function <- lowest_aic(values)
-
-  return(chosen_function)
-}
-
 test_distributions_weighted <- function(x, weights){
   gamma_ <<- fitdistrplus::fitdist(data = x, "gamma", method="mme", weights = weights)
   lnorm_ <<- fitdistrplus::fitdist(data = x, "lnorm", method="mme", weights = weights)
@@ -679,38 +663,75 @@ Obtaining the theoretical impedance function for the bike mode:
 
 ```{r bike-function}
 mode <- 'Bike'
-bike_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+bike_function <- test_distributions_weighted(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 bike_function
+
+name_function <- bike_function
+bike_function_df <- data.frame("PwMode_label"=  as.factor(mode), 
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif", 0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1], ifelse(name_function$distname == "exp", 0, name_function$estimate[2])))
 ```
 
 Obtaining the theoretical impedance function for the car mode:
 
 ```{r car-function}
 mode <- 'Car-motorized'
-car_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+car_function <- test_distributions_weighted(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 car_function
 
+name_function <- car_function
+car_function_df <- data.frame("PwMode_label"=  as.factor(mode),  
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif", 0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1], ifelse(name_function$distname == "exp", 0, name_function$estimate[2])))
 ```
 
 Obtaining the theoretical impedance function for the transit mode:
 
 ```{r transit-function}
 mode <- 'Public transit'
-transit_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+transit_function <- test_distributions_weighted(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 transit_function
+
+name_function <- transit_function
+transit_function_df <- data.frame("PwMode_label"=  as.factor(mode),  
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif", 0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1], ifelse(name_function$distname == "exp", 0, name_function$estimate[2])))
 ```
 
 Obtaining the theoretical impedance function for the walk mode:
 
 ```{r walk-function}
 mode <- 'Walk'
-walk_function <- test_distributions(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+walk_function <- test_distributions_weighted(x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
                                     weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
 walk_function
+
+name_function <- walk_function
+walk_function_df <- data.frame("PwMode_label"= as.factor(mode), 
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif", 0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1], ifelse(name_function$distname == "exp", 0, name_function$estimate[2])))
 ```
+
+Visualizing the calibrated functions: 
+
+```{r}
+all_functions <- rbind(walk_function_df, bike_function_df, 
+                        transit_function_df, car_function_df)
+
+all_functions
+```
+
 
 The chunk below aims to create functions to graphically display the
 theoretical values obtained in the chunks above and also create a new
@@ -765,45 +786,6 @@ visualize_impedance <- function(mode_function, travel_cost, name_mode){
         }
   
   return(x)
-}
-
-
-# To generate the theoretical data
-
-generate_impedance <- function(mode_function, travel_cost){
-
-  f <- 0
-  
-  # lnorm impedance 
-  if(mode_function$distname == "lnorm"){
-  f <- dlnorm(travel_cost,
-                    meanlog = mode_function$estimate[1],
-                    sdlog = mode_function$estimate[2])
-  }
-  
-  # Unif impedance 
-  else if(mode_function$distname == "unif") {
-   f <- dunif(travel_cost,
-                     min=0,
-                     max=mode_function$estimate[2])
-   
-  # Exponential impedance 
-  } else if(mode_function$distname == "exp") {
-    f <- rescale(dexp(travel_cost,
-                    rate = mode_function$estimate))
-      # Gamma impedance 
-  } else if (mode_function$distname == "gamma"){  
-    f <- dgamma(travel_cost,
-                    shape = mode_function$estimate[1],
-                    rate = mode_function$estimate[2])
-  # Norm impedance 
-  } else if (mode_function$distname == "norm"){
-        f <- dnorm(travel_cost,
-                    mean = mode_function$estimate[1],
-                    sd = mode_function$estimate[2])
-        }
-  
-  return(f)
 }
 ```
 
@@ -890,123 +872,37 @@ ttm %>%
             max_tt = max(travel_time))
 ```
 
-Bringing weights information from the Census table:
-
-```{r ttm-weights}
-ttm <- ttm %>% 
-   mutate(from_id = as.factor(from_id), 
-          to_id = as.factor(to_id),
-          PwMode_label = as.factor(PwMode_label))
-  
-weights_df <- census_employed %>%
-  group_by(PRCDDA,
-           PWDA,
-           PwMode_label) %>%
-  dplyr::summarize(weights = sum(CompW1),
-            .groups = "drop")
-
-ttm <- ttm %>% 
-  left_join(weights_df, by = c("from_id" = "PRCDDA", 
-                               "to_id" = "PWDA", 
-                               "PwMode_label" = "PwMode_label"))
-
-if (anyNA(ttm$weights)) {
-  ttm$weights[is.na(ttm$weights)] <- 0
-}
-
-ttm$weights <- round(ttm$weights)
-
-ttm[ttm$travel_time == 0,]$travel_time <- 0.1
-```
-
 The value of impedance function for each origin-destination-mode will be
 obtained using travel time of the ttm table and the best impedance
-function based on the empirical length distributions.[^15].
+function based on the empirical length distributions. For that, we use the `generate_impedance` from `CommuteCA`:
 
-[^15]: The code uses information from the CMA code to select the best
-    function for each mode in each different CMA. Imagine you're working
-    with all the DAs available for a province, or even all of Canada,
-    you'll probably have different travel patterns between the internal
-    regions. Thinking about the differences between CMAs, we decided to
-    calculate its cost function considering each CMA or census
-    agglomeration area as an isolated system.
-
-```{r impedance-function-DA, warning = FALSE, message = FALSE}
-
+```{r impedance-function-CT, warning = FALSE, message = FALSE}
 ttm_f <- data.frame()
 
-for(pcd in unique(ttm$PCD)){
+# Updating cases in which the travel time is equal to 0 to 1 minute
+ttm <- ttm %>% 
+  mutate(travel_time = case_when(travel_time == 0 ~ 1, 
+                                 TRUE ~ travel_time))
 
-  # PCD data set
-  ttm_pcd <- ttm[ttm$PCD == pcd, ]
+for(mode in unique(ttm$PwMode_label)){
   
-  cat("Obtaining the impedance function for the PCD: ", code, "\n")
-
-  for(mode in (unique(ttm_pcd$PwMode_label))){
-    
-    cat("Transportation mode: ", mode, "\n")
-
-    ttm_pcd_mode <- ttm_pcd[ttm_pcd$PwMode_label == mode, ]
-
-    if(length(ttm_pcd_mode$travel_time) == 1){
-
-      ttm_pcd_mode$dist <- 'No dist.'
-
-      ttm_pcd_mode$f <- 1
-
-      ttm_f <- rbind(ttm_f, ttm_pcd_mode)
-
-
-    } else {
-
-      best_mode_function <- test_distributions(x = ttm_pcd_mode$travel_time, 
-                                                        weights = ttm_pcd_mode$weights)
-      if(best_mode_function$distname == "lnorm"){
-             fname <-  best_mode_function$distname
-             estimate_1 <- best_mode_function$estimate[1]
-             estimate_2 <- best_mode_function$estimate[2]
-            }
-            
-            # Unif impedance 
-            else if(best_mode_function$distname == "unif") {
-             fname <-  best_mode_function$distname
-             estimate_1 <- 0
-             estimate_2 <- best_mode_function$estimate[2]
-             
-            # Exponential impedance 
-            } else if(best_mode_function$distname == "exp") {
-             fname <-  best_mode_function$distname
-             estimate_1 <- best_mode_function$estimate
-             estimate_2 <- 0 
-             
-                # Gamma impedance 
-            } else if (best_mode_function$distname == "gamma"){  
-             fname <-  best_mode_function$distname
-             estimate_1 <- best_mode_function$estimate[1]
-             estimate_2 <- best_mode_function$estimate[2]
-             
-            # Norm impedance 
-            } else if (best_mode_function$distname == "norm"){
-             fname <-  best_mode_function$distname
-             estimate_1 <- best_mode_function$estimate[1]
-             estimate_2 <- best_mode_function$estimate[2]
-            }
-      
-      ttm_pcd_mode$dist <- fname
-      ttm_pcd_mode$est_1 <- estimate_1
-      ttm_pcd_mode$est_2 <- estimate_2
-
-      ttm_pcd_mode$f <- generate_impedance(mode_function = best_mode_function,
-                                           travel_cost = ttm_pcd_mode$travel_time)
-
-      ttm_f <- rbind(ttm_f, ttm_pcd_mode)
-
-    }
-
-  }
-
+  ttm_f_mode <- ttm %>% 
+    filter(PwMode_label == mode)
+  
+  mode_function <- all_functions %>%
+    filter(PwMode_label == mode)
+  
+   ttm_f_mode$f <- CommuteCA::generate_impedance(mode_function,
+                                travel_cost = ttm_f_mode$travel_time)
+   
+   ttm_f_mode$distribution <-  mode_function$distribution
+   ttm_f_mode$est_1 <-  mode_function$est_1
+   ttm_f_mode$est_2 <-  mode_function$est_2
+   
+   ttm_f <- rbind(ttm_f, ttm_f_mode)
 }
 ```
+
 
 # Generating the Land-use table
 
@@ -1017,19 +913,10 @@ Census to aggregate the data.
 
 Creating the labour force table:
 
-```{r creating-labour-force-table}
-# Total non commuters population by PRCDDA
-non_commuters <- census_filtered %>%
-  filter(PwMode == -3 | PwMode == 10) %>% # Considering the category 'Other' as non-commuter
-  group_by(PRCDDA) %>% 
-  dplyr::summarize(all_non_commuters = sum(CompW1),
-            all_non_commuters_n = n(),
-            .groups = "drop")
-
+```{r}
 # Total commuters by PRCDDA and PwMode_label
 commuters <- census_employed %>%
-  filter(PwMode != -3) %>% 
-  filter(PwMode != 10) %>%
+  filter(!PwMode_label == "Other or non-commuter") %>%
   group_by(PRCDDA, PwMode_label) |> 
   dplyr::summarize(commuters_mode = sum(CompW1),
             commuters_mode_n = n(), 
@@ -1039,35 +926,40 @@ commuters <- census_employed %>%
 commuters <- commuters %>%
             group_by(PRCDDA) %>% 
             mutate(all_commuters = sum(commuters_mode), 
-                   all_commuters_n = sum(commuters_mode_n))
+                   all_commuters_n = sum(commuters_mode_n), 
+                   perc_mode =  commuters_mode/all_commuters) 
 
+# For cases when the DA there's only non_commuters respondents
+general_perc_mode <- commuters %>%
+  group_by(PwMode_label) %>%
+  summarise(general_pop_mode = sum(commuters_mode)) %>%
+  mutate(general_pop = sum(general_pop_mode),
+         perc_pcd = general_pop_mode/general_pop)
+```
+
+
+```{r creating-labour-force-table}
+# Total non commuters population by PRCDDA
+non_commuters <- census_filtered %>%
+  filter(PwMode_label == "Other or non-commuter") %>% # Considering the category 'Other' as non-commuter
+  group_by(PRCDDA) %>% 
+  dplyr::summarize(all_non_commuters = sum(CompW1),
+            all_non_commuters_n = n(),
+            .groups = "drop") 
+```
+
+
+
+```{r}
 # Allocating the non_commuters according to the share of each population mode
-grid_exp <- expand.grid(PRCDDA = union(non_commuters$PRCDDA, commuters$PRCDDA), 
+grid_exp <- expand.grid(PRCDDA = unique(census_filtered$PRCDDA), 
                         PwMode_label = unique(commuters$PwMode_label))
-
-non_commuters_exp <- grid_exp %>% 
-  left_join(non_commuters, by = "PRCDDA")
 
 commuters_exp <- grid_exp %>% 
   left_join(commuters, by = c("PRCDDA","PwMode_label"))
 
 labour_force_support <- commuters_exp %>% 
-  left_join(non_commuters_exp, by = c("PRCDDA", "PwMode_label"))
-
-labour_force_support <- labour_force_support %>%
-  mutate(all_non_commuters = if_else(is.na(all_non_commuters), 0, all_non_commuters),
-         perc_mode = commuters_mode/all_commuters) 
-
-# For cases when the DA there's only non_commuters respondents
-general_perc_mode <- census_employed %>%
-  filter(PwMode_label != "Other") %>%
-  filter(!is.na(PwMode_label)) %>% 
-  group_by(PwMode_label) %>%
-  summarise(general_pop_mode = sum(CompW1)) %>%
-  mutate(general_pop = sum(general_pop_mode),
-         perc_pcd = general_pop_mode/general_pop)
-
-labour_force_support <- labour_force_support %>%
+  left_join(non_commuters, by = c("PRCDDA")) %>% 
   left_join(general_perc_mode %>% dplyr::select(PwMode_label, perc_pcd), by = "PwMode_label") 
 
 labour_force_support <- labour_force_support %>%
@@ -1076,17 +968,16 @@ labour_force_support <- labour_force_support %>%
   mutate(perc_final = perc_final / sum(perc_final, na.rm = TRUE)) %>%
   ungroup() # making sure that the sum of mode percentages is equal to 1
 
+labour_force_support <- labour_force_support %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0)))
+
 labour_force_support <- labour_force_support %>%
-  mutate(commuters_mode = coalesce(commuters_mode, 0),
-         commuters_mode_n = coalesce(commuters_mode_n, 0),
-         all_commuters  = coalesce(all_commuters, 0),
-         all_commuters_n  = coalesce(all_commuters_n, 0),
-         all_non_commuters_n  = coalesce(all_non_commuters_n, 0),
-         labour_force = (all_non_commuters * perc_final) + commuters_mode, 
-         lf_respondents = all_non_commuters_n + all_commuters_n) %>%
+  mutate(labour_force = (all_non_commuters * perc_final) + commuters_mode) %>%
   mutate(PRCDDA = as.character(PRCDDA)) %>%
   filter(startsWith(PRCDDA, as.character(code)))
 ```
+
+
 
 ```{r selecting-var-labour-table}
 labour_force <- labour_force_support %>% 
@@ -1101,13 +992,8 @@ jobs <- as.data.frame(census_employed) |>
   group_by(PWDA) |> 
   dplyr::summarize(jobs = sum(CompW1), 
             jobs_respondents = n(),
-            .groups = "drop") 
-
-grid_exp_jobs <- expand.grid(PWDA = unique(jobs$PWDA), PwMode_label = unique(commuters$PwMode_label))
-
-jobs <- left_join(jobs, grid_exp_jobs)  %>%
-  mutate(PWDA = as.character(PWDA)) %>%
-  filter(startsWith(PWDA, as.character(code)))
+            .groups = "drop")  %>%
+  filter(startsWith(as.character(PWDA), as.character(code)))
 ```
 
 Creating a land use data frame with the following information for each
@@ -1120,7 +1006,7 @@ land_use_support <- data.frame(expand.grid(PRCDDA = union(labour_force$PRCDDA, j
 
 land_use_support <- land_use_support %>% 
   full_join(labour_force_support, by = c("PRCDDA","PwMode_label")) %>%
-  full_join(jobs, by = c("PRCDDA" = "PWDA","PwMode_label"))
+  full_join(jobs, by = c("PRCDDA" = "PWDA"))
 ```
 
 It is possible that the table junction results in NA values for the
@@ -1139,7 +1025,7 @@ land_use_support <- land_use_support %>%
   mutate(labour_force = coalesce(labour_force, 0),
          jobs = coalesce(jobs, 0),
          jobs_respondents = coalesce(jobs_respondents, 0)) %>% 
-  dplyr::select(PRCDDA, PwMode_label, labour_force, lf_respondents, jobs, jobs_respondents)
+  dplyr::select(PRCDDA, PwMode_label, labour_force, jobs, jobs_respondents)
 
 land_use <- land_use_support %>%
   dplyr::select(PRCDDA, PwMode_label, labour_force, jobs)
@@ -1151,34 +1037,32 @@ matches the original data:
 ```{r sum-works-jobs}
 # total labour force from census base 
 census_filtered %>%
+  filter(PCD == code) %>%
   dplyr::select(CompW1) %>%
   sum(na.rm = TRUE)
 
 # total labour force  
 sum(labour_force$labour_force)
 
-# checking if the labour force is equal in both data frames
-sum(labour_force$labour_force) == sum(land_use$labour_force)
+# total labour force in the land-use table
+sum(land_use$labour_force)
+```
 
+```{r}
 # total jobs from census base
 census_filtered %>% 
-  filter(LBR_FORC == 1) %>% 
+  filter(LBR_FORC == 1, PWCD == code) %>% 
   group_by(PWDA) %>% 
-  dplyr::summarize(jobs = sum(CompW1)) %>%
+  dplyr::summarize(jobs = sum(CompW1, na.rm = TRUE)) %>%
   dplyr::select(jobs) %>%
   sum(na.rm = TRUE)
 
 # total number of jobs 
-jobs %>% group_by(PWDA) %>%
-  dplyr::summarize(jobs = first(jobs)) %>%
+jobs %>% 
   dplyr::select(jobs) %>%
   sum(na.rm = TRUE)
 
-# checking if the number of jobs is equal in both data frames
-jobs %>% group_by(PWDA) %>%
-  dplyr::summarize(jobs = first(jobs)) %>%
-  dplyr::select(jobs) %>%
-  sum(na.rm = TRUE) == land_use %>% group_by(PRCDDA) %>%
+land_use %>% group_by(PRCDDA) %>%
   dplyr::summarize(jobs = first(jobs)) %>%
   dplyr::select(jobs) %>%
   sum(na.rm = TRUE)
@@ -1192,11 +1076,15 @@ travel times tables:
 ```{r accessibility-table}
 accessibility_table <- ttm_f %>% 
   dplyr::rename('PRCDDA' = from_id,
-         'PWDA' = to_id) %>% 
+         'PWDA' = to_id) %>%
+  mutate(PRCDDA = as.character(PRCDDA),
+         PWDA = as.character(PWDA)) %>% 
   left_join(land_use[,c("PRCDDA","PwMode_label","labour_force")], by = c("PRCDDA" = "PRCDDA", "PwMode_label" = "PwMode_label")) %>%
-  left_join(land_use[,c("PRCDDA","PwMode_label","jobs")], by = c("PWDA" = "PRCDDA","PwMode_label" = "PwMode_label"))
+  left_join(land_use[,c("PRCDDA","PwMode_label", "jobs")], by = c("PWDA" = "PRCDDA", "PwMode_label"))
 
-accessibility_table[is.na(accessibility_table$labour_force),]$labour_force <- 0
+accessibility_table <- accessibility_table %>% 
+  mutate(labour_force = case_when(is.na(labour_force) ~ 0, 
+                                  TRUE ~ labour_force)) 
 
 accessibility_table <- accessibility_table %>%
    group_by(PWDA) %>%
@@ -1219,7 +1107,7 @@ accessibility_table %>%
 
 ```{r cleaning-env}
 # List of objects required for the next steps
-keep <- c("census", "census_backup", "commuters", "test_distributions_weighted", "land_use", "accessibility_table", "ttm_f" , "ttm_folder", "code", "land_use_support")
+keep <- c("census", "census_backup", "land_use", "accessibility_table", "code", "land_use_support")
 all_objects <- ls()
 
 # Remove all objects except the ones in the keep list
@@ -1267,76 +1155,12 @@ sum(HT$HT_i)
 
 # Calculating Spatial Availability
 
-Now, we'll calculate the spatial availability. First, we'll define the
-function:
-
-```{r defining-spatial-availability-detailed-function}
-
-#defining the spatial availability function
-
-spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
-  
-    origin <- rlang::enquo(origin)
-    destination <- rlang::enquo(destination)
-    pop <- rlang::enquo(pop)
-    opp <- rlang::enquo(opp)
-    mode <- rlang::enquo(mode)
-    f <- rlang::enquo(f)
-    
-    # Calculate sum of population in the system
-    sum_pop <- df %>%
-    dplyr::distinct(!!origin, !!mode,  
-                  .keep_all = TRUE) %>%
-    dplyr::summarise(pop = sum(!!pop)) %>%
-    dplyr::pull(pop) %>%
-    sum()
-  
-    df$sum_pop <- sum_pop
-    
-    # Calculate f_p: population factor 
-    f_p <- dplyr::pull(df, !!pop)/ sum_pop
-    
-    
-    # Calculate sum of impedance
-    sum_impedance <- df %>%
-      dplyr::group_by(!!destination) %>%
-      dplyr::summarize(sum_impedance = sum(!!f))
-    
-    df <- df %>%
-      dplyr::left_join(sum_impedance, by = rlang::as_name(destination))
-
-    # Calculate f_c: impedance factor 
-    f_c <- dplyr::pull(df, !!f) / df$sum_impedance
-    
-    df$f_c <- f_c
-    df$f_p <- f_p
-    
-    # Calculate f_p * f_c
-    sum_pa <- df %>%
-      dplyr::group_by(!!destination) %>%
-      dplyr::summarize(sum_pa= sum(f_p * f_c))
-    
-    df <- df %>%
-      dplyr::left_join(sum_pa,
-                       by = rlang::as_name(destination))
-
-    # Calculate f_t: balancing factor
-    df$f_t <- (f_p * f_c) / dplyr::pull(df, sum_pa)
-    
-    # Calculate the Spatial Availability
-    df %>%
-      dplyr::mutate(SA_ij = !!opp * f_t)
-}
-
-```
-
-Calculating the spatial availability:
+Now, we'll calculate the spatial availability using the `calculate_spatial_availability` function from `CommuteCA`:   
 
 ```{r SA-soukov}
 # Apply the function to accessibility_table
-
-SA_ij_mode <- accessibility_table %>%
-  spatial_availability(origin = PRCDDA,
+SA_ij_mode <- CommuteCA::calculate_spatial_availability(accessibility_table, 
+                       origin = PRCDDA,
                        destination = PWDA,
                        pop = labour_force,
                        mode = PwMode_label,
@@ -1352,7 +1176,9 @@ information for each origin and mode:
 SA_mode <- SA_ij_mode %>% 
   group_by(PRCDDA,PwMode_label) %>%
   summarise(SA_im = sum(SA_ij)) %>%
-  left_join(land_use, by = c('PRCDDA','PwMode_label'))
+  left_join(land_use, by = c('PRCDDA','PwMode_label')) %>% 
+  mutate(labour_force = ifelse(is.na(labour_force),0,labour_force),
+         jobs = ifelse(is.na(jobs),0,jobs))
 ```
 
 The *SA_im* presents the value of spatial availability for each DA by
@@ -1361,8 +1187,8 @@ The *SA_im* presents the value of spatial availability for each DA by
 ```{r V_i}
 SA <- SA_mode %>%
   group_by(PRCDDA) %>%
-  dplyr::summarize(SA_i = sum(SA_im), 
-            labour_force = sum(labour_force),
+  dplyr::summarize(SA_i = sum(SA_im, na.rm = TRUE), 
+            labour_force = sum(labour_force, na.rm = TRUE),
             jobs = first(jobs))
 ```
 
@@ -1380,8 +1206,55 @@ because this metric is constrained.
 
 Now, we will also obtain the spatial availability per person, simply dividing the number of jobs accessible in each transportation mode by the number of people actually taking these modes:
 
+```{r}
+SA_pp_mode <- SA_mode %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+
+SA_pp <- SA %>% 
+  mutate(SA_pp_i = ifelse(labour_force == 0, 0, SA_i/labour_force))
+```
+
 ## Considering active accessibility instead of walking and cycling accessibilities
 
+Sometimes, the number of walking and cycling commuters is very low when compared to car and public transit users. Because of this, might be interesting to evaluate junction of walking and cycling modes, as an active mode. 
+
+Following chunks transform the previous accessibility indicators into a 3-modes analysis:
+
+```{r}
+SA_mode_active <- SA_mode %>%
+  group_by(PRCDDA) %>%
+  summarise(jobs = first(jobs),
+    car_SA = sum(SA_im[PwMode_label == "Car-motorized"]),
+    car_labour = sum(labour_force[PwMode_label == "Car-motorized"]),
+    
+    pt_SA = sum(SA_im[PwMode_label == "Public transit"]),
+    pt_labour = sum(labour_force[PwMode_label == "Public transit"]),
+    
+    active_SA = sum(SA_im[PwMode_label %in% c("Bike", "Walk")]),
+    active_labour = sum(labour_force[PwMode_label %in% c("Bike", "Walk")])) %>%
+  pivot_longer(cols = contains("_"),
+               names_to = "var", values_to = "value") %>%
+  separate(var, into = c("mode", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(PwMode_label = case_when(mode == "car" ~ "Car-motorized",
+                                  mode == "pt"~ "Public transit",
+                                  mode == "active" ~ "Active")) %>%
+  dplyr::select(PRCDDA, PwMode_label, SA_im = SA, 
+                labour_force = labour, jobs)
+
+# Checking result
+sum(SA_mode_active$SA_im)
+sum(SA_mode$SA_im)
+
+sum(SA_mode_active$labour_force, na.rm = TRUE)
+sum(SA_mode$labour_force, na.rm = TRUE)
+```
+
+
+```{r}
+SA_pp_mode_active <- SA_mode_active %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+```
 
 # Confidentiality vetting
 
@@ -1391,7 +1264,7 @@ The following rules apply to our results:
 
 - *Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$)*.	Statistics must not be released for identifiable areas with less than 40 persons. This condition is usually met with geography levels used at the RDCs. The population threshold can be applied to the (long form) weighted population estimate. 
 - *All statistics must be based on weighted data.*
-- *Statistics must be based on at least 5 respondents, whose sum of weights is at least 10*.
+- *Counts must be based on at least 5 respondents, whose sum of weights is at least 10*.
 - In addition, *we cannot get count outputs at DA level*. For this reason, only the accessibility tables can be released. 
 
 The block above checks the total population of each DA:
@@ -1404,12 +1277,24 @@ weighted_DA <- census %>%
             .groups = "drop")
 
 weighted_mode <- census %>%
-  group_by(PRCDDA, PwMode_label) %>%
+  group_by(PRCDDA, PwMode_label) %>% 
+  dplyr::summarize(Weighted_pop_mode = sum(CompW1),
+            Respondents_mode = n(),
+            .groups = "drop")
+
+weighted_3mode <- census %>%
+  mutate(PwMode_label = case_when(PwMode_label %in% c("Walk","Bike") ~ "Active",
+                                  TRUE ~ PwMode_label)) %>% 
+  group_by(PRCDDA, PwMode_label) %>% 
   dplyr::summarize(Weighted_pop_mode = sum(CompW1),
             Respondents_mode = n(),
             .groups = "drop")
 
 vetting_accessibility <- weighted_mode %>%
+  left_join(weighted_DA, by = "PRCDDA") %>%
+  dplyr::select(PRCDDA, PwMode_label, Weighted_pop_DA, Respondents_DA, Respondents_mode, Weighted_pop_mode)
+
+vetting_accessibility_3mode <- weighted_3mode %>%
   left_join(weighted_DA, by = "PRCDDA") %>%
   dplyr::select(PRCDDA, PwMode_label, Weighted_pop_DA, Respondents_DA, Respondents_mode, Weighted_pop_mode)
 ```
@@ -1420,57 +1305,43 @@ Creating new files with the total DA population:
 # Hansen-type Accessibility
 HT_general_support <- HT %>% 
   left_join(weighted_DA, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, HT_i, Weighted_pop_DA, Respondents_DA)
+  dplyr::select(PRCDDA, HT_i, Weighted_pop_DA)
 
 HT_mode_support <- HT_mode %>%
   left_join(vetting_accessibility, by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
-  dplyr::select(PRCDDA, PwMode_label, HT_im, Weighted_pop_DA, Weighted_pop_mode, Respondents_mode)
+  dplyr::select(PRCDDA, PwMode_label, HT_im, Weighted_pop_DA)
 
 # Spatial Availability 
-SA_general_support <- SA %>% 
+SA_pp_general_support <- SA_pp %>% 
   left_join(weighted_DA, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  dplyr::select(PRCDDA, SA_i, Weighted_pop_DA, Respondents_DA)
+  dplyr::select(PRCDDA, SA_i, SA_pp_i, Weighted_pop_DA)
 
-SA_mode_support <- SA_mode %>% 
+SA_pp_mode_support <- SA_pp_mode %>% 
   left_join(vetting_accessibility, by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
-  dplyr::select(PRCDDA, PwMode_label, SA_im, Weighted_pop_DA, Weighted_pop_mode, Respondents_mode)
+  dplyr::select(PRCDDA, PwMode_label, SA_im, SA_pp_im, Weighted_pop_DA)
+
+SA_pp_mode_active_support <- SA_pp_mode_active %>% 
+  left_join(vetting_accessibility_3mode, by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
+  dplyr::select(PRCDDA, PwMode_label, SA_im, SA_pp_im, Weighted_pop_DA)
 ```
 
 Apply the rules to avoid confidentiality risks for the accessibility tables: 
 
 ```{r filter-support}
 HT_general_support <- HT_general_support %>%
-  filter(Weighted_pop_DA >= 40, 
-         Respondents_DA >= 5)
+  filter(Weighted_pop_DA >= 40)
 
-SA_general_support <- SA_general_support  %>%
-  filter(Weighted_pop_DA >= 40, 
-         Respondents_DA >= 5)
+SA_pp_general_support <- SA_pp_general_support  %>%
+  filter(Weighted_pop_DA >= 40)
 
 HT_mode_support <- HT_mode_support %>%
-  filter(Weighted_pop_DA >= 40, 
-         Weighted_pop_mode >= 10,
-         Respondents_mode >= 5)
+  filter(Weighted_pop_DA >= 40)
 
-SA_mode_support <- SA_mode_support %>%
-  filter(Weighted_pop_DA >= 40, 
-         Weighted_pop_mode >= 10,
-         Respondents_mode >= 5)
-```
+SA_pp_mode_support <- SA_pp_mode_support %>%
+  filter(Weighted_pop_DA >= 40)
 
-For land use: 
-
-```{r}
-land_use_mode_support <- land_use_support %>% 
-  left_join(weighted_DA, by = c('PRCDDA' = 'PRCDDA')) %>% 
-  filter(Weighted_pop_DA >= 40,
-         labour_force >= 10,
-         lf_respondents >= 5,
-         jobs >= 10,
-         jobs_respondents >= 5) %>%
-  mutate(jobs_rounded = round(jobs / 5) * 5) %>% 
-  dplyr::select("PRCDDA", "PwMode_label", "labour_force", "lf_respondents", 
-                "jobs_rounded", "jobs", "jobs_respondents", "Weighted_pop_DA")
+SA_pp_mode_active_support <- SA_pp_mode_active_support %>% 
+    filter(Weighted_pop_DA >= 40)
 ```
 
 # Data export
@@ -1481,39 +1352,43 @@ processed data.
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/output/PCD3520/DA/accessibility-measures/") # Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/output/PCD",code,"/DA/accessibility-measures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export)){
-  dir.create(diretorio_export, recursive = TRUE)}
+  dir.create(diretorio_export, recursive = TRUE) 
+  dir.create(paste0(diretorio_export, "/original/"), recursive = TRUE)
+  dir.create(paste0(diretorio_export, "/release/"), recursive = TRUE)
+  dir.create(paste0(diretorio_export, "/support/"), recursive = TRUE)
+  }
 ```
 
 Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.
 
 Export the original files for future consultations (this data can not be released by RDC):
+
 ```{r export-original-files}
 # HT tables
-write.csv(HT[,c("PRCDDA","HT_i")], paste0(diretorio_export, "HT_general_original.csv"), row.names=FALSE)
-write.csv(HT_mode[,c("PRCDDA","PwMode_label","HT_im")], paste0(diretorio_export, "HT_mode_original.csv"), row.names=FALSE)
+write.csv(HT, paste0(diretorio_export, "/original/HT_general_original.csv"), row.names=FALSE)
+write.csv(HT_mode, paste0(diretorio_export, "/original/HT_mode_original.csv"), row.names=FALSE)
 
-# SA tables
-write.csv(SA[,c("PRCDDA","SA_i")], paste0(diretorio_export, "SA_general_original.csv"), row.names=FALSE)
-write.csv(SA_mode[,c("PRCDDA","PwMode_label","SA_im")], paste0(diretorio_export, "SA_mode_original.csv"), row.names=FALSE)
+# SA tables 
+write.csv(SA_pp, paste0(diretorio_export, "/original/SA_general_original.csv"), row.names=FALSE)
+write.csv(SA_pp_mode, paste0(diretorio_export, "/original/SA_pp_mode_original.csv"), row.names=FALSE)
+write.csv(SA_pp_mode_active, paste0(diretorio_export, "/original/SA_pp_mode_active.csv"), row.names=FALSE)
 ```
 
-Export of Hansen tables:
+## Export of Hansen tables:
 
 ```{r export-HT_mode}
-write.csv(HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")], paste0(diretorio_export, "HT_mode_release.csv"), row.names=FALSE)
-write.csv(HT_mode_support, paste0(diretorio_export, "HT_mode_support.csv"), row.names=FALSE)
+write.csv(HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")], paste0(diretorio_export, "/release/HT_mode_release.csv"), row.names=FALSE)
+write.csv(HT_mode_support, paste0(diretorio_export, "/support/HT_mode_support.csv"), row.names=FALSE)
 ```
 
 ```{r export-HT}
-write.csv(HT_general_support[,c("PRCDDA","HT_i")], paste0(diretorio_export, "HT_general_release.csv"), row.names=FALSE)
-write.csv(HT_general_support, paste0(diretorio_export, "HT_general_support.csv"), row.names=FALSE)
+write.csv(HT_general_support[,c("PRCDDA","HT_i")], paste0(diretorio_export, "/release/HT_general_release.csv"), row.names=FALSE)
+write.csv(HT_general_support, paste0(diretorio_export, "/release/HT_general_support.csv"), row.names=FALSE)
 ```
 
-
-Saving HT in excel files: 
 
 ```{r}
 # HT Release
@@ -1522,268 +1397,107 @@ addWorksheet(ht_excel, "general")
 addWorksheet(ht_excel, "mode")
 
 writeData(ht_excel, "general", HT_general_support[,c("PRCDDA","HT_i")])
-writeData(ht_excel, "mode", HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")])
+writeData(ht_excel, "mode",  HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")])
 
-## Commenting and highlighting the general sheet
-
-writeComment(ht_excel, "general", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(ht_excel, "general", col =2 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have, using the Hansen measure.", author = "Author"))
-
-writeComment(ht_excel, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(ht_excel, "mode", col =2 , row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(ht_excel, "mode", col =3 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have using this transportation mode mentioned in PwMode_label, using the Hansen measure.", author = "Author"))
-
-cols_with_values_general <- which(sapply(HT_general_support[,c("PRCDDA","HT_i")], function(x) any(!is.na(x))))
-addStyle(ht_excel, sheet = c("general"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(HT_general_support)+1),
-         cols = cols_with_values_general,
-         gridExpand = TRUE)
-
-cols_with_values_mode <- which(sapply(HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")], function(x) any(!is.na(x))))
-addStyle(ht_excel, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(HT_mode_support)+1),
-         cols = cols_with_values_mode,
-         gridExpand = TRUE)
-
-saveWorkbook(ht_excel, paste0(diretorio_export, "HT_release.xlsx"), overwrite = TRUE)
+saveWorkbook(ht_excel, paste0(diretorio_export, "/release/HT_release.xlsx"), overwrite = TRUE)
 
 # HT Release
-ht_excel_support <- createWorkbook()
+ht_excel <- createWorkbook()
+addWorksheet(ht_excel, "general")
+addWorksheet(ht_excel, "mode")
 
-addWorksheet(ht_excel_support, "general")
-addWorksheet(ht_excel_support, "mode")
+writeData(ht_excel, "general", HT_general_support)
+writeData(ht_excel, "mode",  HT_mode_support)
 
-writeData(ht_excel_support, "general", HT_general_support)
-writeData(ht_excel_support, "mode", HT_mode_support)
-
-writeComment(ht_excel_support, "general", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(ht_excel_support, "general", col =2 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have, using the Hansen measure.", author = "Author"))
-writeComment(ht_excel_support, "general", col = 3, row = 1, 
-             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
-writeComment(ht_excel_support, "general", col = 4, row = 1, 
-             comment = createComment("Number of respondents (unweighted count) in this DA.", author = "Author"))
-
-writeComment(ht_excel_support, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(ht_excel_support, "mode", col =2 , row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(ht_excel_support, "mode", col =3 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have using this transportation mode mentioned in PwMode_label, using the Hansen measure.", author = "Author"))
-writeComment(ht_excel_support, "mode", col = 4, row = 1, 
-             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
-writeComment(ht_excel_support, "mode", col = 5, row = 1, 
-             comment = createComment("Total population (weighted) in this DA who commute using the transporation mode mentioned in PwMode_label.", author = "Author"))
-writeComment(ht_excel_support, "mode", col = 6, row = 1, 
-             comment = createComment("Number (unweighted count) of respondents in this DA who commute using the transporation mode mentioned in PwMode_label.", author = "Author"))
-
-addStyle(ht_excel_support, sheet = c("general"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(HT_general_support)+1),
-         cols = cols_with_values_general,
-         gridExpand = TRUE)
-
-addStyle(ht_excel_support, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(HT_mode_support)+1),
-         cols = cols_with_values_mode,
-         gridExpand = TRUE)
-
-saveWorkbook(ht_excel_support, paste0(diretorio_export, "HT_support.xlsx"), overwrite = TRUE)
+saveWorkbook(ht_excel, paste0(diretorio_export, "/support/HT_support.xlsx"), overwrite = TRUE)
 ```
 
-Export of spatial availability tables:
+## Export of Spatial Availability tables:
 
-```{r export-SA}
-write.csv(SA_general_support[,c("PRCDDA","SA_i")], paste0(diretorio_export, "SA_general_release.csv"), row.names=FALSE)
-write.csv(SA_general_support, paste0(diretorio_export, "SA_general_support.csv"), row.names=FALSE)
+```{r export-SA-pp}
+write.csv(SA_pp_general_support[,c("PRCDDA","SA_i","SA_pp_i")], paste0(diretorio_export, "/release/SA_general_release.csv"), row.names=FALSE)
+write.csv(SA_pp_general_support, paste0(diretorio_export, "/support/SA_general_support.csv"), row.names=FALSE)
 ```
 
-```{r export-SA_mode}
-write.csv(SA_mode_support[,c("PRCDDA","PwMode_label","SA_im")], paste0(diretorio_export, "SA_mode_release.csv"), row.names=FALSE)
-write.csv(SA_mode_support, paste0(diretorio_export, "SA_mode_support.csv"), row.names=FALSE)
+```{r export-SA-mode}
+write.csv(SA_pp_mode_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")], paste0(diretorio_export, "/release/SA_mode_release.csv"), row.names=FALSE)
+write.csv(SA_pp_mode_support, paste0(diretorio_export, "/support/SA_mode_support.csv"), row.names=FALSE)
+```
+
+```{r export-SA_pp_mode_active}
+write.csv(SA_pp_mode_active_support[,c("PRCDDA","PwMode_label","SA_im", "SA_pp_im")], paste0(diretorio_export, "/release/SA_mode_active_release.csv"), row.names=FALSE)
+write.csv(SA_pp_mode_active_support, paste0(diretorio_export, "/support/SA_mode_active_support.csv"), row.names=FALSE)
 ```
 
 ```{r export-SA_ij_mode}
-# write.csv(SA_ij_mode, paste0(diretorio_export, "SA_ij_mode.csv"), row.names=FALSE)
+# write.csv(SA_ij_mode, paste0(diretorio_export, "/original/SA_ij_mode.csv"), row.names=FALSE)
 ```
-
-Saving SA in excel files: 
 
 ```{r}
 # SA Release
 sa_excel <- createWorkbook()
 addWorksheet(sa_excel, "general")
 addWorksheet(sa_excel, "mode")
+addWorksheet(sa_excel, "3mode")
 
-writeData(sa_excel, "general", SA_general_support[,c("PRCDDA","SA_i")])
-writeData(sa_excel, "mode", SA_mode_support[,c("PRCDDA","PwMode_label","SA_im")])
+writeData(sa_excel, "general", SA_pp_general_support[,c("PRCDDA","SA_i", "SA_pp_i")])
+writeData(sa_excel, "mode",  SA_pp_mode_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")])
+writeData(sa_excel, "3mode",  SA_pp_mode_active_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")])
 
-## Commenting and highlighting the general sheet
+saveWorkbook(sa_excel, paste0(diretorio_export, "/release/SA_release.xlsx"), overwrite = TRUE)
 
-writeComment(sa_excel, "general", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(sa_excel, "general", col =2 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have, using the Spatial availability measure.", author = "Author"))
+# SA Release
+sa_excel <- createWorkbook()
+addWorksheet(sa_excel, "general")
+addWorksheet(sa_excel, "mode")
+addWorksheet(sa_excel, "3mode")
 
-writeComment(sa_excel, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(sa_excel, "mode", col =2 , row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(sa_excel, "mode", col =3 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have using this transportation mode mentioned in PwMode_label, using the Spatial availability measure.", author = "Author"))
+writeData(sa_excel, "general", SA_pp_general_support)
+writeData(sa_excel, "mode",  SA_pp_mode_support)
+writeData(sa_excel, "3mode",  SA_pp_mode_active_support)
 
-cols_with_values_general <- which(sapply(SA_general_support[,c("PRCDDA","SA_i")], function(x) any(!is.na(x))))
-addStyle(sa_excel, sheet = c("general"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(SA_general_support)+1),
-         cols = cols_with_values_general,
-         gridExpand = TRUE)
-
-cols_with_values_mode <- which(sapply(SA_mode_support[,c("PRCDDA","PwMode_label","SA_im")], function(x) any(!is.na(x))))
-addStyle(sa_excel, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(SA_mode_support)+1),
-         cols = cols_with_values_mode,
-         gridExpand = TRUE)
-
-saveWorkbook(sa_excel, paste0(diretorio_export, "SA_release.xlsx"), overwrite = TRUE)
-
-# SA Support Release
-sa_excel_support <- createWorkbook()
-
-addWorksheet(sa_excel_support, "general")
-addWorksheet(sa_excel_support, "mode")
-
-writeData(sa_excel_support, "general", SA_general_support)
-writeData(sa_excel_support, "mode", SA_mode_support)
-
-writeComment(sa_excel_support, "general", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(sa_excel_support, "general", col =2 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have, using the Spatial availability measure.", author = "Author"))
-writeComment(sa_excel_support, "general", col = 3, row = 1, 
-             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
-writeComment(sa_excel_support, "general", col = 4, row = 1, 
-             comment = createComment("Number of respondents (unweighted count) in this DA.", author = "Author"))
-
-writeComment(sa_excel_support, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(sa_excel_support, "mode", col =2 , row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(sa_excel_support, "mode", col =3 , row = 1, 
-             comment = createComment("Score of job accessibility that the residents from this DA have using this transportation mode mentioned in PwMode_label, using the Spatial availability measure.", author = "Author"))
-writeComment(sa_excel_support, "mode", col = 4, row = 1, 
-             comment = createComment("Total population (weighted) in this DA.", author = "Author"))
-writeComment(sa_excel_support, "mode", col = 5, row = 1, 
-             comment = createComment("Total population (weighted) in this DA who commute using the transporation mode mentioned in PwMode_label.", author = "Author"))
-writeComment(sa_excel_support, "mode", col = 6, row = 1, 
-             comment = createComment("Number (unweighted count) of respondents in this DA who commute using the transporation mode mentioned in PwMode_label.", author = "Author"))
-
-addStyle(sa_excel_support, sheet = c("general"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(SA_general_support)+1),
-         cols = cols_with_values_general,
-         gridExpand = TRUE)
-
-addStyle(sa_excel_support, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(SA_mode_support)+1),
-         cols = cols_with_values_mode,
-         gridExpand = TRUE)
-
-saveWorkbook(sa_excel_support, paste0(diretorio_export, "SA_support.xlsx"), overwrite = TRUE)
+saveWorkbook(sa_excel, paste0(diretorio_export, "/support/SA_support.xlsx"), overwrite = TRUE)
 ```
+
+## Other files
 
 Export of land use table:
 
 ```{r export-SA}
 # land use tables
-write.csv(land_use_support, paste0(diretorio_export, "land_use_original.csv"), row.names=FALSE)
-
-write.csv(land_use_mode_support %>% 
-          dplyr::select(PRCDDA, PwMode_label, labour_force, jobs_rounded), 
-          paste0(diretorio_export, "land_use_release.csv"), row.names=FALSE)
+write.csv(land_use_support, paste0(diretorio_export, "/original/land_use_original.csv"), row.names=FALSE)
 ```
 
-Saving land use in excel format for release: 
+Accessibilities:
 
-```{r}
-lu_excel <- createWorkbook()
+```{r export-SA}
+accessibilities_mode <- SA_pp_mode_support %>% 
+  left_join(HT_mode_support %>%
+              dplyr::select(PRCDDA, PwMode_label, HT_im),
+            by = c("PRCDDA", "PwMode_label"))
 
-addWorksheet(lu_excel, "mode")
+accessibilities_general <- SA_pp_general_support %>% 
+  left_join(HT_general_support %>%
+              dplyr::select(PRCDDA, HT_i),
+            by = c("PRCDDA"))
 
-writeData(lu_excel,  "mode", land_use_mode_support %>% 
-            dplyr::select(PRCDDA, PwMode_label, labour_force, jobs_rounded))
+write.csv(accessibilities_mode %>% 
+            dplyr::select(-Weighted_pop_DA),
+          paste0(diretorio_export, "/release/accessibilities_mode_release.csv"), row.names=FALSE)
 
-## Commenting and highlighting the general sheet
+write.csv(accessibilities_mode,
+          paste0(diretorio_export, "/support/accessibilities_mode_support.csv"), row.names=FALSE)
 
-writeComment(lu_excel, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(lu_excel, "mode", col = 2, row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(lu_excel, "mode", col = 3, row = 1, 
-             comment = createComment("Estimated number of people in labour force that commute using the transportation mode described in PwMode.", author = "Author"))
-writeComment(lu_excel, "mode", col = 4, row = 1, 
-             comment = createComment("Number of people who mentioned working at this dissemination area (rounded).", author = "Author"))
+write.csv(accessibilities_general %>% 
+            dplyr::select(-Weighted_pop_DA),
+          paste0(diretorio_export, "/release/accessibilities_general_release.csv"), row.names=FALSE)
 
-addStyle(lu_excel, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(land_use_mode_support)+1),
-         cols = c(1:4),
-         gridExpand = TRUE)
-
-saveWorkbook(lu_excel, paste0(diretorio_export, "land_use_release.xlsx"), overwrite = TRUE)
-
-# Land Use Support 
-lu_excel_support <- createWorkbook()
-
-addWorksheet(lu_excel_support, "mode")
-
-writeData(lu_excel_support, "mode",  land_use_mode_support)
-
-## Commenting and highlighting the general sheet
-writeComment(lu_excel_support, "mode", col = 1, row = 1, 
-             comment = createComment("Identification of the Dissemination area", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 2, row = 1, 
-             comment = createComment("Transportation mode used to commute to work.", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 3, row = 1, 
-             comment = createComment("Estimated number of people in labour force that commute using the transportation mode described in PwMode.", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 4, row = 1, 
-             comment = createComment("Number of respondents used to estimate the number of people in labour force.", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 5, row = 1, 
-             comment = createComment("Total of people (weighted) who mentioned working at this dissemination area (rounded).", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 6, row = 1, 
-             comment = createComment("Total of people (weighted) who mentioned working at this dissemination area (not rounded).", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 7, row = 1, 
-             comment = createComment("Number of respondent who mentioned working at this dissemination area (not rounded).", author = "Author"))
-writeComment(lu_excel_support, "mode", col = 8, row = 1, 
-             comment = createComment("Total population (weighted) in this dissemination area.", author = "Author"))
-
-addStyle(lu_excel_support, sheet = c("mode"),
-         style = createStyle(fgFill = "yellow"),
-         rows = 1:(nrow(land_use_mode_support)+1),
-         cols = c(1:8),
-         gridExpand = TRUE)
-
-saveWorkbook(lu_excel_support, paste0(diretorio_export, "land_use_support.xlsx"), overwrite = TRUE)
+write.csv(accessibilities_general, 
+          paste0(diretorio_export, "/support/accessibilities_general_support.csv"), row.names=FALSE)
 ```
 
-Exporting the ttm_f table (not for release):
 
-```{r export-ttm_f}
-write.csv(ttm_f, paste0(ttm_folder, "ttm_f.csv"), row.names=FALSE)
-```
-
-Legend for th exported files: 
+Legend for the exported files: 
 
 - `Original`: original files as calculated in this Rmarkdown *(NOT RELEASED BY RDC)*.
 - `Release`: files that can be released by RDC, after applied the vetting filters. 
