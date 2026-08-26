@@ -23,7 +23,7 @@ Suggests:
     sf,
     tmap, 
     fitdistrplus, 
-    ggplot
+    ggplot2
 Imports:
     dplyr (>= 1.0.0),
     rlang (>= 0.4.0),
