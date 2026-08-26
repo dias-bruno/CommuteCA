@@ -132,9 +132,25 @@ unique synthetic respondent.
 
   Visible minority status indicator.
 
-- HCDD:
+- HCDD_7V:
 
-  Highest certificate, diploma or degree obtained.
+  Education: Highest certificate, diploma or degree.
+
+- LayAB:
+
+  On temporary lay-off or absent from job or business.
+
+- REASN:
+
+  Reasons unable to start a job.
+
+- MRNFY2:
+
+  Main reason for not working the full year.
+
+- PWStat:
+
+  Commuting: Place of work status.
 
 - CFKID0T5:
 
