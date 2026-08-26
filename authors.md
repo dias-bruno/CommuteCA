@@ -10,16 +10,16 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/dias-bruno/CommuteCA/blob/master/DESCRIPTION)
+[`inst/CITATION`](https://github.com/dias-bruno/CommuteCA/blob/master/inst/CITATION)
 
-Dos Santos B, Paez A (2026). *CommuteCA: Standardized Methods for
-Accessibility Analysis in Canadian Research*. R package version 3.4,
-<https://github.com/dias-bruno/CommuteCA>.
+Dos Santos, B., & Paez, A. (2026). CommuteCA: Datasets and Methods for
+Job Accessibility in Canada. R package version 5.0. Retrieved from
+https://github.com/dias-bruno/CommuteCA
 
     @Manual{,
-      title = {CommuteCA: Standardized Methods for Accessibility Analysis in Canadian Research},
+      title = {CommuteCA: Datasets and Methods for Job Accessibility in Canada},
       author = {Bruno {Dos Santos} and Antonio Paez},
       year = {2026},
-      note = {R package version 3.4},
+      note = {R package version 5.0},
       url = {https://github.com/dias-bruno/CommuteCA},
     }

@@ -1,9 +1,9 @@
-# Maximum travel times in the Census Metropolitan Area.
+# Maximum Travel Times by Census Metropolitan Area
 
-This object contains the maximum travel times for commuting to work for
-all Census Metropolitan Area (CMA) in Canada, obtained from the Census
-of Population (2021). The methodology to obtain this data set is
-described in the R markdown 'making-data-v2.Rmd'.
+Maximum travel times for commuting to work for all Census Metropolitan
+Areas (CMAs) and Census Agglomerations (CAs) in Canada, obtained from
+the 2021 Census of Population. Travel times are calculated separately
+for each transportation mode.
 
 ## Usage
 
@@ -13,26 +13,41 @@ data(cma_max_travel_times)
 
 ## Format
 
-A simple feature class (sf) polygon object containing 596 rows and 3
-variables; each row represents a combination of CMA and transportation
-mode.
+A data frame with rows representing each combination of Census
+Metropolitan Area and transportation mode.
 
 - CMA:
 
-  Uniquely identifies a CMA.
+  Census metropolitan area code (3-digit).
 
-- PwMode:
+- CMANAME:
 
-  Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and
-  'Walk.'
+  CMA or CA name.
 
-- Max_time_value:
+- PR:
 
-  Maximum travel time for the CMA using the mentioned transportation
-  mode.
+  Province code (2-digit).
+
+- PRNAME:
+
+  Province or territory name.
+
+- PwMode_label:
+
+  Transportation mode. One of: 'Bike', 'Car-motorized', 'Public
+  transit', or 'Walk'.
+
+- Maximum_travel_time:
+
+  Maximum commuting duration (in minutes) for the given CMA and mode.
 
 ## Source
 
-"[Census of Population
-2021](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E)
-accessed September 11, 2024.
+Statistics Canada. (2021). Census of Population.
+<https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E>
+Reproduced and distributed on an "as is" basis with the permission of
+Statistics Canada. This aggregated dataset was produced from
+confidential microdata accessed at the Research Data Centre (RDC) at
+McMaster University and was vetted and approved for release in
+accordance with disclosure control requirements. Accessed December 19,
+2024.

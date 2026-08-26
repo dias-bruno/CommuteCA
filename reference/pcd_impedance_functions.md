@@ -1,11 +1,10 @@
-# Impedance functions for Canadian Census Divisions
+# Impedance Functions for Canadian Census Divisions
 
-This object contains impedance functions for Canadian Census Divisions
-(CDs) for job destinations, considering different transportation modes
-('Bike', 'Car', 'Transit', and 'Walk'). We estimated impedance functions
-using the fitdistrplus package, using the 'PwDUR' (Commuting duration)
-of the 2021 Census of Population. The best-fit function was defined by
-selecting the lowest Akaike information criterion.
+Impedance functions fitted to commuting duration distributions for
+Canadian Census Divisions (CDs). Functions were estimated using the
+`fitdistrplus` package based on PwDUR (commuting duration) data from the
+2021 Census of Population. The best-fit distribution was selected using
+the lowest Akaike Information Criterion (AIC).
 
 ## Usage
 
@@ -15,56 +14,66 @@ data(pcd_impedance_functions)
 
 ## Format
 
-A data frame containing 675 rows and 12 variables; each row represents a
-unique function.
+A data frame with 675 rows representing unique parameterized impedance
+functions for each combination of CD, transportation mode, and education
+level (where applicable).
 
 - PCD:
 
-  Uniquely identifies the census division.
+  Census division code (4-digit).
 
-- Pr:
+- PCDNAME:
 
-  Province or Territory.
+  Census division name.
 
 - CMA:
 
-  Census Metropolitan Area or Census Agglomeration unique identifier.
+  Census metropolitan area code (3-digit).
 
-- PwMode:
+- CMANAME:
 
-  Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and
-  'Walk.'
+  CMA or CA name.
 
-- distribution:
+- CMACATEG:
 
-  Name of the function that best adjusted the duration values
-  considering the specific location and transportation mode (can be
-  'exponential', 'norm', 'lnorm', 'gamma' or 'unif')
+  CMA category. One of: 'Census Metropolitan Area or Census
+  Agglomeration', 'Strong metropolitan influenced zone', 'Moderate
+  metropolitan influenced zone', 'No metropolitan influenced zone', or
+  'Territories (outside CAs)'.
+
+- PR:
+
+  Province code (2-digit).
+
+- PRNAME:
+
+  Province or territory name.
+
+- PwMode_label:
+
+  Transportation mode. One of: 'Bike', 'Car-motorized', 'Public
+  transit', or 'Walk'.
+
+- Distribution:
+
+  Best-fitting probability distribution. One of: 'Exponential',
+  'Normal', 'Log-normal', 'Gamma', or 'Uniform'.
 
 - est_1:
 
-  Estimate of the first parameter for the function described in
-  'distribution.'
+  First parameter estimate for the specified distribution.
 
 - est_2:
 
-  Estimate of the second parameter for the function described in
-  'distribution.'
-
-- loglike:
-
-  Log Likelihood obtained for the function 'distribution.'
-
-- AIC:
-
-  Akaike information criterion obtained for function 'distribution.'
-
-- BIC:
-
-  Bayesian information criterion obtained for function 'distribution.'
+  Second parameter estimate for the specified distribution.
 
 ## Source
 
-"2021 Census of Population, informations about the census is available
-[here](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E)
-accessed December 19th 2024.
+Statistics Canada. (2021). Census of Population.
+<https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E>
+Reproduced and distributed on an "as is" basis with the permission of
+Statistics Canada. This aggregated dataset was produced from
+confidential microdata accessed at the Research Data Centre (RDC) at
+McMaster University and was vetted and approved for release in
+accordance with disclosure control requirements. Accessed December 19,
+2024.

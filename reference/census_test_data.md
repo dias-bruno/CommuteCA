@@ -1,7 +1,11 @@
-# 2021 Census of Population Test Data
+# 2021 Census of Population Test Data for the Greater Toronto Metropolitan Area and Hamilton (GTAH)
 
-This object contains test data (fake observations created to represent
-the original version) of the Census of Population.
+A synthetic dataset representing the 2021 Census of Population for the
+Greater Toronto Metropolitan Area and Hamilton (GTAH). Contains 30,000
+artificial observations created to simulate the structure of the
+original census data while ensuring respondent confidentiality. This
+dataset includes additional demographic and socioeconomic variables when
+compared to the general test data.
 
 ## Usage
 
@@ -11,46 +15,50 @@ data(census_test_data)
 
 ## Format
 
-A data frame object containing 250,000 rows and 17 variables; each row
-represents a unique (fake) respondent.
+A data frame with 30,000 rows and 33 columns. Each row represents a
+unique synthetic respondent.
 
 - Frame_ID:
 
-  Unique identifier of the (fake) respondent.
+  Unique synthetic identifier for each respondent.
 
 - PRCDDA:
 
-  Refers to the dissemination area (DA) of current residence
+  Dissemination area code of current residence.
 
-- Pr:
+- PR:
 
-  Refers to the province or territory of current residence.
+  Province or territory code of current residence.
 
 - CMA:
 
-  Census metropolitan area or census agglomeration of current residence.
+  Census metropolitan area code of current residence.
 
 - PCD:
 
-  Census division of current residence.
+  Census division code of current residence.
+
+- POP_CNTR_IND:
+
+  Population centre indicator. If the person lives inside a population
+  centre (POPCTR) area and outside a population centre area (rural
+  areas)..
 
 - CompW1:
 
-  Weight for the households and dwellings universes.
+  Survey weight for households and dwellings universes.
 
 - LBR_FORC:
 
-  This variable refers to whether a person was employed, unemployed or
-  not in the labour force.
+  Labour force status.
 
 - CfInc_AT:
 
-  Total income of census family (sum of the total incomes of all members
-  of that family), after tax.
+  After-tax income of census family (Canadian dollars).
 
-- CFCNT:
+- CFCNT_PP:
 
-  Census family size (numbers of persons).
+  Census family size (number of persons).
 
 - CF_PnCF_NumEarners:
 
@@ -66,22 +74,85 @@ represents a unique (fake) respondent.
 
 - PWCD:
 
-  Census metropolitan area or census agglomeration of place of work.
+  Place of work census division.
 
 - PWCMA:
 
-  Place of work census division.
+  Place of work census metropolitan area.
 
 - PWDUR:
 
-  Commuting duration, it refers to the length of time, in minutes,
-  usually required by a person to travel to their place of work.
+  Commuting duration in minutes.
 
 - PWDist:
 
-  Distance (straight line) from home to work.
+  Straight-line distance from home to work (km).
 
 - PwMode:
 
-  Main mode of commuting' refers to the main mode of transportation a
-  person uses to travel to their place of work.
+  Main mode of transportation to work.
+
+- Mob5:
+
+  Mobility status - place of residence 5 years ago (2016).
+
+- AGE:
+
+  Age of respondent (in years).
+
+- GENDER_BINARY:
+
+  Binary gender of respondent.
+
+- LoLICOA:
+
+  Low-income status based on LICO-AT (after tax).
+
+- LoLIMA:
+
+  Low-income status based on LIM-AT (after tax).
+
+- ACTLMFLG:
+
+  Activities of daily living indicator.
+
+- CFAMSTSIMPLE:
+
+  Type of census family.
+
+- IMMCAT5:
+
+  Immigration admission category.
+
+- PerImmA:
+
+  Immigrant status and period of immigration (5-year groups).
+
+- DVisMin:
+
+  Visible minority status indicator.
+
+- HCDD:
+
+  Highest certificate, diploma or degree obtained.
+
+- CFKID0T5:
+
+  Number of children aged 0-5 in census family.
+
+- Weeks:
+
+  Number of weeks worked during reference year.
+
+- LOKWK:
+
+  Looked for paid work in past four weeks (full/part-time).
+
+- GovtI_SocAssist:
+
+  Social assistance benefits received.
+
+## Note
+
+This is synthetic test data only and should not be used for analytical
+purposes.
