@@ -60,8 +60,6 @@ In the previous section, we developed spatial filters to address the likely endo
 
 We first model the relationship between each dependent variable (employment outcome) and a set of predictor variables, which include job accessibility indicators and socioeconomic characteristics. These models estimate the probability of an outcome occurring, conditional on a linear combination of the predictors. All models are estimated separately for disadvantaged and non-disadvantaged populations, as defined earlier in Section 6.
 
-Following this modelling stage, we identify equity-based accessibility standards: key thresholds of job accessibility for disadvantaged populations that correspond to more favourable employment outcomes.
-
 ## Suggested Readings
 
  -  Bastiaanssen, J., Johnson, D., & Lucas, K. (2025). *The relationship between individual employment probabilities and accessibility to matching jobs: A study of the Netherlands*. Transportation Research Part A: Policy and Practice, 193, 104398. 
@@ -129,7 +127,6 @@ Or if you have installed *CommuteCA*, you can access the *test* data:
 ```
 
 | ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
-
 
 Setting the folder with the accessibility measures and spatial filter:
 
@@ -283,14 +280,15 @@ assume the values:
 
 ```{r lf-selection}
 census_vetting <- census_filtered  %>%
-  dplyr::select("Frame_ID", "PRCDDA", "Pr", "CMA",  "PCD", "POP_CNTR_IND","CompW1",
-                
-                "LBR_FORC", "CfInc_AT", "CFCNT", "CF_PnCF_NumEarners", "PWDA",
-                "PWPR", "PWCD", "PWCMA", "PWDUR", "PWDist", "PwMode", "AGE",
-                #"MRNFY", 
+  dplyr::select("Frame_ID", "PRCDDA", "PR", "CMA",  "PCD",
+                "POP_CNTR_IND","CompW1", "LBR_FORC", "CfInc_AT", 
+                "CFCNT_PP", "CF_PnCF_NumEarners", "PWDA","PWPR", "PWCD", 
+                "PWCMA", "PWDUR", "PWDist", "PwMode", "AGE",
+                "HCDD_7V", "LayAB", "REASN", "MRNFY2", "PWStat", 
                 "GENDER_BINARY", "LOLICOA", "LoLIMA", "ACTLMFLG", 
                 "CFAMSTSIMPLE", "IMMCAT5", "PerImmA", "DVisMin", 
-                "HCDD", "CFKID0T5", "WEEKS", "LOKWK","Mob5", "GovtI_SocAssist")
+                "HCDD_7V", "CFKID0T5", "Weeks", "LOKWK","Mob5", 
+                "GovtI_SocAssist")
 
 census_filtered <- census_filtered %>% 
   filter(LBR_FORC == 1 | LBR_FORC == 2) %>%
@@ -672,13 +670,34 @@ respondents <- census_filtered_labeled %>%
 ```{r}
 respondents_filtered <- respondents %>%
   filter(
-    Mob5 == 6, # Place of residence 5 years ago, code 6: Same address (dwelling)
-    car_share < 30,  # DA in which car commuters represent less than 30% of the total population
-    #MRNFY %in% c(-5,5,7,8,9), 
-    !is.na(SA_pp_Transit), # Cases without accessibility values
-    !is.na(`SA_pp_Car_motor`), 
-    !is.na(SA_pp_Walk), 
-    !is.na(SA_pp_Bike))
+    # Place of residence 5 years ago, code 6: Same address (dwelling)
+    Mob5 == 6, 
+    car_share < 30, # DA in which car commuters represent less than 30% of the total population
+    # Main reason for not working the full year
+    # Removing cases in which the person could not work the full year due to school, 
+    # illness or disability, family responsibilities, pregnancy, retirement, seasonal work, etc
+    MRNFY2 %in% c(-5, # Worked full year in 2020 or did not work since January 1, 2020
+    5, # Unable to find work that lasted the full year
+    7, # Personal choice
+    9, # Other
+    11 # Business conditions
+    ), 
+    # Reasons unable to start a job
+    # Removing cases in which the person could not start a job due to school, 
+    # illness or disability, family responsibilities, etc
+    REASN %in% c(-5, # Hours > 0 or LOOKWORK = No
+                 1, # Could have started work, but did not find one
+                 2, # Already had a job
+                 6 # Other
+                 ),
+    # LayAB - Labour: On temporary lay-off or absent from job or business
+   !LayAB %in% c(-2), # remove cases of temporary lay-off
+   # Commuting: Place of work status
+   !PWStat %in% c(5), # Removing cases of people with a work address outside Canada 
+   !is.na(SA_pp_Transit), # Cases without accessibility values
+   !is.na(`SA_pp_Car_motor`), 
+   !is.na(SA_pp_Walk), 
+   !is.na(SA_pp_Bike))
 ```
 
 

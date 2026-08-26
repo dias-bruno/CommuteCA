@@ -73,7 +73,11 @@ utils::globalVariables(c( "pcd_impedance_functions", "cma_impedance_functions",
 #'   \item{IMMCAT5}{Immigration admission category.}
 #'   \item{PerImmA}{Immigrant status and period of immigration (5-year groups).}
 #'   \item{DVisMin}{Visible minority status indicator.}
-#'   \item{HCDD}{Highest certificate, diploma or degree obtained.}
+#'   \item{HCDD_7V}{Education: Highest certificate, diploma or degree.}
+#'   \item{LayAB}{On temporary lay-off or absent from job or business.}
+#'   \item{REASN}{Reasons unable to start a job.}
+#'   \item{MRNFY2}{Main reason for not working the full year.}
+#'   \item{PWStat}{Commuting: Place of work status.}
 #'   \item{CFKID0T5}{Number of children aged 0-5 in census family.}
 #'   \item{Weeks}{Number of weeks worked during reference year.}
 #'   \item{LOKWK}{Looked for paid work in past four weeks (full/part-time).}
