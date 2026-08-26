@@ -1,0 +1,1496 @@
+---
+title: "Calculating gravity-based accessibility and spatial availability of jobs (*Dissemination area* level)"
+runningheader: "a methodology for study areas in Canada based on the 2021 Census of Population" # only for pdf output
+subtitle: "A methodology for study areas in Canada based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
+This package was created in conjunction with the office of the
+[*Research Data Center* at *McMaster
+University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
+Scholarship*](https://scds.ca/) and the [*Mobilizing
+Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+
+Considering the number of workers and employment opportunities obtained
+from the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+this R markdown aims to create a methodology to obtain Hansen-type
+accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
+for all Canadian provinces and territories, considering different modes
+of travel.
+
+## Suggested Readings
+
+-   Soukhov, Anastasia, Antonio Paez, Christopher D Higgins, and Moataz
+    Mohamed. 2023."Introducing Spatial Availability, a
+    Singly-Constrained Measure of Competitive Accessibility." *Plos One*
+    18 (1): e0278468.
+-   Soukhov, A., Páez, A. (2024). Accessibility analysis for planning
+    applications (Report No. MJ-A2-0002). Mobilizing Justice.
+    <https://github.com/soukhova/MJ-Accessibility-Blogs>
+-   Pereira, Rafael H. M.; Herszenhut, Daniel. Introduction to urban
+    accessibility: a practical guide with R. Rio de Janeiro: Ipea, 2023.
+    152 p. ISBN: 978-65-5635-065-3. DOI:
+    <http://dx.doi.org/9786556350653>.
+
+# Libraries
+
+Load the packages:
+
+```{r load-packages}
+library('CommuteCA') # Access datasets and functions from CommuteCA R package
+library(dplyr)# A Grammar of Data Manipulation 
+library(fitdistrplus) # Help to Fit of a Parametric Distribution 
+library(scales) # Scale data column-wise in a computationally efficient way
+library(here) # Enable easy file referencing in project-oriented workflows
+library(openxlsx) # To save files in excel format
+library(tidyr) # To create tidy data
+```
+
+# Measuring accessibility
+
+In transportation research, accessibility is a location-based
+measure[^6] that refers to the potential of a *population* to reach
+spatially distributed *opportunities*[^7]. These often include
+destinations that are important to ensure that all members of society
+can lead plentiful, meaningful lives, such as jobs, parks, cultural
+activities, health services, education, and, in our case, *jobs*.
+
+[^6]: Location-based metrics measure accessibility as a characteristic
+    of a given location, assuming that all people in the same location
+    have equal access to activities distributed throughout the city.
+    Such measures are sensitive to land use and transportation factors
+    related to the spatial distribution of activities and the
+    configuration and performance of the transportation network.
+    However, they do not take into account the individual
+    characteristics of people.
+
+[^7]: We strongly recommend reading the report by Soukhov and Páez
+    (2024), which provides a detailed explanation of the components of
+    accessibility analysis, as well as their possible uses in equity
+    planning
+
+For our purposes, the population is the people residing in some origin
+(a DA) on the date of May 11, 2021[^8], and the opportunities are the
+jobs located in a given destination (a DA) with which the population
+interacts. The population uses a mode of transportation (for example,
+walking, cycling, public transit, car, motorcycle) to reach their
+destination, with a certain travel cost (distance, time, monetary cost
+or a combination of several factors).
+
+[^8]: Date used as reference for the 2021 Population Census
+
+The result of the accessibility model is a value assigned to each
+spatial unit - usually at the origin. Areas with high accessibility
+values have more connections and are closer to more opportunities, while
+areas with low values have the opposite.
+
+## Hansen-type accessibility (HT)
+
+The measure of Hansen [-@hansen1959] considers that the sum of
+opportunities in each destination in gradually discounted as the travel
+cost increases. In this case, opportunities that area easier to access
+counts more for the measure. Many accessibility measures derive from
+this work [@MJ-A2-0002], according to the equation:
+
+$$ HT_i = \sum_{j=1}^{J}O_j \cdot f(c_{ij})$$
+
+Where:
+
+-   $i$ and $j$: set of spatial units in a region.
+-   $O_j$: number of opportunities $O$ at destinations $j$.
+-   $f(c_{ij})$: travel cost function, also called decay-function or
+    impedance function.
+-   $HT_i$: accessibility score at the origin $i$ being represented by
+    the weighted sum of opportunities considering all destinations
+    $O_j$.
+    
+The next step is to select impedance functions to transform travel cost into a measure of the relative likelihood or attractiveness of reaching a destination.
+
+## Impedance functions
+
+The impedance function $f(c_{ij})$ reveals important information about
+the travel behavior of the population, as it represents the relationship
+between the "population" at an origin and where they usually go, want to
+go, or can go to reach the "opportunities" at the destinations.
+Therefore, defining the impedance function is extremely important.
+
+The decay rate of the impedance function needs to be calibrated if one
+wants the accessibility estimates to be representative of the people's
+travel behavior. In our case, we'll use the Census data in the
+calibration process.
+
+Soukhov and Páez [-@MJ-A2-0002] reviewed commonly used impedance
+functions $f(\bullet)$ in accessibility research, explaining their
+impacts on the summation of opportunities at specific travel costs
+$c_{ij}$. In this study, we will explore the following functions to
+determine the impedance function that best fits our data:
+[exponential](https://en.wikipedia.org/wiki/Exponential_distribution),
+[gamma](https://en.wikipedia.org/wiki/Gamma_distribution),
+[log-normal](https://en.wikipedia.org/wiki/Log-normal_distribution),
+[normal](https://en.wikipedia.org/wiki/Normal_distribution), and
+[uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution).
+
+## Spatial Availability
+
+Often, access to opportunities is affected by competition among many
+people seeking the same opportunity, not just by geographic proximity
+and transportation costs [@pereira2023]. If competition is not taken
+into account, it is assumed that the opportunity is equally available to
+all individuals who seek the opportunity and can reach it - which is not
+a problem if the opportunity of interest is not exclusive, so that use
+by one person does not prevent use by another.
+
+Hansen [-@hansen1959], apart from his innovative implementation of an
+accessibility measure, does not consider competition in the distribution
+of opportunities. Also, this measure is considered an unconstrained
+measure, which means that the same opportunity can be allocated to
+different origins, making it difficult to interpret the result. Another
+difficulty in interpreting the result is caused by the way in which the
+number of job opportunities is discounted by the cost of travel.
+
+With the goal of including competition in the accessibility measures and
+constraining the opportunity calculation to a known quantity,
+[@soukhov2023] created the *spatial availability* measure. This study
+also provides a more interpretable result because it guarantees that the
+measures are summed to a predetermined value, e.g. the total number of
+jobs in a region, so that each value at the origin can be meaningfully
+related to this total.
+
+$$ SA_i = \sum_{j=1}^{J}O_j \cdot F_{ij}^t$$
+
+Where:
+
+-   $SA_i$ is the number of spatially available opportunities from the
+    perspective of $i$.
+-   $O_j$ is the number of opportunities $O$ at the destination $j$.
+-   $F_{ij}$ is a balancing factor that depends on the population and
+    cost of travel in the system.
+
+Being $f(c_{ij})$ the impedance function and $P_i$ is the population at
+origin i, the balancing factor $F_{ij}$ consists of two components:
+
+-   $F_{i}^{p}$, a population-based balancing factor that allocate
+    opportunities to $i$ in proportion to the size of the population of
+    the different competing centers. With:
+
+$$F_{i}^{p} = \frac{P_i}{\sum_{i}P_i}$$
+
+-   and $F_{ij}^{c}$, an impedance-based balancing factor that
+    represents the cost of reaching opportunities. With:
+
+$$F_{i}^{c} = \frac{f_{(c_ij)}}{\sum_{i}f_{(c_{ij})}}$$ We can obtain
+$F_{ij}$ by:
+$$ F_{ij}^{t} = \frac{F_i^{p} \cdot F_{ij}^{(c_ij)}}{\sum_{i}F_i^{p} \cdot F_{ij}^{(c_ij)}} $$
+
+# Let's code!
+
+The methodology for obtaining the accessibility measures using the Canadian
+Census consists of the following steps:
+
+1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021]. The methodology used to obtain the travel time table is in the *03_preprocessing_files.Rmd*. 
+
+2.  After this, we extract the commute time to work declared by the Census respondents, in order to calibrate the impedance functions for each transportation mode.
+
+3.  We then apply the impedance functions to the travel time table.
+
+4.  Next, we create a land use table. This table contains the labour force population and the number of job opportunities for each dissemination area.
+
+5.  We then apply the impedance functions to the travel time table, obtaining an impedance value for each origin-destination travel time.
+
+5.  We combine travel times with the tables of impedance values, labour force, and employment opportunities to create an accessibility table, which contains the information on origin, destination, mode of transportation, impedance, labour force, and employment opportunities needed to calculate accessibility.
+
+6.  Finally, we perform the Hansen accessibility type and the multimodal spatial availability.
+
+
+## Data
+
+The dataset used in this demonstration is test data produced to
+replicate the variables available in the original Census of Population.
+The test data contains 200,000 rows and 17 columns. As in the original census data,
+each row refers to a respondent and each column refers to a
+variable[^2].\
+The creation of test data was necessary because the surveys
+provided by Statistics Canada are confidential and cannot be accessed
+outside of a Research Data Center.
+
+[^2]: You can check out more information about the Census on the
+    [Dictionary
+    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
+
+If you want to work with the original Census dataset, the process for
+obtaining the accessibility measures will be the same as for the
+test data, except that you will have to update the address of the
+file in the chunk[^3] called *load-census-data*.
+
+[^3]: A code chunk is an executable part of the R code
+
+For this R markdown, we'll use the following variables[^4]:
+
+[^4]: The explanation of each variable can be found in the [*2021 Census
+    of Population's
+    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
+
+|              |                                                                                                                                 |
+|------------------------|------------------------------------------------|
+| **Variable** | **Description**                                                                                                                 |
+| PRCDDA       | Refers to the dissemination area (DA) of current residence.                                                                     |
+| Pr           | Refers to the province or territory of current residence.                                                                       |
+| CMA          | Census metropolitan area or census agglomeration of current residence.                                                          |
+| PCD          | Census division of current residence.                                                                                           |
+| CompW1       | Weight for the households and dwellings universes.                                                                              |
+| LBR_FORC     | This variable refers to whether a person was employed, unemployed or not in the labour force.                                   |
+| PWDA         | Place of work dissemination area.                                                                                               |
+| PWPR         | Place of work province.                                                                                                         |
+| PWCMA        | Census metropolitan area or census agglomeration of place of work.                                                              |
+| PWCD         | Place of work census division.                                                                                                  |
+| PWDUR        | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
+| PwMode       | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.               |
+
+: Census variables used in this R markdown.
+
+A dissemination area (DA) is a small, relatively stable geographic unit
+composed of one or more adjacent dissemination blocks. It is the
+smallest standard geographic area for which all census data are
+disseminated. DAs cover all Canadian territory.
+
+We will also use the travel time table created in the previous step, in
+the R markdown called *03_travel_times.Rmd*.
+
+Reading census data and creating a R data frame[^9]:
+
+[^9]: For this demonstration, we will use the case of the city of
+    Toronto. If you want to use the other options, the original data
+    from the Census in an RDC office or the test data for all
+    locations in Canada, *update* the address in the chunk.
+
+```{r}
+# For the original Census data set
+# files_address <- paste0(here(),"insert-the-RDC-address.csv!!!")
+# census <- read.csv(files_address, header = TRUE)
+```
+
+If the original Census dataset available in the RDC is not in `.csv` (comma-separated values) format but is instead provided in other formats such as SPSS, SAS, or SAS Data, you can use the foreign package (a built-in R library) to import it:
+
+```{r}
+# library(foreign)
+# foreign::read.dta(files_address) # For Stata
+# foreign::read.spss(files_address) # For SPSS
+# There are many other options! You can search for this library in the 'Packages' 
+# window and explore additional functions for reading your file. 
+```
+
+Or if you have installed *CommuteCA*, you can access the *test* data:
+
+```{r load-census-data}
+data("census_test_data")
+census <- census_test_data
+```
+
+| ⚠️**NOTE:**  If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
+
+Creating a backup version so we do not need to upload the census base again if something goes wrong: 
+```{r backup}
+census_backup <- census
+# census <- census_backup
+```
+
+
+The original census dataset has a wide variety of attributes. However,
+we will only work with a selection of these variables. The next chunk
+selects only the variables previously chosen for our analysis, reducing
+the size of the dataframe and making data processing faster:
+
+```{r select-variables-census}
+census <- census %>% 
+          dplyr::select("PRCDDA",
+                 "CMA",
+                 "PCD",
+                 "CompW1",
+                 "LBR_FORC",
+                 "PWDA",
+                 "PWCMA",
+                 "PWCD",
+                 "PWDUR",
+                 "PWDist",
+                 "PwMode")
+```
+
+Some of these variables should have been read as a factor variable. The
+next chunk corrects this problem by turning them into factors:
+
+```{r factoring-variables}
+census <- census %>% 
+          mutate_at(c("PRCDDA",
+                 "CMA",
+                 "PCD",
+                 "LBR_FORC",
+                 "PWDA",
+                 "PWCMA",
+                 "PWCD"), as.factor)
+```
+
+View summary statistics from the data frame:
+
+```{r census-summary}
+summary(census)
+```
+
+It's possible to filter the data frame by administrative (province
+and/or census division) and/or statistical (census metropolitan areas
+and census agglomerations)[^10]. The chunk below shows how to make this
+procedure:
+
+[^10]: As said before, we will perform our analysis for the city of
+    Toronto. If you want to select a specific area to work, uncomment
+    the code above that applies to your case and select the apropriate
+    code of your interest unit. Please, check the dictionary to have
+    more informations about the [provinces
+    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
+    [census
+    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
+    and [census metropolitan
+    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
+
+```{r filter-boundaries}
+code <- 3520 # census division of Toronto
+
+# # Filtering by census metropolitan areas and census agglomerations
+# census_filtered <- census %>%
+#                   filter(CMA == code & (PWCMA == code| LBR_FORC == 2)) 
+# Only select respondents who live in cma = code
+
+# census <- census %>% filter(CMA == code) 
+# Only select respondents who live in  cma = code (Census base)
+
+
+# # Filtering by census division
+census_filtered <- census %>%
+  # Select those who live or work in the census division
+   filter(PCD == code | PWCD == code) %>% 
+  # Select those who are in the labour force 
+   filter(LBR_FORC %in% c(1,2)) 
+
+# Only select respondents who live in  Toronto (Census base)
+census <- census %>% filter(PCD == code) 
+```
+
+According to the census code book, the variable 'PwMode' has the
+following possible values:
+
+-   -3: Not applicable.
+-   1: Car, truck or van - as a driver.
+-   2: Car, truck or van - as a passenger.
+-   3: Bus.
+-   4: Subway or elevated rail.
+-   5: Light rail, streetcar or commuter train.
+-   6: Passenger ferry.
+-   7: Walked.
+-   8: Bicycle.
+-   9: Motorcycle, scooter or moped.
+-   10: Other method.
+
+We'll rename the travel modes to facilitate the readability of the data.
+Additionally, we'll remove from our analysis travel modes signed as
+'Other methods':
+
+```{r rename-PwMode}
+census_filtered <- census_filtered  %>% 
+                   mutate(PwMode_label = 
+                            case_when(
+                              PwMode == -3 ~ "Other or non-commuter", 
+                              PwMode %in% c(1,2) ~ "Car-motorized",
+                              PwMode == 9 ~ "Car-motorized",
+                              PwMode >= 3 & PwMode <= 6  ~ "Public transit",
+                              PwMode == 7  ~ "Walk",
+                              PwMode == 8  ~ "Bike",
+                              PwMode == 10 ~ "Other or non-commuter"),
+                  PwMode_label = factor(PwMode_label, 
+                                        levels = c("Bike", "Walk", 
+                                                   "Car-motorized", 
+                                                   "Public transit", 
+                                                   "Other or non-commuter")))
+
+census <- census  %>% 
+                   mutate(PwMode_label = 
+                            case_when(
+                              PwMode == -3 ~ "Other or non-commuter", 
+                              PwMode %in% c(1,2) ~ "Car-motorized",
+                              PwMode == 9 ~ "Car-motorized",
+                              PwMode >= 3 & PwMode <= 6  ~ "Public transit",
+                              PwMode == 7  ~ "Walk",
+                              PwMode == 8  ~ "Bike",
+                              PwMode == 10 ~ "Other or non-commuter"),
+                  PwMode_label = factor(PwMode_label, 
+                                        levels = c("Bike", "Walk", 
+                                                   "Car-motorized", 
+                                                   "Public transit", 
+                                                   "Other or non-commuter")))
+```
+
+According to the Census 2021, an 'Employed' person refers to those who,
+during the reference period, had a labour force status of
+'employed.'[^11]. In addition, the labour force is made up of the
+employed population and the unemployed population. This variable can
+assume the values:
+
+[^11]: Those who, during the reference period: (a) Did any work at all
+    at a job or business, that is, paid work in the context of an
+    employer-employee relationship, or self-employment. This also
+    includes persons who did unpaid family work, which is defined as
+    unpaid work contributing directly to the operation of a farm,
+    business or professional practice owned and operated by a related
+    member of the same household; or (b) Had a job but were not at work
+    due to factors such as their own illness or disability, personal or
+    family responsibilities, vacation or a labour dispute. This category
+    excludes persons not at work because they were on layoff or between
+    casual jobs, and those who did not then have a job (even if they had
+    a job to start at a future date).
+
+-   -3: Not Applicable, \< 15 years
+-   1: In Labour Force, Employed
+-   2: In Labour Force, Unemployed
+-   3: Not in Labour Force
+
+Each employee also declares in which DA their workplace is located. This
+information is important for the accessibility analysis, as it allows us
+to count the number of job opportunities in each DA.
+
+```{r employed-selection}
+# Employed respondents
+census_employed <- census_filtered %>% 
+                   filter(LBR_FORC == 1)
+```
+
+# Trip length distribution
+
+All of the impedance functions mentioned require the analyst to define
+parameters. One useful technique is to create a trip length distribution
+(TLD) using empirically observed origin-destination travel survey data.
+A TLD reflects observed travel patterns: specifically, the probability
+of an observed trip of a given travel cost occurring for the population
+in a region of interest. Based on the TLD, we can select the most
+appropriate theoretical PDF forms (e.g., uniform, exponential, gamma),
+adjust the associated parameters, and use the calibrated theoretical PDF
+to incorporate the assumptions about the population's travel behavior
+into the accessibility calculation.
+
+Soukhov and Páez [-@MJ-A2-0002] demonstrated the process of calibrating
+and selecting the best distribution to represent an impedance function
+based on travel flows from workers who live and work (full-time) within
+the City of Hamilton. The authors used the data from the R data package
+[{TTS2016R}](https://soukhova.github.io/TTS2016R/) and the R package
+[{fitdistrplus}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html)
+to generate parameters that best fit the TLD the parameters of the
+uniform, exponential, and gamma functions as closely to the TLD.
+
+The next chunks of code of this section aim to calibrate the PDF
+function based on the 2021 Census Data.
+
+## Empirical travel time
+
+Extracting the travel times for each mode:
+
+```{r extrating-travel-times}
+# Besides it is possible a travel-time of 0 minutes, 
+# we need to substitute this value because the functions used bellow 
+# to define the best impedance function does not accept zero 
+# as a valid value. Because of this, we'll change all zero values 
+# to 1 minute travel-time.
+
+census_employed <- census_employed %>%
+  mutate(PWDUR = if_else(PWDUR == 0, 1, PWDUR)) 
+
+# Bike travel times
+df_tt_bike <- census_employed %>% 
+  filter(PwMode_label == 'Bike') %>%
+  dplyr::select(PWDUR, CompW1) %>%
+  mutate(mode = "Bike")
+
+# Car travel times
+df_tt_car <- census_employed %>% 
+  filter(PwMode_label == 'Car-motorized') %>%
+  dplyr::select(PWDUR, CompW1) %>%
+  mutate(mode = "Car-motorized")
+
+# Transit travel times
+df_tt_transit <- census_employed %>% 
+  filter(PwMode_label == 'Public transit') %>%
+  dplyr::select(PWDUR, CompW1) %>%
+  mutate(mode = "Public transit")
+
+# Walk travel times
+df_tt_walk <- census_employed %>% 
+  filter(PwMode_label == 'Walk') %>%
+  dplyr::select(PWDUR, CompW1) %>%
+  mutate(mode = "Walk")
+```
+
+Creating a data frame with the all empirical travel times:
+
+```{r empiric-travel-times}
+# Bind the empirical trip length distribution:
+tld_empirical <- rbind(df_tt_bike,
+      df_tt_car,
+      df_tt_transit,
+      df_tt_walk) %>%
+  mutate(mode = factor(mode,
+                       levels = c("Bike", "Walk", 
+                                  "Car-motorized", "Public transit")),
+         distribution = "empirical") 
+
+tld_empirical$PWDUR <- as.numeric(tld_empirical$PWDUR)
+```
+
+## Theoretical travel time
+
+Now that we already have the travel times for each mode of
+transportation, we will try to create a impedance function that better
+describes the travel pattern of the respondents in each mode. To do so,
+we'll first create a function that based on the lowest Akaike
+Information Criterion (AIC)[^12], selects the better function between
+the distributions:
+[exponential](https://en.wikipedia.org/wiki/Exponential_distribution),
+[gamma](https://en.wikipedia.org/wiki/Gamma_distribution),
+[log-normal](https://en.wikipedia.org/wiki/Log-normal_distribution),
+[normal](https://en.wikipedia.org/wiki/Normal_distribution), and
+[uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution).
+
+[^12]: The Akaike Information Criterion (AIC) estimates prediction error
+    and model quality for a given data set.
+
+We'll use the
+[{fitdistrplus}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html)
+to determine the parameters that best fit the TLD. The Moment Matching Estimation (MME) fitting method and the Nelder-Mead
+direct optimization algorithm are used [@mullerdutang2015].
+
+```{r lowest-aic-function}
+# Select the distribution function based on the lowest AIC value
+lowest_aic <- function(values){
+  
+  min_aic <- min(values)
+  
+  if(!is.na(lnorm_$aic) & min_aic == lnorm_$aic){
+    choosen_f <- lnorm_
+  }
+  
+  else if  (!is.na(gamma_$aic) & min_aic == gamma_$aic){
+    choosen_f <- gamma_
+  }  
+  
+  else if  (!is.na(unif_$aic) & min_aic == unif_$aic){
+    choosen_f <- unif_
+  }  
+  
+  else if  (!is.na(norm_$aic) & min_aic == norm_$aic){
+    choosen_f <- norm_
+  }
+  else if  (!is.na(exp_$aic) & min_aic == exp_$aic){
+    choosen_f <- exp_
+  }
+  
+  return(choosen_f)
+}
+
+# Test the distributions
+test_distributions_weighted <- function(x, weights){
+  gamma_ <<- fitdistrplus::fitdist(data = x, "gamma", method="mme", weights = weights)
+  lnorm_ <<- fitdistrplus::fitdist(data = x, "lnorm", method="mme", weights = weights)
+  norm_ <<- fitdistrplus::fitdist(data = x, "norm", method="mme", weights = weights)
+  exp_ <<- fitdistrplus::fitdist(data = x, "exp", method="mme", weights = weights)
+  unif_ <<- fitdistrplus::fitdist(data = x, "unif", method="mme", weights = weights)
+  
+  values <- c(lnorm_$aic, gamma_$aic, unif_$aic, norm_$aic, exp_$aic)
+  values <- values[!is.na(values)]
+  
+  chosen_function <- lowest_aic(values)
+
+  return(chosen_function)
+}
+```
+
+Obtaining the theoretical impedance function for the bike mode:
+
+```{r bike-function}
+mode <- 'Bike'
+bike_function <- test_distributions_weighted(
+  x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR,
+  weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
+
+bike_function
+name_function <- bike_function
+bike_function_df <- data.frame("PwMode_label"=  as.factor(mode), 
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(
+                                 name_function$distname == "unif", 0, 
+                                 name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1],
+                                               ifelse(name_function$distname == "exp",
+                                                      0, name_function$estimate[2])))
+```
+
+Obtaining the theoretical impedance function for the car mode:
+
+```{r car-function}
+mode <- 'Car-motorized'
+car_function <- test_distributions_weighted(
+  x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR,
+  weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
+
+car_function
+
+name_function <- car_function
+car_function_df <- data.frame("PwMode_label"=  as.factor(mode),  
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif",
+                                                0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1],
+                                               ifelse(name_function$distname == "exp",
+                                                      0, name_function$estimate[2])))
+```
+
+Obtaining the theoretical impedance function for the transit mode:
+
+```{r transit-function}
+mode <- 'Public transit'
+transit_function <- test_distributions_weighted(
+  x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR, 
+  weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
+
+transit_function
+
+name_function <- transit_function
+transit_function_df <- data.frame("PwMode_label"=  as.factor(mode),  
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif",
+                                                0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                                name_function$estimate[1],
+                                                ifelse(name_function$distname == "exp",
+                                                       0, name_function$estimate[2])))
+```
+
+Obtaining the theoretical impedance function for the walk mode:
+
+```{r walk-function}
+mode <- 'Walk'
+walk_function <- test_distributions_weighted(
+  x = tld_empirical[tld_empirical$mode == mode, ]$PWDUR,
+  weights = round(tld_empirical[tld_empirical$mode == mode, ]$CompW1))
+walk_function
+
+name_function <- walk_function
+walk_function_df <- data.frame("PwMode_label"= as.factor(mode), 
+                               "distribution" = name_function$distname, 
+                               "est_1" = ifelse(name_function$distname == "unif",
+                                                0, name_function$estimate[1]),
+                               "est_2" = ifelse(name_function$distname == "unif",
+                                               name_function$estimate[1],
+                                               ifelse(name_function$distname == "exp",
+                                                      0, name_function$estimate[2])))
+```
+
+Visualizing the calibrated functions: 
+
+```{r}
+all_functions <- rbind(walk_function_df, bike_function_df, 
+                        transit_function_df, car_function_df)
+
+all_functions
+```
+
+
+The chunk below aims to display the
+theoretical values obtained in the chunks above and also create a new
+data based on the theoretical distribution for each transportation mode. 
+
+To do this, we will use the `generate_impedance` function, from `CommuteCA`:
+
+```{r theoretical-values}
+max_dur <- max(tld_empirical$PWDUR)
+
+expanded_df <- all_functions[rep(seq_len(nrow(all_functions)), each = max_dur), ]
+
+expanded_df$t <- rep(seq_len(max_dur), times = nrow(all_functions))
+
+rownames(df) <- NULL
+
+tld_theoretical <- generate_impedance(df = expanded_df,
+                                      travel_cost_col = "t",
+                                      distribution_col = "distribution",
+                                      est1_col = "est_1",
+                                      est2_col = "est_2",
+                                      output_col = "f")
+tld_theoretical <- tld_theoretical %>% 
+  rename(mode = PwMode_label)
+```
+
+Plotting the theoretical (black lines) and the empirical travel time
+distributions (bars):
+
+```{r travel-time-plots, fig.fullwidth = TRUE}
+# par(mfrow = c(2, 2))  # Arrange plots in a 2x2 grid
+# 
+# # Loop through each mode
+# for (mode in unique(tld_empirical$mode)) {
+#   # Subset empirical and theoretical data for the current mode
+#   empirical_subset <- tld_empirical[tld_empirical$mode == mode, ]
+#   theoretical_subset <- tld_theoretical[tld_theoretical$mode == mode, ]
+#   
+#   # Create histogram for empirical data
+#   hist(empirical_subset$PWDUR, freq = FALSE, col = "grey70", breaks = 30, 
+#        main = paste(mode),
+#        xlab = "Travel time from home to work (min)", ylab = "Density")
+#   
+#   # Add theoretical curve
+#   lines(theoretical_subset$t, theoretical_subset$f)
+# }
+# 
+# # Reset plotting parameters
+# par(mfrow = c(1, 1))
+```
+
+# Reading and preparing the travel matrix table
+
+Reading the travel time table created in the *03_processing_files.Rmd*^[*Remember that you may need to update this address.*]:
+
+```{r read-ttm}
+ttm_folder <- paste0(here(),"/data-raw/output/PCD",code,"/DA/travel_times/")
+ttm_file <- paste0(ttm_folder,"ttm.csv")
+
+ttm <- read.csv(ttm_file) # Travel time table address
+```
+
+Visualizing some statistics about the travel time matrix:
+
+```{r ttm-statistics}
+ttm %>% 
+  group_by(PwMode_label) %>% 
+  dplyr::summarize(mean_tt = mean(travel_time),
+            median_tt = median(travel_time),
+            min_tt = min(travel_time),
+            max_tt = max(travel_time))
+```
+
+The value of impedance function for each origin-destination-mode will be
+obtained using travel time of the ttm table and the best impedance
+function based on the empirical length distributions. For that, we use the `generate_impedance` function from `CommuteCA`:
+
+```{r impedance-function-DA, warning = FALSE, message = FALSE}
+ttm_f <- data.frame()
+
+# Updating cases in which the travel time is equal to 0 to 1 minute
+ttm <- ttm %>% 
+  mutate(travel_time = case_when(travel_time == 0 ~ 1, 
+                                 TRUE ~ travel_time))
+
+ttm <- ttm %>% 
+  left_join(all_functions, by = "PwMode_label")
+
+ttm_f <- generate_impedance(ttm, 
+                            travel_cost_col = "travel_time",
+                            distribution_col = "distribution",
+                            est1_col = "est_1", 
+                            est2_col = "est_2")
+```
+
+Checking if there are any case without impedance value:
+
+```{r}
+is.na(any(ttm_f$f))
+```
+
+# Generating the Land-use table
+
+We now need to determine the labour force and job opportunities for each spatial unit. We will distribute the non-commuter labour force (whether because they work from home, have no fixed workplace, or are unemployed) and labour force who commute using other modes (not specified in the census) across the other transportation modes proportionally to:
+
+1) The share of these other modes in the dissemination area;
+2) The share of these other modes in the municipality (PCD).
+
+We perform this distribution because accessibility analyses assume that people will move from their origin to reach the destination/opportunities. 
+
+Creating the labour force table:
+
+```{r}
+# Total commuters by PRCDDA and PwMode_label
+commuters <- census_employed %>%
+  filter(!PwMode_label == "Other or non-commuter") %>%
+  group_by(PRCDDA, PwMode_label) |> 
+  dplyr::summarize(commuters_mode = sum(CompW1),
+            commuters_mode_n = n(), 
+            .groups = "drop")
+
+# commuter population by PRCDDA
+commuters <- commuters %>%
+            group_by(PRCDDA) %>% 
+            mutate(all_commuters = sum(commuters_mode), 
+                   all_commuters_n = sum(commuters_mode_n), 
+                   perc_mode =  commuters_mode/all_commuters) 
+
+# For cases when the DA there's only non_commuters respondents
+general_perc_mode <- commuters %>%
+  group_by(PwMode_label) %>%
+  summarise(general_pop_mode = sum(commuters_mode)) %>%
+  mutate(general_pop = sum(general_pop_mode),
+         perc_pcd = general_pop_mode/general_pop)
+```
+
+
+```{r creating-labour-force-table}
+# Total non commuters population by PRCDDA
+non_commuters <- census_filtered %>%
+  filter(PwMode_label == "Other or non-commuter") %>% 
+  # Considering the category 'Other' as non-commuter
+  group_by(PRCDDA) %>% 
+  dplyr::summarize(all_non_commuters = sum(CompW1),
+            all_non_commuters_n = n(),
+            .groups = "drop") 
+```
+
+
+
+```{r}
+# Allocating the non_commuters according to the share of each population mode
+grid_exp <- expand.grid(PRCDDA = unique(census_filtered$PRCDDA), 
+                        PwMode_label = unique(commuters$PwMode_label))
+
+commuters_exp <- grid_exp %>% 
+  left_join(commuters, by = c("PRCDDA","PwMode_label"))
+
+labour_force_support <- commuters_exp %>% 
+  left_join(non_commuters, by = c("PRCDDA")) %>% 
+  left_join(general_perc_mode %>% dplyr::select(PwMode_label, perc_pcd), 
+            by = "PwMode_label") 
+
+labour_force_support <- labour_force_support %>%
+  mutate(perc_final = if_else(is.na(perc_mode), as.numeric(perc_pcd), perc_mode)) %>%
+  group_by(PRCDDA) %>%
+  mutate(perc_final = perc_final / sum(perc_final, na.rm = TRUE)) %>%
+  ungroup() # making sure that the sum of mode percentages is equal to 1
+
+labour_force_support <- labour_force_support %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0)))
+
+labour_force_support <- labour_force_support %>%
+  mutate(labour_force = (all_non_commuters * perc_final) + commuters_mode) %>%
+  mutate(PRCDDA = as.character(PRCDDA)) %>%
+  filter(startsWith(PRCDDA, as.character(code)))
+```
+
+```{r selecting-var-labour-table}
+labour_force <- labour_force_support %>% 
+  dplyr::select(PRCDDA, PwMode_label, labour_force)
+```
+
+Creating the jobs table:
+
+```{r creating-jobs-table}
+# Total job opportunities 
+jobs <- as.data.frame(census_employed) |> 
+  group_by(PWDA) |> 
+  dplyr::summarize(jobs = sum(CompW1), 
+            jobs_respondents = n(),
+            .groups = "drop")  %>%
+  filter(startsWith(as.character(PWDA), as.character(code)))
+```
+
+Creating a land use data frame with the following information for each
+DA: mode of transportation, number of potential workers by mode, and
+number of jobs.
+
+```{r create-land-use}
+land_use_support <- data.frame(expand.grid(
+  PRCDDA = union(labour_force$PRCDDA, jobs$PWDA),
+  PwMode_label = unique(commuters$PwMode_label)))
+
+land_use_support <- land_use_support %>% 
+  full_join(labour_force_support, by = c("PRCDDA","PwMode_label")) %>%
+  full_join(jobs, by = c("PRCDDA" = "PWDA"))
+```
+
+It is possible that the table junction results in NA values for the
+labour force or jobs column[^14]. Because of this, we'll assign a 0
+value to lines with NA values in number of jobs/labour force.
+
+[^14]: Imagine an industrial DA where there are a number of job
+    opportunities, but no one lives there. As another example, we could
+    take a strictly residential DA with many potential labour force
+    living there, but no job opportunities. In the first case, the
+    labour force will be 0, while in the second case, the number of jobs
+    will be 0.
+
+```{r fixing-OD}
+land_use_support <- land_use_support %>%
+  mutate(labour_force = coalesce(labour_force, 0),
+         jobs = coalesce(jobs, 0),
+         jobs_respondents = coalesce(jobs_respondents, 0)) %>% 
+  dplyr::select(PRCDDA, PwMode_label, 
+                labour_force, jobs, jobs_respondents)
+
+land_use <- land_use_support %>%
+  dplyr::select(PRCDDA, PwMode_label, labour_force, jobs)
+```
+
+Confirming whether the labour force and job opportunities in the OD
+matches the original data:
+
+```{r sum-works-jobs}
+# total labour force from census base 
+census_filtered %>%
+  filter(PCD == code) %>%
+  dplyr::select(CompW1) %>%
+  sum(na.rm = TRUE)
+
+# total labour force  
+sum(labour_force$labour_force)
+
+# total labour force in the land-use table
+sum(land_use$labour_force)
+```
+
+```{r}
+# total jobs from census base
+census_filtered %>% 
+  filter(LBR_FORC == 1, PWCD == code) %>% 
+  group_by(PWDA) %>% 
+  dplyr::summarize(jobs = sum(CompW1, na.rm = TRUE)) %>%
+  dplyr::select(jobs) %>%
+  sum(na.rm = TRUE)
+
+# total number of jobs 
+jobs %>% 
+  dplyr::select(jobs) %>%
+  sum(na.rm = TRUE)
+
+land_use %>% group_by(PRCDDA) %>%
+  dplyr::summarize(jobs = first(jobs)) %>%
+  dplyr::select(jobs) %>%
+  sum(na.rm = TRUE)
+```
+
+# Building the accessibility table
+
+The accessibility table is formed by the junction of the land use and
+travel times tables:
+
+```{r accessibility-table}
+accessibility_table <- ttm_f %>% 
+  dplyr::rename('PRCDDA' = from_id,
+         'PWDA' = to_id) %>%
+  mutate(PRCDDA = as.character(PRCDDA),
+         PWDA = as.character(PWDA)) %>% 
+  left_join(land_use[,c("PRCDDA","PwMode_label","labour_force")], 
+            by = c("PRCDDA" = "PRCDDA", "PwMode_label" = "PwMode_label")) %>%
+  left_join(land_use[,c("PRCDDA","PwMode_label", "jobs")],
+            by = c("PWDA" = "PRCDDA", "PwMode_label"))
+
+accessibility_table <- accessibility_table %>% 
+  mutate(labour_force = case_when(is.na(labour_force) ~ 0, 
+                                  TRUE ~ labour_force)) 
+
+accessibility_table <- accessibility_table %>%
+   group_by(PWDA) %>%
+   mutate(jobs = ifelse(is.na(jobs), 
+                        # Use max to get a non-NA value
+                        max(jobs, na.rm = TRUE), jobs), 
+          jobs = ifelse(is.infinite(jobs), 0, jobs)) %>%
+   ungroup()
+
+# Sometimes, a given DA may not have any jobs, resulting in all values in 
+# the jobs field being NA. As a result, the previous step may produce -Inf values 
+# since it's not possible to determine the maximum value in NA entries. 
+# To fix this, we replace all -Inf values with 0. 
+```
+
+Confirming the total number of jobs: 
+
+```{r}
+accessibility_table %>%
+  group_by(PWDA) %>%
+  summarise(job = first(jobs)) %>%
+  dplyr::select(job) %>%
+  sum()
+```
+
+```{r cleaning-env}
+# List of objects required for the next steps
+keep <- c("census", "census_backup", "land_use", 
+          "accessibility_table", "code", "land_use_support")
+all_objects <- ls()
+
+# Remove all objects except the ones in the keep list
+objects_to_remove <- setdiff(all_objects, keep)
+rm(list = objects_to_remove)
+rm(objects_to_remove)
+gc()
+```
+
+# Calculating the Hansen Accessibility
+
+Generating the Hansen-type accessibility (HT), by multiplying the number of jobs at each destination by the corresponding impedance value:
+
+```{r HT_i-hansen, warning = FALSE, message = FALSE}
+accessibility_table <- accessibility_table %>%
+  mutate(jobs_f = jobs * f)
+
+HT_mode <- accessibility_table %>%
+  group_by(PRCDDA, PwMode_label) %>%
+  dplyr::summarize(HT_im = sum(jobs_f)) %>%
+  left_join(land_use, by = c('PRCDDA','PwMode_label'))
+```
+
+The *HT_mode* presents the value of job accessibility for each DA by
+*mode*. The next chunk sum all *HT_i* values by DA of origin:
+
+```{r Hansen-i-da}
+HT <- HT_mode %>%
+  group_by(PRCDDA) %>%
+  dplyr::summarize(HT_i = sum(HT_im), 
+            labour_force = sum(labour_force),
+            jobs = first(jobs))
+```
+
+Visualizing the sum of the Hansen Accessibility (HT)[^16]:
+
+[^16]: Note that the value itself has no specific meaning, as it is just
+    the sum of the "weighted" jobs, but it can be interpreted as a
+    relative score of the potential interaction based on the observed
+    travel patterns of people residing in the specified region.
+
+```{r sum-HT}
+sum(HT$HT_i)
+```
+
+# Calculating Spatial Availability
+
+Now, we'll calculate the spatial availability using the `calculate_spatial_availability` function from `CommuteCA`:   
+
+```{r SA-soukov}
+# Apply the function to accessibility_table
+SA_ij_mode <- CommuteCA::calculate_spatial_availability(accessibility_table, 
+                       origin = PRCDDA,
+                       destination = PWDA,
+                       pop = labour_force,
+                       mode = PwMode_label,
+                       opp = jobs,
+                       f = f)
+```
+
+The table above displays the spatial availability for each combination
+of origin, destination and mode. The next chunk synthesize the
+information for each origin and mode:
+
+```{r Vim}
+SA_mode <- SA_ij_mode %>% 
+  group_by(PRCDDA,PwMode_label) %>%
+  summarise(SA_im = sum(SA_ij)) %>%
+  left_join(land_use, by = c('PRCDDA','PwMode_label')) %>% 
+  mutate(labour_force = ifelse(is.na(labour_force),0,labour_force),
+         jobs = ifelse(is.na(jobs),0,jobs))
+```
+
+The *SA_im* presents the value of spatial availability for each DA by
+*mode*. The next chunk sum all *SA* values by DA of origin:
+
+```{r V_i}
+SA <- SA_mode %>%
+  group_by(PRCDDA) %>%
+  dplyr::summarize(SA_i = sum(SA_im, na.rm = TRUE), 
+            labour_force = sum(labour_force, na.rm = TRUE),
+            jobs = first(jobs))
+```
+
+Visualizing the sum of spatial availability:
+
+```{r sum-Vi}
+sum(SA$SA_i, na.rm = TRUE)
+``` 
+
+Note that the sum of spatial availability matches with the total amount
+of job opportunities in the system. As explained above, this happens
+because this metric is constrained.
+
+## Spatial availability per person 
+
+To facilitate comparisons between spatial units with different geographic sizes - and given that the result of spatial availability is the number of jobs accessible in each spatial unit - we will express this value in terms of opportunity per-person. 
+
+For each origin and mode of transportation, the spatially available jobs are divided by the number of people in the corresponding labour force group:
+
+```{r}
+SA_mode <- SA_mode %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+
+SA <- SA %>% 
+  mutate(SA_pp_i = ifelse(labour_force == 0, 0, SA_i/labour_force))
+```
+
+## Considering active accessibility instead of walking and cycling accessibilities
+
+Sometimes, the number of walking and cycling commuters is very low when compared to car and public transit users. Because of this, might be interesting to evaluate junction of walking and cycling modes, as an active mode. 
+
+Following chunks transform the previous accessibility indicators into a 3-modes analysis:
+
+```{r}
+SA_mode_active <- SA_mode %>%
+  group_by(PRCDDA) %>%
+  summarise(jobs = first(jobs),
+    car_SA = sum(SA_im[PwMode_label == "Car-motorized"]),
+    car_labour = sum(labour_force[PwMode_label == "Car-motorized"]),
+    
+    pt_SA = sum(SA_im[PwMode_label == "Public transit"]),
+    pt_labour = sum(labour_force[PwMode_label == "Public transit"]),
+    
+    active_SA = sum(SA_im[PwMode_label %in% c("Bike", "Walk")]),
+    active_labour = sum(labour_force[PwMode_label %in% c("Bike", "Walk")])) %>%
+  pivot_longer(cols = contains("_"),
+               names_to = "var", values_to = "value") %>%
+  separate(var, into = c("mode", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(PwMode_label = case_when(mode == "car" ~ "Car-motorized",
+                                  mode == "pt"~ "Public transit",
+                                  mode == "active" ~ "Active")) %>%
+  dplyr::select(PRCDDA, PwMode_label, SA_im = SA, 
+                labour_force = labour, jobs)
+
+# Checking result
+sum(SA_mode_active$SA_im)
+sum(SA_mode$SA_im)
+
+sum(SA_mode_active$labour_force, na.rm = TRUE)
+sum(SA_mode$labour_force, na.rm = TRUE)
+```
+
+Calculating the spatial availability per person, but now for the three modes analysis: 
+
+```{r}
+SA_mode_active <- SA_mode_active %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+```
+
+# Confidentiality vetting
+
+Confidentiality vetting is the process of reviewing the results to be released by the Research Data Center to ensure that confidentiality risks for StatCan respondents are minimized. 
+
+The following rules apply to our results:
+
+- *Statistics must not be released for identifiable areas with less than 40 persons ($\sum{CompW1} ≥ 40$)*.	Statistics must not be released for identifiable areas with less than 40 persons. This condition is usually met with geography levels used at the RDCs. The population threshold can be applied to the (long form) weighted population estimate. 
+- *All statistics must be based on weighted data.*
+- *Counts must be based on at least 5 respondents, whose sum of weights is at least 10*.
+- In addition, *we cannot get count outputs at DA level*. For this reason, only the accessibility tables can be released. 
+
+The block above checks the total population of each DA:
+
+```{r da-vetting}
+weighted_DA <- census %>%
+  group_by(PRCDDA) %>%
+  dplyr::summarize(Weighted_pop_DA = sum(CompW1),
+            Respondents_DA = n(),
+            .groups = "drop")
+
+weighted_mode <- census %>%
+  group_by(PRCDDA, PwMode_label) %>% 
+  dplyr::summarize(Weighted_pop_mode = sum(CompW1),
+            Respondents_mode = n(),
+            .groups = "drop")
+
+weighted_3mode <- census %>%
+  mutate(PwMode_label = case_when(PwMode_label %in% c("Walk","Bike") ~ "Active",
+                                  TRUE ~ PwMode_label)) %>% 
+  group_by(PRCDDA, PwMode_label) %>% 
+  dplyr::summarize(Weighted_pop_mode = sum(CompW1),
+            Respondents_mode = n(),
+            .groups = "drop")
+
+vetting_accessibility <- weighted_mode %>%
+  left_join(weighted_DA, by = "PRCDDA") %>%
+  dplyr::select(PRCDDA, PwMode_label, Weighted_pop_DA, Respondents_DA, 
+                Respondents_mode, Weighted_pop_mode)
+
+vetting_accessibility_3mode <- weighted_3mode %>%
+  left_join(weighted_DA, by = "PRCDDA") %>%
+  dplyr::select(PRCDDA, PwMode_label, Weighted_pop_DA, Respondents_DA, 
+                Respondents_mode, Weighted_pop_mode)
+```
+
+Creating new files with the total DA population:
+
+```{r creating-release}
+# Hansen-type Accessibility
+HT_general_support <- HT %>% 
+  left_join(weighted_DA, by = c('PRCDDA' = 'PRCDDA')) %>% 
+  dplyr::select(PRCDDA, HT_i, Weighted_pop_DA)
+
+HT_mode_support <- HT_mode %>%
+  left_join(vetting_accessibility, 
+            by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
+  dplyr::select(PRCDDA, PwMode_label, HT_im, Weighted_pop_DA)
+
+# Spatial Availability 
+SA_general_support <- SA %>% 
+  left_join(weighted_DA, by = c('PRCDDA' = 'PRCDDA')) %>% 
+  dplyr::select(PRCDDA, SA_i, SA_pp_i, Weighted_pop_DA)
+
+SA_mode_support <- SA_mode %>% 
+  left_join(vetting_accessibility, 
+            by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
+  dplyr::select(PRCDDA, PwMode_label, SA_im, SA_pp_im, Weighted_pop_DA)
+
+SA_mode_active_support <- SA_mode_active %>% 
+  left_join(vetting_accessibility_3mode, 
+            by = c('PRCDDA' = 'PRCDDA','PwMode_label' = 'PwMode_label')) %>%
+  dplyr::select(PRCDDA, PwMode_label, SA_im, SA_pp_im, Weighted_pop_DA)
+```
+
+Apply the rules to avoid confidentiality risks for the accessibility tables: 
+
+```{r filter-support}
+HT_general_support <- HT_general_support %>%
+  filter(Weighted_pop_DA >= 40)
+
+SA_general_support <- SA_general_support  %>%
+  filter(Weighted_pop_DA >= 40)
+
+HT_mode_support <- HT_mode_support %>%
+  filter(Weighted_pop_DA >= 40)
+
+SA_mode_support <- SA_mode_support %>%
+  filter(Weighted_pop_DA >= 40)
+
+SA_mode_active_support <- SA_mode_active_support %>% 
+    filter(Weighted_pop_DA >= 40)
+```
+
+# Data export
+
+To finalize the methodology of this R markdown, we will export the
+processed data.
+
+Creating the directory:
+
+```{r directory-export}
+# Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/output/PCD",
+                           code,"/DA/accessibility-measures/") 
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE) 
+  dir.create(paste0(diretorio_export, "/original/"), recursive = TRUE)
+  dir.create(paste0(diretorio_export, "/release/"), recursive = TRUE)
+  dir.create(paste0(diretorio_export, "/support/"), recursive = TRUE)
+  }
+```
+
+Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.
+
+Export the original files for future consultations (this data can not be released by RDC):
+
+```{r export-original-files}
+# HT tables
+write.csv(HT, 
+          paste0(diretorio_export, "/original/HT_general_original.csv"), row.names=FALSE)
+write.csv(HT_mode, 
+          paste0(diretorio_export, "/original/HT_mode_original.csv"), row.names=FALSE)
+
+# SA tables 
+write.csv(SA, 
+          paste0(diretorio_export, "/original/SA_general_original.csv"), row.names=FALSE)
+write.csv(SA_mode, 
+          paste0(diretorio_export, "/original/SA_mode_original.csv"), row.names=FALSE)
+write.csv(SA_mode_active,
+          paste0(diretorio_export, "/original/SA_mode_active.csv"), row.names=FALSE)
+```
+
+## Export of Hansen tables:
+
+```{r export-HT_mode}
+write.csv(HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")],
+          paste0(diretorio_export, "/release/HT_mode_release.csv"), row.names=FALSE)
+write.csv(HT_mode_support, 
+          paste0(diretorio_export, "/support/HT_mode_support.csv"), row.names=FALSE)
+```
+
+```{r export-HT}
+write.csv(HT_general_support[,c("PRCDDA","HT_i")], 
+          paste0(diretorio_export, "/release/HT_general_release.csv"), row.names=FALSE)
+write.csv(HT_general_support, 
+          paste0(diretorio_export, "/release/HT_general_support.csv"), row.names=FALSE)
+```
+
+
+```{r}
+# HT Release
+ht_excel <- createWorkbook()
+addWorksheet(ht_excel, "general")
+addWorksheet(ht_excel, "mode")
+
+writeData(ht_excel, "general", HT_general_support[,c("PRCDDA","HT_i")])
+writeData(ht_excel, "mode",  HT_mode_support[,c("PRCDDA","PwMode_label","HT_im")])
+
+saveWorkbook(ht_excel, 
+             paste0(diretorio_export, "/release/HT_release.xlsx"), overwrite = TRUE)
+
+# HT Release
+ht_excel <- createWorkbook()
+addWorksheet(ht_excel, "general")
+addWorksheet(ht_excel, "mode")
+
+writeData(ht_excel, "general", HT_general_support)
+writeData(ht_excel, "mode",  HT_mode_support)
+
+saveWorkbook(ht_excel, 
+             paste0(diretorio_export, "/support/HT_support.xlsx"), overwrite = TRUE)
+```
+
+## Export of Spatial Availability tables:
+
+```{r export-SA-pp}
+write.csv(SA_general_support[,c("PRCDDA","SA_i","SA_pp_i")], 
+          paste0(diretorio_export, "/release/SA_general_release.csv"), row.names=FALSE)
+write.csv(SA_general_support, 
+          paste0(diretorio_export, "/support/SA_general_support.csv"), row.names=FALSE)
+```
+
+```{r export-SA-mode}
+write.csv(SA_mode_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")],
+          paste0(diretorio_export, "/release/SA_mode_release.csv"), row.names=FALSE)
+write.csv(SA_mode_support, 
+          paste0(diretorio_export, "/support/SA_mode_support.csv"), row.names=FALSE)
+```
+
+```{r export-SA_mode_active}
+write.csv(SA_mode_active_support[,c("PRCDDA","PwMode_label","SA_im", "SA_pp_im")],
+          paste0(diretorio_export, "/release/SA_mode_active_release.csv"), row.names=FALSE)
+write.csv(SA_mode_active_support, 
+          paste0(diretorio_export, "/support/SA_mode_active_support.csv"), row.names=FALSE)
+```
+
+```{r export-SA_ij_mode}
+# write.csv(SA_ij_mode, paste0(diretorio_export, "/original/SA_ij_mode.csv"), row.names=FALSE)
+```
+
+```{r}
+# SA Release
+sa_excel <- createWorkbook()
+addWorksheet(sa_excel, "general")
+addWorksheet(sa_excel, "mode")
+addWorksheet(sa_excel, "3mode")
+
+writeData(sa_excel, "general", SA_general_support[,c("PRCDDA","SA_i", "SA_pp_i")])
+writeData(sa_excel, "mode",  SA_mode_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")])
+writeData(sa_excel, "3mode",  SA_mode_active_support[,c("PRCDDA","PwMode_label","SA_im","SA_pp_im")])
+
+saveWorkbook(sa_excel, 
+             paste0(diretorio_export, "/release/SA_release.xlsx"), overwrite = TRUE)
+
+# SA Release
+sa_excel <- createWorkbook()
+addWorksheet(sa_excel, "general")
+addWorksheet(sa_excel, "mode")
+addWorksheet(sa_excel, "3mode")
+
+writeData(sa_excel, "general", SA_general_support)
+writeData(sa_excel, "mode",  SA_mode_support)
+writeData(sa_excel, "3mode",  SA_mode_active_support)
+
+saveWorkbook(sa_excel, 
+             paste0(diretorio_export, "/support/SA_support.xlsx"), overwrite = TRUE)
+```
+
+## Other files
+
+Export of land use table:
+
+```{r }
+# land use tables
+write.csv(land_use_support, 
+          paste0(diretorio_export, "/original/land_use_original.csv"), row.names=FALSE)
+```
+
+Accessibilities:
+
+```{r export-SA}
+accessibilities_mode <- SA_mode_support %>% 
+  left_join(HT_mode_support %>%
+              dplyr::select(PRCDDA, PwMode_label, HT_im),
+            by = c("PRCDDA", "PwMode_label"))
+
+accessibilities_general <- SA_general_support %>% 
+  left_join(HT_general_support %>%
+              dplyr::select(PRCDDA, HT_i),
+            by = c("PRCDDA"))
+
+write.csv(accessibilities_mode %>% 
+            dplyr::select(-Weighted_pop_DA),
+          paste0(diretorio_export, 
+                 "/release/accessibilities_mode_release.csv"), row.names=FALSE)
+
+write.csv(accessibilities_mode,
+          paste0(diretorio_export, 
+                 "/support/accessibilities_mode_support.csv"), row.names=FALSE)
+
+write.csv(accessibilities_general %>% 
+            dplyr::select(-Weighted_pop_DA),
+          paste0(diretorio_export,
+                 "/release/accessibilities_general_release.csv"), row.names=FALSE)
+
+write.csv(accessibilities_general, 
+          paste0(diretorio_export,
+                 "/support/accessibilities_general_support.csv"), row.names=FALSE)
+```
+
+
+Legend for the exported files: 
+
+- `Original`: original files as calculated in this Rmarkdown *(NOT RELEASED BY RDC)*.
+- `Release`: files that can be released by RDC, after applied the vetting filters. 
+- `Support`: files to support the RDC analyst to release the files.
+
+Also, the files are divided between `mode` (transportation mode) and `general` (without distinction by transportation mode)

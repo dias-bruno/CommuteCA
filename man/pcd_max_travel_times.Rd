@@ -3,30 +3,38 @@
 \docType{data}
 \name{pcd_max_travel_times}
 \alias{pcd_max_travel_times}
-\title{Maximum travel times in the Census Division.}
+\title{Maximum Travel Times by Census Division}
 \format{
-A simple feature class (sf) polygon object containing 1,083 rows and 3 variables; each row represents a combination of CD and transportation mode.
+A data frame with rows representing each combination of
+Census Division and transportation mode.
 \describe{
-\item{PCD}{Uniquely identifies a census division (composed of the 2 digit province or territory unique identifier followed by the 2 digit census division code).}
-\item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-\item{Max_time_value}{Maximum travel time for the CD using the mentioned transportation mode.}
+\item{PCD}{Census division code (4-digit: 2-digit province + 2-digit division).}
+\item{PCDNAME}{Census division name.}
+\item{PR}{Province code (2-digit).}
+\item{PRNAME}{Province or territory name.}
+\item{PwMode_label}{Transportation mode. One of: 'Bike', 'Car-motorized', 'Public transit', or 'Walk'.}
+\item{Maximum_travel_time}{Maximum commuting duration (in minutes) for the given CD and mode.}
 }
 }
 \source{
-"\href{https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E}{Census of Population 2021} accessed September 11, 2024.
+Statistics Canada. (2021). Census of Population.
+\url{https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E}
+Reproduced and distributed on an "as is" basis with the permission of Statistics Canada.
+This aggregated dataset was produced from confidential microdata accessed at the
+Research Data Centre (RDC) at McMaster University and was vetted and approved
+for release in accordance with disclosure control requirements.
+Accessed December 19, 2024.
 }
 \usage{
 data(pcd_max_travel_times)
 }
 \description{
-This object contains the maximum travel times for commuting to work for all Census Divisions (CD) in Canada,
-obtained from the Census of Population (2021). The methodology to obtain this data set is described in the
-R markdown 'making-data-v2.Rmd'.
+Maximum travel times for commuting to work for all Census Divisions (CDs)
+in Canada, obtained from the 2021 Census of Population. Travel times are
+calculated separately for each transportation mode.
 }
 \keyword{census}
 \keyword{division}
-\keyword{in}
 \keyword{maximum}
-\keyword{the}
 \keyword{time}
 \keyword{travel}

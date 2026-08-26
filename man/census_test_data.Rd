@@ -3,35 +3,63 @@
 \docType{data}
 \name{census_test_data}
 \alias{census_test_data}
-\title{2021 Census of Population Test Data}
+\title{2021 Census of Population Test Data for the Greater Toronto Metropolitan Area and Hamilton (GTAH)}
 \format{
-A data frame object containing 250,000 rows and 17 variables; each row represents a unique (fake) respondent.
+A data frame with 30,000 rows and 33 columns.
+Each row represents a unique synthetic respondent.
 \describe{
-\item{Frame_ID}{Unique identifier of the (fake) respondent.}
-\item{PRCDDA}{Refers to the dissemination area (DA) of current residence}
-\item{Pr}{Refers to the province or territory of current residence.}
-\item{CMA}{Census metropolitan area or census agglomeration of current residence.}
-\item{PCD}{Census division of current residence.}
-\item{CompW1}{Weight for the households and dwellings universes.}
-\item{LBR_FORC}{This variable refers to whether a person was employed, unemployed or not in the labour force.}
-\item{CfInc_AT}{Total income of census family (sum of the total incomes of all members of that family), after tax.}
-\item{CFCNT}{Census family size (numbers of persons).}
+\item{Frame_ID}{Unique synthetic identifier for each respondent.}
+\item{PRCDDA}{Dissemination area code of current residence.}
+\item{PR}{Province or territory code of current residence.}
+\item{CMA}{Census metropolitan area code of current residence.}
+\item{PCD}{Census division code of current residence.}
+\item{POP_CNTR_IND}{Population centre indicator. If the person lives inside a population centre (POPCTR) area and outside a population centre area (rural areas).. }
+\item{CompW1}{Survey weight for households and dwellings universes.}
+\item{LBR_FORC}{Labour force status.}
+\item{CfInc_AT}{After-tax income of census family (Canadian dollars).}
+\item{CFCNT_PP}{Census family size (number of persons).}
 \item{CF_PnCF_NumEarners}{Number of earners in census family.}
 \item{PWDA}{Place of work dissemination area.}
 \item{PWPR}{Place of work province.}
-\item{PWCD}{Census metropolitan area or census agglomeration of place of work.}
-\item{PWCMA}{Place of work census division.}
-\item{PWDUR}{Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work.}
-\item{PWDist}{Distance (straight line) from home to work.}
-\item{PwMode}{Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work.}
+\item{PWCD}{Place of work census division.}
+\item{PWCMA}{Place of work census metropolitan area.}
+\item{PWDUR}{Commuting duration in minutes.}
+\item{PWDist}{Straight-line distance from home to work (km).}
+\item{PwMode}{Main mode of transportation to work.}
+\item{Mob5}{Mobility status - place of residence 5 years ago (2016).}
+\item{AGE}{Age of respondent (in years).}
+\item{GENDER_BINARY}{Binary gender of respondent.}
+\item{LoLICOA}{Low-income status based on LICO-AT (after tax).}
+\item{LoLIMA}{Low-income status based on LIM-AT (after tax).}
+\item{ACTLMFLG}{Activities of daily living indicator.}
+\item{CFAMSTSIMPLE}{Type of census family.}
+\item{IMMCAT5}{Immigration admission category.}
+\item{PerImmA}{Immigrant status and period of immigration (5-year groups).}
+\item{DVisMin}{Visible minority status indicator.}
+\item{HCDD}{Highest certificate, diploma or degree obtained.}
+\item{CFKID0T5}{Number of children aged 0-5 in census family.}
+\item{Weeks}{Number of weeks worked during reference year.}
+\item{LOKWK}{Looked for paid work in past four weeks (full/part-time).}
+\item{GovtI_SocAssist}{Social assistance benefits received.}
 }
 }
 \usage{
 data(census_test_data)
 }
 \description{
-This object contains test data (fake observations created to represent the original version) of the Census of Population.
+A synthetic dataset representing the 2021 Census of Population for
+the Greater Toronto Metropolitan Area and Hamilton (GTAH). Contains 30,000 artificial observations created
+to simulate the structure of the original census data while
+ensuring respondent confidentiality. This dataset includes additional
+demographic and socioeconomic variables when compared to the general test data.
 }
+\section{Note}{
+
+This is synthetic test data only and should not be used for analytical purposes.
+}
+
 \keyword{census}
 \keyword{data}
+\keyword{synthetic}
 \keyword{test}
+\keyword{toronto}

@@ -106,7 +106,7 @@ library(weights) # Weights in R
 We will also load the following data frames for this session. The
 dataset used in this demonstration is test data produced to replicate
 the variables available in the original Census of Population. The test
-data contains 200,000 rows and 17 columns. As in the original census
+data contains 30,000 rows and over 30 columns, for respondents residing the Greater Toronto Metropolitan and Hamilton, in Ontario. As in the original census
 data, each row refers to a respondent and each column refers to a
 variable[^2].\
 The creation of test data was necessary because the surveys provided by
@@ -134,14 +134,12 @@ For this R markdown, we'll use the following variables[^4]:
 |--------------------------|----------------------------------------------|
 | **Variable** | **Description** |
 | PRCDDA | Refers to the dissemination area (DA) of current residence. |
-| Pr | Refers to the province or territory of current residence. |
+| PR | Refers to the province or territory of current residence. |
 | CMA | Census metropolitan area or census agglomeration of current residence. |
 | PCD | Census division of current residence. |
 | CompW1 | Weight for the households and dwellings universes. |
 | LBR_FORC | This variable refers to whether a person was employed, unemployed or not in the labour force. |
 | CfInc_AT | Total income of census family (sum of the total incomes of all members of that family), after tax. |
-| CFCNT | Census family size (numbers of persons). |
-| CF_PnCF_NumEarners | Number of earners in census family. |
 | PWDA | Place of work dissemination area. |
 | PWPR | Place of work province. |
 | PWCMA | Census metropolitan area or census agglomeration of place of work. |
@@ -154,7 +152,7 @@ We will use the function `read_csv()`to read the sheets in the format
 .csv . This is one of the format used by Research Data Centres to store
 their surveys.[^5]
 
-[^5]: \``Other formats also used are:`SAS`,`Stata`and`SPSS\`. For this
+[^5]: Other formats also used are: SAS, Stata and SPSS. For this
     case, use the
     {[foreign](https://cran.r-project.org/web/packages/foreign/index.html)}
     package.
@@ -174,7 +172,7 @@ package.
 ```
 
 ```{r reading-census}
-data(census_test_data)
+data("census_test_data")
 census <- census_test_data
 ```
 
@@ -211,15 +209,14 @@ example, for our census table we have[^6]:
     slow and will require a lot of RAM from your computer.
 
 ```{r}
-census <-  census %>% 
-  select("Frame_ID", "PRCDDA","Pr","CMA",
+census_filtered <-  census %>% 
+  dplyr::select("Frame_ID", "PRCDDA","PR","CMA",
          "PCD","CompW1","LBR_FORC",
-         "CfInc_AT","CFCNT","CF_PnCF_NumEarners",
-         "PWDA","PWPR","PWCD","PWCMA",
+         "CfInc_AT","PWDA","PWPR","PWCD","PWCMA",
          "PWDUR","PWDist","PwMode")
   
 
-summary(census)
+summary(census_filtered)
 ```
 
 The summary already gives us a important piece of information: in many
@@ -267,7 +264,7 @@ Additionally, we'll remove from our analysis travel modes signed as
 'Other methods':
 
 ```{r factoring-mode}
-census  <- census  %>% 
+census_filtered  <- census_filtered  %>% 
           filter(PwMode < 10) %>% 
           mutate(PwMode_label = case_when(
                   PwMode == -3 ~ "Not applicable",
@@ -287,7 +284,7 @@ census  <- census  %>%
 Now let's visualize the `PwMode` label summary:
 
 ```{r}
-summary(census$PwMode_label)
+summary(census_filtered$PwMode_label)
 ```
 
 A not applicable situation for this variable is when the respondent is
@@ -306,7 +303,7 @@ following values:
 In this case, we can update this variable as bellow:
 
 ```{r factoring-LBR_FORC}
-census <- census  %>% 
+census_filtered <- census_filtered  %>% 
           mutate(LBR_FORC_label = case_when(
                   LBR_FORC == -3 ~ "Not applicable",
                   LBR_FORC == 1  ~ "Employed",
@@ -322,7 +319,7 @@ Next chunk update all `-3` values to `Not applicable` for the other
 categorical variables:
 
 ```{r}
-census <- census %>%
+census_filtered <- census_filtered %>%
   mutate(across(c(PWDA, PWPR, 
                   PWCD, PWCMA), ~ ifelse(. == -3, "Not applicable", .)))
 ```
@@ -331,28 +328,27 @@ Finishing the pre-processing step, to increase the readability of the
 table, we will update the name of the provinces of the respondents:
 
 ```{r}
-census <- census %>%
-  mutate(Pr_label = case_when(
-    Pr == 10 ~ "Newfoundland and Labrador",
-    Pr == 11 ~ "Prince Edward Island",
-    Pr == 12 ~ "Nova Scotia",
-    Pr == 13 ~ "New Brunswick",
-    Pr == 24 ~ "Quebec",
-    Pr == 35 ~ "Ontario",
-    Pr == 46 ~ "Manitoba",
-    Pr == 47 ~ "Saskatchewan",
-    Pr == 48 ~ "Alberta",
-    Pr == 59 ~ "British Columbia",
-    Pr == 60 ~ "Yukon",
-    Pr == 61 ~ "Northwest Territories",
-    Pr == 62 ~ "Nunavut"), 
+census_filtered <- census_filtered %>%
+  mutate(Pr_label = case_when(PR == 10 ~ "Newfoundland and Labrador",
+    PR == 11 ~ "Prince Edward Island",
+    PR == 12 ~ "Nova Scotia",
+    PR == 13 ~ "New Brunswick",
+    PR == 24 ~ "Quebec",
+    PR == 35 ~ "Ontario",
+    PR == 46 ~ "Manitoba",
+    PR == 47 ~ "Saskatchewan",
+    PR == 48 ~ "Alberta",
+    PR == 59 ~ "British Columbia",
+    PR == 60 ~ "Yukon",
+    PR == 61 ~ "Northwest Territories",
+    PR == 62 ~ "Nunavut"), 
     Pr_label = as.factor(Pr_label))
 ```
 
 Visualizing the summary statistics:
 
 ```{r}
-summary(census)
+summary(census_filtered)
 ```
 
 Considering that the original census dataset is a very large data file,
@@ -363,7 +359,7 @@ the city of origin from the `PCD` variable. The `PCD` code for the city
 of Toronto is `3520`:
 
 ```{r}
-census_city <- census %>% 
+census_city <- census_filtered %>% 
   filter(PCD == 3520)
 ```
 
@@ -452,7 +448,7 @@ census_city |>
 ```
 
 The output shows that the `Employed` category is the mode of the
-`LBR_FORC` variable (considering the test data), representing around 75%
+`LBR_FORC` variable (considering the test data), representing around 60%
 of the cases. *However*, it is important to remember that the census
 survey contains the weight of each respondent, described by the variable
 `Compw1`. This means that all the statistics made for the general
@@ -661,10 +657,12 @@ CfInc_AT_statistics <- census_city %>%
                                             weights = CompW1)), 
                    Max = max(CfInc_AT),
                    Min = min(CfInc_AT))
+
+CfInc_AT_statistics
 ```
 
 The maximum average income of the person responsible for the household
-in the test data set for city of Toronto was R\$ $259,872.70$. Just how
+in the test data set for city of Toronto was R\$ $230,001$. Just how
 common or unusual is this value? That depends on how close (or far away)
 from the mean of the distribution this is, as well as on the spread of
 the distribution. The deviation from the mean is:
@@ -673,8 +671,8 @@ the distribution. The deviation from the mean is:
 CfInc_AT_statistics$Max - CfInc_AT_statistics$Mean
 ```
 
-That is, approximately R\$ $159,762$. But the typical deviation from the
-mean in the sample was about R\$ $62,009$! Now, calculating:
+That is, approximately R\$ $166,396.3$. But the typical deviation from the
+mean in the sample was about R\$ $63,604.72$! Now, calculating:
 
 ```{r}
 (CfInc_AT_statistics$Max - CfInc_AT_statistics$Mean)/CfInc_AT_statistics$SD
@@ -691,8 +689,8 @@ retrieve the minimum duration:
 CfInc_AT_statistics$Min
 ```
 
-That is, around \$ $3001$. Again, the typical deviation from the mean in
-the sample was R\$ $62,009$! So, calculating:
+That is, around \$ $998$. Again, the typical deviation from the mean in
+the sample was R\$ $63,604.72$! So, calculating:
 
 ```{r}
 (CfInc_AT_statistics$Min - CfInc_AT_statistics$Mean)/CfInc_AT_statistics$SD
@@ -713,12 +711,12 @@ relate to one another is another key aspect of EDA.
 Univariate description of a categorical variable involves tabulating the
 number of instances of each response. This can be expanded to
 simultaneously tabulating two categorical variables. We will summarise
-the variables `Pr` (Province) and `PwMode` (mode of transport), summing
+the variables `PR` (Province) and `PwMode` (mode of transport), summing
 all weights for each combination:
 
 ```{r}
-census %>%
-  group_by(Pr, PwMode) %>%
+census_filtered %>%
+  group_by(PR, PwMode) %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") 
 ```
 
@@ -789,7 +787,7 @@ weights::wtd.cor(x = census_city$PWDUR,
 ```
 
 The code above shows that the variables `PWDUR` and `PWDist` have a very
-high correlation (above 0.95), which makes sense, as travel time tends
+high correlation (above 0.9), which makes sense, as travel time tends
 to be longer when the distance from the destination is high.
 
 # Visualization techniques
@@ -942,7 +940,7 @@ ggplot(data = census_city) +
 Two categorical variables can be explored by means of count plots:
 
 ```{r}
-census %>%
+census_filtered %>%
   group_by(LBR_FORC_label, Pr_label) %>%
   summarise(weighted_n = sum(CompW1, na.rm = TRUE), .groups = "drop") %>% 
   ggplot(aes(x = LBR_FORC_label, y = Pr_label)) +

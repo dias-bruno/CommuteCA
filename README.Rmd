@@ -17,19 +17,21 @@ knitr::opts_chunk$set(
 ```
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 # CommuteCA
 
 The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
-was created to develop standardized methods for transport analysis in
-research, particularly for analysis using the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
-from Statistics Canada. We focused our efforts on the [*Commuting
-Reference
+was created to provide analysis-ready datasets from the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+along with standardized methods and customized functions for performing
+urban accessibility in Canada. We focused our efforts on processing
+variables from the [*Commuting Reference
 Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
-which provides valuable variables and information on commuting for the
-Canadian population aged 15 and older living in private households.
+which provides valuable variables and information on commuting to work
+for the Canadian population aged 15 and older living in private
+households.
 
 The name of the package, *CommuteCA*, references the commuting section
 of the 2021 Canadian Census of Population. This package was created in
@@ -50,17 +52,17 @@ and nonprofit organizations.
 ## Structure
 
 *CommuteCA* consists of a series of R datasets and R Markdown files
-created to calculate job accessibility analyses for any city in Canada
+created to calculate job accessibility for any study area in Canada
 using the 2021 Census of Population as the primary data source. The
 source data (the demographic census) is restricted and requires
 controlled access, meaning it must be processed within a Research Data
 Center (RDC) office. The package includes datasets and R Markdown files
 that enable accessibility analysis for two spatial units:
 
--   *Dissemination Areas*, a Statistics Canada spatial unit available
-    nationwide.
 -   *Census Tracts*, available only for Census Metropolitan Areas and
     Census Agglomerations.
+-   *Dissemination Areas*, a Statistics Canada spatial unit available
+    nationwide.
 
 For Census Tracts, the package provides datasets and R Markdown files
 that allow researchers and transport practitioners to generate job
@@ -71,117 +73,152 @@ process of calculating and analyzing accessibility metrics into distinct
 steps. This structure simplifies data processing, given the restricted
 nature of the source data.
 
-### Explanation of the R markdown files
+### Data sets
 
-The figure below shows the order in which the R Markdown files are
-executed. For the Dissemination Area spatial unit, only the fourth and
-fifth steps - *"Calculation of accessibility measures"* and
-*"Visualizing accessibility measures"* - must be executed within an RDC
-office when working with original data from the Census of Population. To
-make the methodology easier to understand, we provide a test dataset
-derived from the demographic census, containing a selection of
-variables. This allows researchers to test and refine the methodology
-before processing the original data in an RDC office.
+![{CommuteCA} datases.](man/figures/CommuteCA_datasets.jpeg)
 
-![Execution order to obtain accessibility
-analysis.](man/figures/COMMUTECA21.png)
+The package contains a series of datasets for accessibility analysis and
+other transportation studies. The datasets include calibrated impedance
+functions for job destinations across walking, cycling, public transit,
+and motorized vehicle modes, categorized or not by education level.
+These functions are provided at three geographic levels: Census
+Divisions (Municipality), Census Metropolitan Areas (CMA) and Census
+Agglomerations (CA), and Census Metropolitan Influenced Zones within
+Province and Territories.
+
+The code bellow display the calibrated impedance functions for the City
+of Toronto (Census Division Code (`PCD`) = `3520`):
+
+```{r alberta-impedance-functions, warning=FALSE}
+library("CommuteCA")
+library("dplyr")
+
+data("pcd_impedance_functions") # Load provincial impedance functions
+
+pcd_impedance_functions %>% 
+  filter(PCD == "3520") %>% # Filter for the City of Toronto
+  dplyr::select(PCDNAME, PRNAME, PwMode_label, Distribution, est_1, est_2) # Display key columns
+```
+
+Another way to search for the functions is by using the
+`search_impedance_function()` function from `CommuteCA`:
+
+```{r}
+search_impedance_function(code = 3520, type = "PCD")
+```
+
+To split the calibrated functions by education level:
+
+```{r}
+search_impedance_function(code = 3520, use_education = TRUE, type = "PCD")
+```
+
+Next, you can use the `generate_impedance()` function to calculate the
+impedance value given a travel cost (duration):
+
+```{r echo=TRUE}
+specific_function <- search_impedance_function(code = 3520, 
+                                               use_education = TRUE,
+                                               type = "PCD")
+max_dur <- 90 
+
+expanded_df <- specific_function %>%
+  slice(rep(seq_len(nrow(.)), each = max_dur)) %>%
+  mutate(t = rep(seq_len(max_dur), times = nrow(specific_function)))
+
+tld_theoretical <- generate_impedance(df = expanded_df,
+                                      travel_cost_col = "t",
+                                      distribution_col = "Distribution",
+                                      est1_col = "est_1",
+                                      est2_col = "est_2",
+                                      output_col = "f")
+
+head(tld_theoretical)
+```
+
+The package also includes land use tables with labour force population
+and job counts for census tracts. The code below visualizes Toronto's
+labour force by transportation mode for some census tracts:
+
+```{r warning=FALSE}
+data("labour_force_CT_mode") # Land Use data with information of labour force considering transportation modes
+
+labour_force_3520 <- labour_force_CT_mode %>%
+  filter(PCD == 3520) %>% # Filtering data for the city of Toronto
+  dplyr::select(CTUID, PwMode_label, labour_force_rounded)
+
+head(labour_force_3520)
+```
+
+Now, the job opportunities:
+
+```{r warning=FALSE}
+data("jobs_CT_general") # Land Use data with information of number of jobs
+
+jobs_3520 <- jobs_CT_general %>%
+  filter(PCD == 3520) %>% # Filtering data for the city of Toronto
+  dplyr::select(CTUID, jobs_rounded)
+
+head(jobs_3520)
+```
+
+These datasets enable census tract-level accessibility analysis. For
+instance, we can use these two datasets to calculate the gravity-based
+accessibility by [Hansen
+(1959)](ttps://doi.org/10.1080/01944365908978307) and (multimodal)
+spatial availability by [Soukhov et al.
+(2024)](https://doi.org/10.1371/journal.pone.0299077):
+
+![Job accessibility for the city of
+Toronto.](man/figures/four_mode_HT_SA_SApp.jpg)
+
+### Explanation of the R markdown Templates
+
+![{CommuteCa} R Markdown
+Templates.](man/figures/CommuteCA_rmarkdown_template.jpeg)
+
+The {CommuteCA} package includes R Markdown templates that guide users
+through the entire accessibility analysis workflow. As illustrated in
+Figure \ref{fig:templates-figure}, these templates enable analysts to:
+
+-   Mode job accessibility at the Census Tract (CT) level for multiple
+    CMAs and CAs without requiring special access to confidential census
+    microdata files.
+-   Model job accessibility at the Dissemination Area (DA) level for any
+    study area in Canada, including areas outside metropolitan regions.
+    Exclusively for researchers with access to census microdata files.
 
 The R Markdown files are available in the `/data-raw` folder if you
 clone the repository from
-[GitHub](https://github.com/dias-bruno/COMMUTECA). If you have installed
+[GitHub](https://github.com/dias-bruno/CommuteCA). If you have installed
 the package, you can access the R Markdown templates in `RStudio` by
 navigating to `File > New File > R Markdown... > From Template` and
 selecting one of the *CommuteCA* R Markdown templates.
 
-#### Basics of R and Data
+The package provides seven (for now) R Markdown templates, organized
+into three progressive groups:
 
-This R markdown provides a brief introduction to the R language and data
-concepts. It also talks about the principles of literate programming,
-data objects and basic operations, ways of measuring things and data
-manipulation.
-
-#### Exploratory Data Analysis
-
-This R markdown aims to provide a brief introduction to exploratory data
-analysis (EDA). It also deals with descriptive statistics and
-visualization techniques.
-
-#### Travel Times
-
-These R markdown files calculate a travel time matrix for multimodal
-transport networks (walking, cycling, public transit and motorized
-vehicles), for a selection of dissemination areas (DA) or census tract
-(CT) using the [{r5r}](https://ipeagit.github.io/r5r/) R package.
-
-#### Accessibility measures
-
-Considering the number of workers and employment opportunities obtained
-from the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E),
-this R markdown enables obtaining Hansen-type accessibility [(Hansen,
-1959)](https://www.tandfonline.com/doi/abs/10.1080/01944365908978307)
-and spatial availability [(Soukov and
-Paez,2023)](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0278468),
-for all Canadian provinces and territories, considering different modes
-of transportation. For Dissemination Areas (DA), researchers must access
-the original data within an RDC office. For Census Tracts (CT), the
-package provides pre-processed datasets, allowing users to generate
-accessibility measures without visiting an RDC office.
-
-#### Visualizing accessibility measures
-
-After obtained the accessibility measures for your region of interest,
-this R markdown presents a methodology for visually displaying and
-analyzing the data.
-
-### Data sets
-
-The package contains a series of datasets for accessibility analysis and
-other transportation studies.
-
-The datasets include calibrated impedance functions for job destinations
-across walking, cycling, public transit, and motorized vehicle modes.
-These functions are provided at three geographic levels: city, Census
-Metropolitan Areas (CMA) and Census Agglomerations (CA) and Province and
-Territories.
-
-For provinces, the calibrated job impedance functions are split by
-urbanity level or Indigenous Territory affiliation.
-
-```{r alberta-impedance-functions, warning=FALSE}
-library("CommuteCA")
-library('dplyr')
-data("pr_impedance_functions") # Load provincial impedance functions
-
-pr_impedance_functions %>% 
-  filter(Pr == 'Alberta') %>% # Filter for Alberta
-  select(Pr, CMA_type, PwMode, distribution, est_1, est_2) # Display key columns
-```
-
-The package also includes land use tables with labor force population
-and job counts for census tracts. The code below visualizes Toronto's
-labour force distribution by transportation mode:
-
-```{r Toronto-lf-map, warning=FALSE}
-data("land_use_CT_mode") # Land Use data with information of labour force and number of jobs considering transportation modes
-
-land_use_3520 <- land_use_CT_mode %>%
-  filter(PCD == 3520) %>% # Filtering data for the city of Toronto
-  select(CTUID, PwMode, labour_force_est_rounded, jobs_rounded)
-
-land_use_3520[1:10,] #Visualizing the first ten rows
-```
-
-These datasets enable census tract-level accessibility analysis. For
-instance, the job accessibility for the city of Toronto (Hansen type):
-
-![Job accessibility for the city of Toronto
-(Hansen-type).](man/figures/HT_by_mode_CT.jpg)
-
-Or the job spatial availability for the city of Toronto.
-
-![Job accessibility for the city of Toronto (Soukhov-type, spatial
-availability).](man/figures/SA_by_mode_CT.jpg)
+-   **Group 1: Introduction to R (Templates 1 to 2):**
+    -   Template 1: To introduces the R language, literate programming
+        concepts, data objects, basic operations, measurement scales,
+        and fundamental data manipulation techniques.
+    -   Template 2: To perform exploratory data analysis, including
+        descriptive statistics and appropriate visualizations for
+        different variable types.
+-   **Group 2: Accessibility Modelling (Templates 3 to 5)**
+    -   Template 3: To obtain spatial files via the {cancensus} package,
+        and generating travel-time matrices using the {r5r} routing
+        engine.
+    -   Template 4: To calculate job accessibility using both the
+        traditional Hansen accessibility measure (gravity model) and the
+        spatial availability model proposed by Soukhov et al. (2023).
+    -   Template 5: To create maps to visualize job accessibility
+        indicators.
+-   **Group 3: Assessing Accessibility (Templates 6 to 7)**
+    -   Template 6: To construct spatial filters for accessibility
+        indicators.
+    -   Template 7: To estimate regression models that link
+        accessibility to employment outcomes.
 
 ## Installation
 
@@ -191,4 +228,3 @@ You can install the development version of *CommuteCA* from:
 install.packages("pak")
 pak::pak("dias-bruno/CommuteCA")
 ```
-

@@ -4,17 +4,22 @@
 \name{CommuteCA-package}
 \alias{CommuteCA}
 \alias{CommuteCA-package}
-\title{CommuteCA: an R package to develop standardized methods for transport analysis in research}
+\title{CommuteCA: Datasets and Methods for Job Accessibility in Canada}
 \description{
-The main objective of the \emph{CommuteCA} package is to develop standardized methods for
-accessibility analysis in research, especially for studies using Statistics Canada surveys.
-Among the available surveys, we focused our efforts on the \href{https://www12.statcan.gc.ca/census-recensement/index-eng.cfm}{\emph{2021 Census of Population}},
-which contain valuable variables for transportation research.
-This package was created in conjunction with the office of the
-\href{https://rdc.mcmaster.ca/}{\emph{Research Data Center} at \emph{McMaster University}},
-the \href{https://scds.ca/}{\emph{Sherman Centre for Digital Scholarship}} and
-the \href{https://mobilizingjustice.ca/}{\emph{Mobilizing Justice}}.
+Provides datasets and standardized methods for job accessibility analysis using the
+\href{https://www12.statcan.gc.ca/census-recensement/index-eng.cfm}{\emph{2021 Census of Population}} of Statistics Canada. Includes synthetic test data,
+aggregated land-use datasets, and calibrated impedance functions for commuting
+by transportation mode. Created with support from the \href{https://rdc.mcmaster.ca/}{\emph{Research Data Centre} at \emph{McMaster University}},
+the \href{https://scds.ca/}{\emph{Sherman Centre for Digital Scholarship}}, and \href{https://mobilizingjustice.ca/}{\emph{Mobilizing Justice}}.
 }
+\section{Data Attribution}{
+
+Data from Statistics Canada (2021 Census of Population) is included under
+the Statistics Canada Open Licence and is reproduced and distributed on
+an "as is" basis with the permission of Statistics Canada.
+Source: Statistics Canada, 2021 Census of Population.
+}
+
 \references{
 \url{https://github.com/dias-bruno/CommuteCA}
 }

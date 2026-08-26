@@ -1,0 +1,1217 @@
+---
+title: "Calculating gravity-based accessibility and spatial availability of jobs (*Census Tract* level)"
+runningheader: "a methodology for study areas in Canada based on the 2021 Census of Population" # only for pdf output
+subtitle: "a methodology for study areas in Canada based on the 2021 Census of Population" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
+This package was created in conjunction with the office of the
+[*Research Data Center* at *McMaster
+University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
+Scholarship*](https://scds.ca/) and the [*Mobilizing
+Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R
+package was created to develop standardized methods for transport
+analysis in research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm) from Statistics Canada. We focused our efforts on the [_Commuting Reference Guide_](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the Canadian population aged 15 and older living in private households. 
+
+Considering the number of workers and employment opportunities obtained
+from the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+this R markdown aims to create a methodology to obtain Hansen-type
+accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
+for all Canadian provinces and territories, considering different modes
+of travel.
+
+## Suggested Readings
+
+-   Soukhov, Anastasia, Antonio Paez, Christopher D Higgins, and Moataz
+    Mohamed. 2023."Introducing Spatial Availability, a
+    Singly-Constrained Measure of Competitive Accessibility." *Plos One*
+    18 (1): e0278468.
+-   Soukhov, A., Páez, A. (2024). Accessibility analysis for planning
+    applications (Report No. MJ-A2-0002). Mobilizing Justice.
+    <https://github.com/soukhova/MJ-Accessibility-Blogs>
+-   Pereira, Rafael H. M.; Herszenhut, Daniel. Introduction to urban
+    accessibility: a practical guide with R. Rio de Janeiro: Ipea, 2023.
+    152 p. ISBN: 978-65-5635-065-3. DOI:
+    <http://dx.doi.org/9786556350653>.
+
+# Libraries
+
+Load the packages:
+
+```{r load-packages}
+library('CommuteCA') # Access datasets and functions from CommuteCA R package
+library(dplyr)# A Grammar of Data Manipulation 
+library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
+library(scales) # Scale data column-wise in a computationally efficient way
+library(here) # Enable easy file referencing in project-oriented workflows
+library(readr) # Read csv files setting column data types
+library(tidyr) # To create tidy data
+library(ggplot2) # A Grammar of Graphics
+```
+
+# Measuring accessibility
+
+In transportation research, accessibility is a location-based
+measure[^6] that refers to the potential of a *population* to reach
+spatially distributed *opportunities*[^7]. These often include
+destinations that are important to ensure that all members of society
+can lead plentiful, meaningful lives, such as jobs, parks, cultural
+activities, health services, education, and, in our case, *jobs*.
+
+[^6]: Location-based metrics measure accessibility as a characteristic
+    of a given location, assuming that all people in the same location
+    have equal access to activities distributed throughout the city.
+    Such measures are sensitive to land use and transportation factors
+    related to the spatial distribution of activities and the
+    configuration and performance of the transportation network.
+    However, they do not take into account the individual
+    characteristics of people.
+
+[^7]: We strongly recommend reading the report by Soukhov and Páez
+    (2024), which provides a detailed explanation of the components of
+    accessibility analysis, as well as their possible uses in equity
+    planning
+
+For our purposes, the population is the people residing in some origin
+(a CT) on the date of May 11, 2021[^8], and the opportunities are the
+jobs located in a given destination (a CT) with which the population
+interacts. The population uses a mode of transportation (for example,
+walking, cycling, public transit, car, motorcycle) to reach their
+destination, with a certain travel cost (distance, time, monetary cost
+or a combination of several factors).
+
+[^8]: Date used as reference for the 2021 Population Census
+
+The result of the accessibility model is a value assigned to each
+spatial unit - usually at the origin. Areas with high accessibility
+values have more connections and are closer to more opportunities, while
+areas with low values have the opposite.
+
+## Hansen-type accessibility (HT)
+
+The measure of Hansen [-@hansen1959] considers that the sum of
+opportunities in each destination in gradually discounted as the travel
+cost increases. In this case, opportunities that area easier to access
+counts more for the measure. Many accessibility measures derive from
+this work [@MJ-A2-0002], according to the equation:
+
+$$ HT_i = \sum_{j=1}^{J}O_j \cdot f(c_{ij})$$
+
+Where:
+
+-   $i$ and $j$: set of spatial units in a region.
+-   $O_j$: number of opportunities $O$ at destinations $j$.
+-   $f(c_{ij})$: travel cost function, also called decay-function or
+    impedance function.
+-   $HT_i$: accessibility score at the origin $i$ being represented by
+    the weighted sum of opportunities considering all destinations
+    $O_j$.
+    
+The next step is to select impedance functions to transform travel cost into a measure of the relative likelihood or attractiveness of reaching a destination.
+
+## Impedance functions
+
+The impedance function $f(c_{ij})$ reveals important information about
+the travel behavior of the population, as it represents the relationship
+between the "population" at an origin and where they usually go, want to
+go, or can go to reach the "opportunities" at the destinations.
+Therefore, defining the impedance function is extremely important.
+
+The decay rate of the impedance function needs to be calibrated if one
+wants the accessibility estimates to be representative of the people's
+travel behavior. In our case, we'll use the Census data in the
+calibration process.
+
+Soukhov and Páez [-@MJ-A2-0002] reviewed commonly used impedance
+functions $f(\bullet)$ in accessibility research, explaining their
+impacts on the summation of opportunities at specific travel costs
+$c_{ij}$. In this study, we will explore the following functions to
+determine the impedance function that best fits our data:
+[exponential](https://en.wikipedia.org/wiki/Exponential_distribution),
+[gamma](https://en.wikipedia.org/wiki/Gamma_distribution),
+[log-normal](https://en.wikipedia.org/wiki/Log-normal_distribution),
+[normal](https://en.wikipedia.org/wiki/Normal_distribution), and
+[uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution).
+
+## Spatial Availability
+
+Often, access to opportunities is affected by competition among many
+people seeking the same opportunity, not just by geographic proximity
+and transportation costs [@pereira2023]. If competition is not taken
+into account, it is assumed that the opportunity is equally available to
+all individuals who seek the opportunity and can reach it - which is not
+a problem if the opportunity of interest is not exclusive, so that use
+by one person does not prevent use by another.
+
+Hansen [-@hansen1959], apart from his innovative implementation of an
+accessibility measure, does not consider competition in the distribution
+of opportunities. Also, this measure is considered an unconstrained
+measure, which means that the same opportunity can be allocated to
+different origins, making it difficult to interpret the result. Another
+difficulty in interpreting the result is caused by the way in which the
+number of job opportunities is discounted by the cost of travel.
+
+With the goal of including competition in the accessibility measures and
+constraining the opportunity calculation to a known quantity,
+[@soukhov2023] created the *spatial availability* measure. This study
+also provides a more interpretable result because it guarantees that the
+measures are summed to a predetermined value, e.g. the total number of
+jobs in a region, so that each value at the origin can be meaningfully
+related to this total.
+
+$$ SA_i = \sum_{j=1}^{J}O_j \cdot F_{ij}^t$$
+
+Where:
+
+-   $SA_i$ is the number of spatially available opportunities from the
+    perspective of $i$.
+-   $O_j$ is the number of opportunities $O$ at the destination $j$.
+-   $F_{ij}$ is a balancing factor that depends on the population and
+    cost of travel in the system.
+
+Being $f(c_{ij})$ the impedance function and $P_i$ is the population at
+origin i, the balancing factor $F_{ij}$ consists of two components:
+
+-   $F_{i}^{p}$, a population-based balancing factor that allocate
+    opportunities to $i$ in proportion to the size of the population of
+    the different competing centers. With:
+
+$$F_{i}^{p} = \frac{P_i}{\sum_{i}P_i}$$
+
+-   and $F_{ij}^{c}$, an impedance-based balancing factor that
+    represents the cost of reaching opportunities. With:
+
+$$F_{i}^{c} = \frac{f_{(c_ij)}}{\sum_{i}f_{(c_{ij})}}$$ We can obtain
+$F_{ij}$ by:
+$$ F_{ij}^{t} = \frac{F_i^{p} \cdot F_{ij}^{(c_ij)}}{\sum_{i}F_i^{p} \cdot F_{ij}^{(c_ij)}} $$
+
+# Let's code!
+
+`CommuteCA` provides a standardized methodology for calculating accessibility to work using datasets at the census tract level. First, we will estimate the models for the two measures presented above: the gravity-based model by Hansen [-@hansen1959] and the multimodal spatial availability measure by Soukhov et al. [-@soukhov2024] - an extension of the spatial availability model [@soukhov2023] to perform a multimodal analysis. Next, we will extend, again, spatial availability to develop a measure of the match between educational background and job occupation, termed "Macthing Multimodal Spatial Availability."
+
+The methodology for obtaining the accessibility measures for Census Tract:
+
+1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021]. The methodology used to obtain the travel time table is in the *03_preprocessing_files.Rmd*. 
+
+2.  Next, we read the land use table of our study area. This table contains the labour force population and the number of job opportunities for each census tract.
+
+3.  We select calibrated impedance functions for our study area. 
+
+4.  We then apply the impedance functions to the travel time table, obtaining an impedance value for each origin-destination travel time.
+
+5.  We combine travel times with the tables of impedance values, labour force, and employment opportunities to create an accessibility table, which contains the information on origin, destination, mode of transportation, impedance, labour force, and employment opportunities needed to calculate accessibility.
+
+6.  Finally, we perform the Hansen accessibility type and the multimodal spatial availability. Later, the same workflow is extended to account for the correspondence between workers' education levels and the occupational requirements of available jobs.
+
+## Data
+
+For analysis at the census tract level, *CommuteCA* provides datasets with land-use tables that include the workforce by mode of transportation (and education level), as well as the number of jobs (whether or not classified under the Training, Education, Experience, and Responsibilities (TEER) categories) in each census tract.
+
+Information about the files can be found at:
+
+```{r}
+#?estimated_labour_force_CT_mode
+#?jobs_CT_general
+```
+
+We will also use the travel time table created in the previous step, as well as the impedance functions, which are also available in *CommuteCA*.
+
+# Reading the labour force and job tables
+
+As first stpe, we load the two main land-use inputs required by the accessibility calculations: the labour force at each origin and the number of jobs at each destination. 
+
+Load data:
+
+```{r}
+data("estimated_labour_force_CT_mode")
+data("jobs_CT_general")
+```
+
+`estimated_labour_force_CT_mode` is a dataset in which the non-commuter labour force (whether because they work from home, have no fixed workplace, or are unemployed) and labour force who commute using other modes (not specified in the census), was distributed across the other transportation modes proportionally to:
+
+1) The share of these other modes in the CT;
+2) The share of these other modes in the municipality.
+
+The original labour force table, without the distribution of the non-commuters, is available in `labour_force_CT_mode`. The methodology that we used to obtain `estimated_labour_force_CT_mode` is described in our [`GitHub repository`](https://github.com/dias-bruno/CommuteCA) in the data-raw/make-data/03-Adding_Datasets.Rmd R Markdown file.
+
+We suggest using the `estimated_labour_force_CT_mode` dataset because accessibility analyses assume that people will move from their origin to reach the destination/opportunities. However, you might prefer to use a different methodology to distribute the population, and in that case, we suggest using `labour_force_CT_mode` for that.
+
+## Preparing the land-use table
+
+We will place labour force and job datasets in a common structure named land-use table. The land-use table contains for each CT the number of people in labour force by each transportation mode, and amount of job opportunities. 
+
+Reading a census dictionary dataframe to standardize CT names:
+```{r}
+data("ct_keys")
+```
+
+Creating the land use table:
+```{r}
+cts_ids <- union(unique(estimated_labour_force_CT_mode$CTUID),
+              (jobs_CT_general$CTUID))
+
+modes_labels <- unique(estimated_labour_force_CT_mode$PwMode_label) 
+
+land_use_grid <- expand.grid(CTUID = cts_ids, 
+                             PwMode_label = modes_labels)
+
+land_use_grid <- land_use_grid %>% 
+  left_join(ct_keys %>% 
+              dplyr::select(CTUID, CTNAME, PCD, CMA, PR), 
+            by = "CTUID") %>% 
+  left_join(estimated_labour_force_CT_mode  %>% 
+              dplyr::select(CTUID, PwMode_label, est_labour_force), 
+            by = c("CTUID","PwMode_label")) %>% 
+  left_join(jobs_CT_general %>% 
+              dplyr::select(CTUID, jobs_rounded), 
+            by = c("CTUID")) 
+
+land_use_grid <- land_use_grid %>% 
+  mutate(est_labour_force = replace_na(est_labour_force, 0))
+
+land_use_grid <- land_use_grid %>%
+  group_by(CTUID) %>%
+  mutate(jobs_rounded = ifelse(is.na(jobs_rounded), 
+                        # Use max to get a non-NA value
+                        max(jobs_rounded, na.rm = TRUE), jobs_rounded), 
+          jobs_rounded = ifelse(is.infinite(jobs_rounded), 0, jobs_rounded)) %>%
+   ungroup()
+
+# Sometimes, a given CT may not have any jobs, resulting in all values in 
+# the jobs field being NA. As a result, the previous step may produce -Inf values 
+# since it's not possible to determine the maximum value in NA entries. 
+# To fix this, we replace all -Inf values with 0. 
+```
+
+Just as we did when creating the route network to obtain a travel time matrix, we need to restrict our analysis to a selected study area. To do this, we will filter the land-use table using the Census Division code (PCD).
+
+Selecting only CTs from our city of Study:
+
+```{r filter-boundaries}
+code <- c("3520") # selected census division (Toronto)
+
+# Filtering by census division
+land_use <- land_use_grid %>% 
+  filter(PCD %in% code) 
+```
+
+Pre-processing our land use table:
+```{r}
+# Rename columns
+land_use <- land_use %>% 
+  rename(jobs = jobs_rounded,
+         labour_force = est_labour_force)
+```
+
+Verifying the number of people within labour force and number of jobs:
+```{r}
+# labour fource
+sum(land_use$labour_force)
+
+# Job opportunities
+land_use %>% 
+  group_by(CTUID) %>%
+  summarize(jobs = first(jobs)) %>%
+  dplyr::select(jobs) %>%
+  sum(na.rm = TRUE)
+```
+
+Both checks provide a baseline for the land-use inputs before they are combined with the travel-time matrix. The first calculation gives the total labour force represented in the selected study area, while the second accounts for the number of jobs. 
+
+# Impedance functions
+
+All of the impedance functions mentioned require the analyst to define
+parameters. One useful technique is to create a trip length distribution
+(TLD) using empirically observed origin-destination travel survey data.
+A TLD reflects observed travel patterns: specifically, the probability
+of an observed trip of a given travel cost occurring for the population
+in a region of interest. Based on the TLD, we can select the most
+appropriate theoretical PDF forms (e.g., uniform, exponential, gamma),
+adjust the associated parameters, and use the calibrated theoretical PDF
+to incorporate the assumptions about the population's travel behavior
+into the accessibility calculation.
+
+Soukhov and Páez [-@MJ-A2-0002] demonstrated the process of calibrating
+and selecting the best distribution to represent an impedance function
+based on travel flows from workers who live and work (full-time) within
+the City of Hamilton. The authors used the data from the R data package
+[{TTS2016R}](https://soukhova.github.io/TTS2016R/) and the R package
+[{fitdistrplus}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html)
+to generate parameters that best fit the TLD the parameters of the
+uniform, exponential, and gamma functions as closely to the TLD.
+
+`CommuteCA` contains datasets with calibrated impedance functions based on travel time distribution for all Census Divisions (municipalities), Census Metropolitan Areas and Census Agglomerations, and Census metropolitan influenced zone (MIZ) of each Province or Territories. We selected the best impedance function based on the on the lowest Akaike Information Criterion (AIC)[^12], selects the better function between the distributions:
+[exponential](https://en.wikipedia.org/wiki/Exponential_distribution),
+[gamma](https://en.wikipedia.org/wiki/Gamma_distribution),
+[log-normal](https://en.wikipedia.org/wiki/Log-normal_distribution),
+[normal](https://en.wikipedia.org/wiki/Normal_distribution), and
+[uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution).
+
+[^12]: The Akaike Information Criterion (AIC) estimates prediction error
+    and model quality for a given data set.
+
+You can visualize the `CommuteCA` impedance functions by running:
+
+```{r}
+# data("pcd_impedance_functions")
+# data("cma_impedance_functions")
+# data("pr_impedance_functions")
+
+# For impedance functions calibrated by level of education
+# data("pcd_education_impedance_functions")
+# data("cma_education_impedance_functions")
+# data("pr_education_impedance_functions")
+```
+
+And you can retrieve information about each of these datasets by running: 
+
+```{r}
+# ?pcd_impedance_functions # or any other dataset
+```
+
+In some cases, calibrated functions may not be available for all transportation modes or education level. This is due to RDC vetting rules that prevent the release of data or statistics for spatial units with low populations. However, we also provide datasets at other spatial levels, specifically for Census Metropolitan Areas (CMA)/Census Agglomerations (CA), and Census metropolitan influenced zone (MIZ) within Provinces/Territories.
+
+If a city lacks an impedance function for a specific mode/education, and it is located within a CMA/CA, we recommend using the CMA/CA impedance function for that mode. If the city is within a CMA/CA without a calibrated impedance function or is outside a CMA/CA entirely, we suggest using the provincial impedance function, considering the city's level of metropolitan influence.
+
+The `search_impedance_function()` function retrieves the calibrated impedance function associated with the selected PCD. The chunk below display how to obtain the impedance function for my city of study: 
+
+```{r }
+specific_function <- search_impedance_function(code = code, 
+                                               type = "PCD")
+
+specific_function
+```
+
+We will create a graph using a common interval, defined by the variable `max_dur`, to visualize these impedance functions and how the population's behaviour when commuting to work varies depending on transportation mode. 
+
+```{r}
+max_dur <- 90 
+
+expanded_df <- specific_function[rep(seq_len(nrow(specific_function)), 
+                                     each = max_dur), ]
+
+expanded_df$t <- rep(seq_len(max_dur), times = nrow(specific_function))
+
+rownames(expanded_df) <- NULL
+
+tld_theoretical <- generate_impedance(df = expanded_df,
+                                      travel_cost_col = "t",
+                                      distribution_col = "Distribution",
+                                      est1_col = "est_1",
+                                      est2_col = "est_2",
+                                      output_col = "f")
+```
+
+Plotting the graph:
+```{r}
+impedance_functions_plot <- tld_theoretical %>%
+  ggplot(aes(x=t, y=f, color = as.factor(PwMode_label))) +
+  geom_line(size = 0.75, alpha = 0.9) + 
+  theme_minimal() +
+  facet_wrap(~ code) + 
+  labs(x = "Trip duration (in minutes)", 
+       y = "Density", 
+       color = "Transportation mode") + 
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+
+impedance_functions_plot
+```
+
+# Reading and preparing the travel matrix table
+
+Reading the travel time table created in the *03_processing_files.Rmd*^[*Remember that you may need to update this address.*]:
+
+```{r read-ttm}
+ttm_file <- paste0(here(),"/data-raw/output/PCD",
+                   code,"/CT/travel_times/ttm.csv")
+
+ttm <- read_csv(ttm_file,
+                col_types = cols(
+                  from_id = col_character(),   
+                  to_id = col_character(),
+                  travel_time = col_double(),
+                  PwMode_label = col_character(),
+                  PCD = col_character(),
+                  CMAUID = col_character(),
+                  PRUID = col_character()))
+```
+
+```{r}
+ttm[1:10,]
+```
+Visualizing some statistics about the travel time matrix:
+
+```{r ttm-statistics}
+ttm %>% 
+  group_by(PwMode_label) %>% 
+  summarize(mean_tt = mean(travel_time),
+            median_tt = median(travel_time),
+            min_tt = min(travel_time),
+            max_tt = max(travel_time))
+```
+
+Preparing the ttm dataframe to calculate the impedance. Travel times equal to zero are replaced with one minute. The CT identifier (`from_id`) is also renamed to `CTUID` so that it matches the 
+CT identifier used in the land-use datasets: 
+
+```{r}
+# Updating cases in which the travel time is equal to 0 to 1 minute
+ttm <- ttm %>% 
+  mutate(travel_time = case_when(travel_time == 0 ~ 1, 
+                                 TRUE ~ travel_time)) %>%
+  # Renaming the column from_id to CTUID
+  rename(CTUID = from_id) 
+
+head(ttm)
+```
+
+We join the corresponding calibrated function and its parameters to the travel-time matrix. Then, we use the `generate_impedance()`, from`CommuteCA`, to produce `f` - the impedance value used to weight the destination's job opportunities.
+
+```{r , warning = FALSE, message = FALSE}
+ttm_with_functions <- ttm %>% 
+  left_join(specific_function, by = c("PCD" = "code", "PwMode_label"))
+
+ttm_f <- generate_impedance(ttm_with_functions, 
+                            travel_cost_col = "travel_time",
+                            distribution_col = "Distribution",
+                            est1_col = "est_1", 
+                            est2_col = "est_2")
+```
+
+# Building the accessibility table
+
+As briefly explained, the accessibility table combines the transportation with the land-use data:
+
+```{r }
+accessibility_table <- ttm_f %>% 
+  left_join(land_use[,c("CTUID","PwMode_label","labour_force")], 
+            by = c("CTUID", "PwMode_label" = "PwMode_label")) %>%
+  left_join(land_use[,c("CTUID","PwMode_label","jobs")], 
+            by = c("to_id" = "CTUID","PwMode_label" = "PwMode_label"))
+
+accessibility_table <- accessibility_table %>% 
+  mutate(labour_force = case_when(is.na(labour_force) ~ 0, 
+                                  TRUE ~ labour_force)) 
+
+accessibility_table <- accessibility_table %>%
+   group_by(to_id) %>%
+   mutate(jobs = ifelse(is.na(jobs), 
+                        # Use max to get a non-NA value
+                        max(jobs, na.rm = TRUE), jobs), 
+          jobs = ifelse(is.infinite(jobs), 0, jobs)) %>%
+   ungroup()
+
+# Sometimes, a given CT may not have any jobs, resulting in all values in 
+# the jobs field being NA. As a result, the previous step may produce -Inf values 
+# since it's not possible to determine the maximum value in NA entries. 
+# To fix this, we replace all -Inf values with 0. 
+```
+
+Confirming the total number of jobs: 
+
+```{r}
+accessibility_table %>%
+  group_by(to_id) %>%
+  summarise(job = first(jobs)) %>%
+  dplyr::select(job) %>%
+  sum()
+```
+
+Checking the total population. Differences from the original land-use total may indicate that some origin-mode combinations are not present from the travel-time matrix:
+
+```{r}
+accessibility_table %>%
+  dplyr::distinct(CTUID, PwMode_label, .keep_all = TRUE) %>%
+  summarise(pop = sum(labour_force)) %>%
+  dplyr::select(pop) %>%
+  dplyr::pull(pop) %>%
+  sum()
+```
+
+The total population might be different between the land-use data, and this might have occurred because the travel time for one or more transportation modes was not calculated for one or more CTs. This can occur when the travel time for the missing mode is too long, or because a filter while calculating the routing left out this mode for the specific CT. For instance, a CT might not have a travel time for a specific mode because there is no other CT reachable within the maximum threshold defined when performing the routing.
+
+To better understand possible missing cases, in the next check we explicitly identify the origin-mode combinations present in the land-use data but absent from the travel-time matrix. Missing combinations might explain why the total workforce in the accessibility table is smaller than the original land-use total.
+
+Checking if there is any CT without travel time calculated: 
+
+```{r}
+CTUID <- land_use %>%
+  dplyr::distinct(CTUID, PwMode_label) %>%
+  arrange(CTUID, PwMode_label) %>%
+  rename(id = CTUID)
+```
+
+```{r}
+from_id <- ttm_with_functions %>%
+  dplyr::distinct(CTUID, PwMode_label) %>%
+  arrange(CTUID, PwMode_label) %>%
+  rename(id = CTUID)
+```
+
+```{r}
+setdiff(CTUID, from_id)
+```
+
+# Calculating Hansen Accessibility
+
+Generating the Hansen-type accessibility (HT), by multiplying the number of jobs at each destination by the corresponding impedance value:
+
+```{r, warning = FALSE, message = FALSE}
+accessibility_table <- accessibility_table %>%
+  mutate(jobs_f = jobs * f)
+
+HT_mode <- accessibility_table %>%
+  group_by(CTUID, PwMode_label) %>%
+  summarize(HT_im = sum(jobs_f))
+```
+
+The *HT_mode* presents the value of job accessibility (`HT_i`) for each CT by
+*mode*. The next chunk sum all `HT_i` values by CT of origin:
+
+```{r Hansen-i-CT}
+HT <- HT_mode %>%
+  group_by(CTUID) %>%
+  summarize(HT_i = sum(HT_im))
+```
+
+Visualizing the sum of the Hansen Accessibility (HT)[^16]:
+
+[^16]: Note that the value itself has no specific meaning, as it is just
+    the sum of the "weighted" jobs, but it can be interpreted as a
+    relative score of the potential interaction based on the observed
+    travel patterns of people residing in the specified region.
+
+```{r }
+sum(HT$HT_i)
+```
+
+# Calculating Spatial Availability
+
+Now, we'll calculate the spatial availability using the `calculate_spatial_availability` function from `CommuteCA`: 
+
+```{r SA-soukov}
+# Apply the function to accessibility_table
+SA_ij_mode <- accessibility_table %>%
+  calculate_spatial_availability(origin = CTUID,
+                      destination = to_id,
+                      pop = labour_force,
+                      mode = PwMode_label,
+                      opp = jobs,
+                      f = f)
+```
+
+Checking the total of jobs in the system: 
+
+```{r}
+SA_ij_mode %>%
+  group_by(to_id) %>%
+  summarise(job = first(jobs)) %>%
+  dplyr::select(job) %>%
+  
+  sum()
+```
+
+Checking the total job spatial availability:
+
+```{r}
+sum(SA_ij_mode$SA_ij)
+```
+
+As you can see, the total job opportunities match the total job spatial availability. 
+
+`SA_ij_mode` displays the spatial availability for each combination
+of origin, destination and mode.  The next chunk synthesize the
+information for each origin and mode:
+
+```{r Vim}
+SA_mode <- SA_ij_mode %>% 
+  group_by(CTUID,PwMode_label) %>%
+  summarise(SA_im = sum(SA_ij)) %>%
+  left_join(land_use %>% 
+              dplyr::select(CTUID, PwMode_label, 
+                            labour_force, jobs),
+            by = c('CTUID',
+                   'PwMode_label')) %>% 
+  mutate(labour_force = ifelse(is.na(labour_force),0,labour_force),
+         jobs = ifelse(is.na(jobs),0,jobs))
+```
+
+The *SA_im* presents the value of spatial availability for each CT by
+*mode*. The next chunk sum all *SA* values by CT of origin:
+
+```{r V_i}
+SA <- SA_mode %>%
+  group_by(CTUID) %>%
+  dplyr::summarize(SA_i = sum(SA_im, na.rm = TRUE), 
+            labour_force = sum(labour_force, na.rm = TRUE),
+            jobs = first(jobs))
+```
+
+Visualizing the sum of spatial availability:
+
+```{r sum-Vi}
+sum(SA$SA_i, na.rm = TRUE)
+``` 
+
+Note that the sum of spatial availability matches with the total amount
+of job opportunities in the system. As explained above, this happens
+because this metric is constrained.
+
+## Spatial availability per person 
+
+To facilitate comparisons between spatial units with different geographic sizes - and given that the result of spatial availability is the number of jobs accessible in each spatial unit - we will express this value in terms of opportunity per-person. 
+
+For each origin and mode of transportation, the spatially available jobs are divided by the number of people in the corresponding labour force group:
+
+```{r}
+SA_mode <- SA_mode %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+
+SA <- SA %>% 
+  mutate(SA_pp_i = ifelse(labour_force == 0, 0, SA_i/labour_force))
+```
+
+## Considering active accessibility instead of walking and cycling accessibilities
+
+Sometimes, the number of walking and cycling commuters is very low when compared to car and public transit users. Because of this, might be interesting to evaluate junction of walking and cycling modes, as an active mode. 
+
+Following chunks transform the previous accessibility indicators into a 3-modes analysis:
+
+```{r}
+SA_mode_active <- SA_mode %>%
+  group_by(CTUID) %>%
+  dplyr::summarise(
+    jobs = first(jobs),
+    car_SA = sum(SA_im[PwMode_label == "Car-motorized"]),
+    car_labour = sum(labour_force[PwMode_label == "Car-motorized"]),
+    
+    pt_SA = sum(SA_im[PwMode_label == "Public transit"]),
+    pt_labour = sum(labour_force[PwMode_label == "Public transit"]),
+    
+    active_SA = sum(SA_im[PwMode_label %in% c("Bike", "Walk")]),
+    active_labour = sum(labour_force[PwMode_label %in% c("Bike", "Walk")])) %>%
+  pivot_longer(cols = contains("_"),
+               names_to = "var", values_to = "value") %>%
+  separate(var, into = c("mode", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(PwMode_label = case_when(mode == "car" ~ "Car-motorized",
+                                  mode == "pt"~ "Public transit",
+                                  mode == "active" ~ "Active")) %>%
+  dplyr::select(CTUID, PwMode_label, SA_im = SA, 
+                labour_force = labour, jobs)
+
+# Checking result
+sum(SA_mode_active$SA_im)
+sum(SA_mode$SA_im)
+
+sum(SA_mode_active$labour_force, na.rm = TRUE)
+sum(SA_mode$labour_force, na.rm = TRUE)
+```
+
+Calculating the spatial availability per person, but now for the three modes analysis: 
+
+```{r}
+SA_mode_active <- SA_mode_active %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+```
+
+
+# Macthing Multimodal Spatial Availability 
+
+Now, instead of allowing the entire labour force to compete for all jobs, we group the workforce according to their level of education. Similarly, we group job opportunities according to their TEER occupational category, and only the eligible population segments that are eligible for a given opportunity type are allowed to compete for those jobs. 
+
+The idea is to apply the same proportional-allocation logic used for spatial availability, but separately for each opportunity type $t$, using only population segments that are eligible to compete for that type. Having $m$ as the transportation mode, $q$ as the population segment (e.g., education level), and $t$ the opportunity type (e.g., TEER category), we define $Q_t$ as the set of population segments eligible to compete for opportunity type $t$. 
+
+Therefore, the population-balancing factor is represented by:
+
+$$ F_{i}^{p,m,q,t} = \frac{P_i^{m,q}}{\sum_{q \in Q_t} \sum_m \sum_i P_i^{m,q}} $$ 
+
+$F_{i}^{p,m,q,t}$ represents the proportion of the eligible population associated with origin $i$, population segment $q$, and transportation mode $m$, relative to the total population eligible for opportunity type $t$.
+
+The impedance-balancing factor is represented by:
+
+$$F_{ij}^{c,m,q,t} = \frac{f^{m,q}(c_{ij})}{\sum_{q \in Q_t} \sum_m \sum_i f^{m,q}(c_{ij})} $$
+
+$F_{ij}^{c,m,q,t}$ represents the relative contribution of the impedance between origin $i$ and destination $j$, for transportation mode $m$, among all eligible population segments $q$ and transportation modes competing for opportunity type $t$. 
+
+Note that each population group has its own impedance function, which means that access to an opportunity depends not only on the worker's eligibility for that opportunity, but also on the travel behaviour associated with their population segment. For example, consider two eligible groups competing for the same TEER category:
+
+| Population | Mode    | Travel time |                 Impedance |
+| ---------- | ------- | ----------: | ------------------------: |
+| University | Walk    |      30 min | ($f^{Walk,University}(30)$) |
+| College    | Walk    |      30 min |    ($f^{Walk,College}(30)$) |
+ 
+Although the travel time and transportation mode are identical, the two observations will potentially result in different impedance values because they use different calibrated functions.
+ 
+Continuing, the balancing factor is now represented by: 
+$$F_{ij}^{t,m,q,t} = \frac{F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}}{{\sum_{q \in Q_t} \sum_m \sum_i F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}}} $$
+Therefore, the Matching Multimodal Spatial Availability is: 
+
+$$SA_i^{m,q,t} = \sum_j O_j^{t} \cdot F_{ij}^{t,mq,t}, \quad \text{defined only for }q \in Q_t$$
+This approach preserves the main fundamental of spatial availability: every job of type $t$ is allocated exactly once, only among the population that's actually eligible for it. In addition, the output continues to be the number of jobs available to the population, making the matching extension directly comparable in interpretability to the original spatial availability measure.  
+
+## Preparing the data
+
+Reading datasets to create the land-use table: 
+
+```{r}
+data("estimated_labour_force_CT_education_mode")
+data("jobs_CT_occupation")
+```
+
+Selecting only CTs from our city of Study:
+
+```{r}
+code <- c("3520") # selected census division (Toronto)
+
+lf_education <- estimated_labour_force_CT_education_mode %>%   
+  filter(PCD %in% code) %>% 
+  dplyr::select("CTUID", "Education", "PwMode_label","est_labour_force") %>%
+  rename(labour_force = est_labour_force)
+
+jobs_TEER <- jobs_CT_occupation %>%   
+  filter(PCD %in% code) %>%
+  dplyr::select("CTUID", "TEER", "jobs_rounded") %>%
+  rename(jobs = jobs_rounded)
+```
+
+Verifying the number of people within labour force and number of jobs:
+```{r}
+# labour fource
+sum(lf_education$labour_force)
+
+# Job opportunities
+sum(jobs_TEER$jobs)
+```
+
+## Calculating the matching measure
+
+The steps to perform the matching spatial availability is very similar to original steps. First, we identify calibrated impedance functions for our study area, using `search_impedance_function` function, but now setting `TRUE` for the `use_education` parameter: 
+
+```{r}
+impfunc_education <- search_impedance_function(code = code, 
+                                               use_education = TRUE,
+                                               type = "PCD")
+
+impfunc_education
+```
+
+Having the calibrated functions for different education levels, we now can plot a graph to visualize them: 
+
+```{r fig.fullwidth=TRUE}
+max_dur <- 90 
+
+exp_edu_fc <- impfunc_education[rep(seq_len(nrow(impfunc_education)), 
+                                                  each = max_dur), ]
+
+exp_edu_fc$t <- rep(seq_len(max_dur), 
+                     times = nrow(impfunc_education))
+
+rownames(exp_edu_fc) <- NULL
+
+tld_theoretical_education <- generate_impedance(df = exp_edu_fc,
+                                      travel_cost_col = "t",
+                                      distribution_col = "Distribution",
+                                      est1_col = "est_1",
+                                      est2_col = "est_2",
+                                      output_col = "f")
+
+impfunc_education_plot <- tld_theoretical_education %>% 
+  mutate(Education = factor(Education, 
+                            levels = c("High school or no certificate",
+                                       "College or apprenticeship certificate",
+                                       "University certificate or higher"))) %>% 
+  ggplot(aes(x=t, y=f, color = Education)) +
+  geom_line(size = 0.75, alpha = 0.9) + 
+  theme_minimal() +
+  facet_wrap(~ code + PwMode_label) + 
+  labs(x = "Trip duration (in minutes)", 
+       y = "Density", 
+       color = "Education level") + 
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+
+impfunc_education_plot
+```
+
+Now, we calculate the impedance value `f` for each population group (considering their education and transportation mode) when moving from a origin to a destination: 
+
+```{r , warning = FALSE, message = FALSE}
+education_n <- length(unique(impfunc_education$Education))
+education_levels <- unique(impfunc_education$Education)
+  
+ttm_expanded <- ttm[rep(seq_len(nrow(ttm)), 
+                        each = education_n), ]
+
+ttm_expanded$Education <- rep(education_levels, 
+                              times = nrow(ttm))
+
+ttm_expanded <- ttm_expanded %>% 
+  dplyr::select("CTUID", "to_id","Education","PwMode_label","travel_time",
+                "PCD", "CMA","PR")
+
+ttm_with_edu_functions <- ttm_expanded %>% 
+  left_join(impfunc_education, 
+            by = c("PCD" = "code",
+                   "Education",
+                   "PwMode_label")) %>% 
+    dplyr::select("CTUID", "to_id","Education","PwMode_label","travel_time",
+                "PCD", "CMA","PR","Distribution","est_1","est_2")
+
+ttm_edu_f <- generate_impedance(ttm_with_edu_functions, 
+                            travel_cost_col = "travel_time",
+                            distribution_col = "Distribution",
+                            est1_col = "est_1", 
+                            est2_col = "est_2")
+```
+
+Then, we create a cross-reference table (`skill_match`) that defines the education segments eligible (e.g, education levels) to compete for each type of opportunities (e.g., TEER category). Each row represents an allowed education-occupation combination. 
+
+```{r}
+skill_match <- data.frame(Education = c("University certificate or higher",
+                                        "University certificate or higher",
+                                        "University certificate or higher",
+                                        "College or apprenticeship certificate",
+                                        "College or apprenticeship certificate",
+                                        "High school or no certificate"),
+  TEER = c("Management or professional (0 - 1)",
+                      "College or apprenticeship (2 - 3)",
+                      "High school or short-term experience (4 - 5)",
+                      "College or apprenticeship (2 - 3)",
+                      "High school or short-term experience (4 - 5)",
+                      "High school or short-term experience (4 - 5)"))
+```
+
+As we did before, we create an accessibility table that contains all information required to calculate accessibility: origin, destination, population segment, opportunity type, travel time, and impedance value: 
+
+```{r}
+# The subsequent join uses the skill_match to remove origin-destination 
+# combinations in which the population segment is not considered 
+# eligible for the opportunity type
+
+accessibility_table_education <- ttm_edu_f %>%
+  left_join(lf_education, 
+            by = c("CTUID", "Education", "PwMode_label")) %>%
+  inner_join(skill_match, by = "Education") %>%
+  inner_join(jobs_TEER, by = c("to_id" = "CTUID", "TEER")) %>%
+  dplyr::select(CTUID, to_id, PwMode_label, 
+                Education, TEER, 
+                labour_force, jobs, f)
+```
+
+
+```{r accessibility-table}
+accessibility_table_education <- accessibility_table_education %>% 
+  mutate(labour_force = case_when(is.na(labour_force) ~ 0, 
+                                  TRUE ~ labour_force)) 
+
+accessibility_table_education <- accessibility_table_education %>%
+   group_by(to_id) %>%
+   mutate(jobs = ifelse(is.na(jobs), 
+                        # Use max to get a non-NA value
+                        max(jobs, na.rm = TRUE), jobs), 
+          jobs = ifelse(is.infinite(jobs),0, jobs)) %>%
+   ungroup()
+
+# Sometimes, a given CT may not have any jobs, resulting in all values in 
+# the jobs field being NA. As a result, the previous step may produce -Inf values 
+# since it's not possible to determine the maximum value in NA entries. 
+# To fix this, we replace all -Inf values with 0. 
+```
+
+Confirming the total number of jobs: 
+
+```{r}
+accessibility_table_education %>%
+  group_by(to_id, TEER) %>%
+  summarise(job = first(jobs)) %>%
+  pull(job) %>%
+  sum()
+```
+
+Checking the total population (note: as in the general workflow, missing origin-mode combinations can cause the represented population to differ from the original land-use total):
+
+```{r}
+accessibility_table_education %>%
+  dplyr::distinct(CTUID, Education, PwMode_label, .keep_all = TRUE) %>%
+  summarise(pop = sum(labour_force)) %>%
+  dplyr::select(pop) %>%
+  dplyr::pull(pop) %>%
+  sum()
+```
+
+To calculate Matching Multimodal Spatial Availability, we use the `matching_spatial_availability()` function from `CommuteCA`. This function implements the spatial-availability balancing procedure while adding two segmentation variables: `pop_segment` for the population segment and `opp_type` for the opportunity type. In our application, these variables correspond to education level and TEER category, respectively.
+
+```{r }
+SA_ij_mode_match <- matching_spatial_availability(df = accessibility_table_education,
+                                                  origin = CTUID, 
+                                                  destination = to_id, 
+                                                  pop = labour_force, 
+                                                  opp = jobs, 
+                                                  mode = PwMode_label,
+                                                  pop_segment = Education,
+                                                  opp_type = TEER,
+                                                  f = f)
+```
+
+The resulting `SA_ij` values from `SA_ij_mode_match` represent the spatially available jobs for each origin-destination-mode-education-TEER combination.
+
+Checking the total jobs in the system:
+
+```{r}
+SA_ij_mode_match %>%
+  group_by(to_id, TEER) %>%
+  summarise(job = first(jobs)) %>%
+  dplyr::select(job) %>%
+  pull(job) %>%
+  sum()
+```
+
+Checking the total spatial availability: 
+
+```{r}
+sum(SA_ij_mode_match$SA_ij)
+```
+
+
+```{r}
+SA_ij_mode_match %>%
+  dplyr::group_by(TEER) %>%
+  dplyr::summarise(total_SA = sum(SA_ij)) %>%
+  dplyr::left_join(jobs_TEER %>% 
+                     dplyr::group_by(TEER) %>% 
+                     dplyr::summarise(total_opp = sum(jobs)),
+                   by = "TEER")
+```
+
+Aggregating the total spatial availability by education and by transportation mode in each CT: 
+
+```{r }
+SA_mode_education_match <- SA_ij_mode_match %>% 
+  group_by(CTUID, Education, PwMode_label) %>%
+  summarise(SA_ime = sum(SA_ij), 
+            labour_force = first(labour_force), 
+            jobs = first(jobs))
+
+sum(SA_mode_education_match$SA_ime)
+```
+
+`SA_ime` represents the spatial availability of matched jobs for a given CT (origin), education group, and transportation mode, after considering competition from all eligible workers for the corresponding TEER categories.
+
+Now, aggregating to the CT level the spatial availability for each transportation mode (`SA_im`):
+
+```{r }
+SA_mode_match <- SA_mode_education_match %>% 
+  group_by(CTUID, PwMode_label) %>%
+  summarise(SA_im = sum(SA_ime), 
+            labour_force = sum(labour_force), 
+            jobs = sum(jobs))
+
+sum(SA_mode_match$SA_im)
+```
+
+Aggregating to the CT level the spatial availability for each education group (`SA_ie`):
+
+```{r }
+SA_education_match <- SA_mode_education_match %>% 
+  group_by(CTUID, Education) %>%
+  summarise(SA_ie = sum(SA_ime), 
+            labour_force = sum(labour_force), 
+            jobs = first(jobs))
+
+sum(SA_education_match$SA_ie)
+```
+
+The *SA_im* presents the value of spatial availability for each CT by
+*mode*. The next chunk sum all *SA* values by CT of origin:
+
+```{r }
+SA_match <- SA_education_match %>%
+  group_by(CTUID) %>%
+  summarize(SA_i = sum(SA_ie), 
+            labour_force = sum(labour_force),
+            jobs = sum(jobs))
+
+sum(SA_match$SA_i, na.rm = TRUE)
+``` 
+
+Now, we will also obtain the spatial availability per person, simply dividing the number of jobs accessible in each transportation mode by the number of people actually taking these modes:
+
+```{r}
+SA_mode_education_match <- SA_mode_education_match %>% 
+  mutate(SA_pp_ime = ifelse(labour_force == 0, 0, SA_ime/labour_force))
+
+SA_mode_match <- SA_mode_match %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+
+SA_education_match <- SA_education_match %>% 
+  mutate(SA_pp_ie = ifelse(labour_force == 0, 0, SA_ie/labour_force))
+
+SA_match <- SA_match %>% 
+  mutate(SA_pp_i = ifelse(labour_force == 0, 0, SA_i/labour_force))
+```
+
+Sometimes, the number of walking and cycling commuters is very low when compared to car and public transit users. Because of this, might be interesting to evaluate junction of walking and cycling modes, as an active mode. 
+
+Following chunks transform the previous accessibility indicators into a 3-modes analysis:
+
+```{r}
+SA_mode_active_match <- SA_mode_match %>%
+  group_by(CTUID) %>%
+  dplyr::summarise(
+    jobs = first(jobs),
+    car_SA = sum(SA_im[PwMode_label == "Car-motorized"]),
+    car_labour = sum(labour_force[PwMode_label == "Car-motorized"]),
+    
+    pt_SA = sum(SA_im[PwMode_label == "Public transit"]),
+    pt_labour = sum(labour_force[PwMode_label == "Public transit"]),
+    
+    active_SA = sum(SA_im[PwMode_label %in% c("Bike", "Walk")]),
+    active_labour = sum(labour_force[PwMode_label %in% c("Bike", "Walk")])) %>%
+  pivot_longer(cols = contains("_"),
+               names_to = "var", values_to = "value") %>%
+  separate(var, into = c("mode", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(PwMode_label = case_when(mode == "car" ~ "Car-motorized",
+                                  mode == "pt"~ "Public transit",
+                                  mode == "active" ~ "Active")) %>%
+  dplyr::select(CTUID, PwMode_label, SA_im = SA, 
+                labour_force = labour, jobs)
+
+# Checking result
+sum(SA_mode_active_match$SA_im)
+sum(SA_mode_match$SA_im)
+
+sum(SA_mode_active_match$labour_force, na.rm = TRUE)
+sum(SA_mode_match$labour_force, na.rm = TRUE)
+```
+
+
+```{r}
+SA_mode_education_active_match <- SA_mode_education_match %>%
+  group_by(CTUID, Education) %>%
+  dplyr::summarise(
+    jobs = first(jobs),
+    car_SA = sum(SA_ime[PwMode_label == "Car-motorized"]),
+    car_labour = sum(labour_force[PwMode_label == "Car-motorized"]),
+    
+    pt_SA = sum(SA_ime[PwMode_label == "Public transit"]),
+    pt_labour = sum(labour_force[PwMode_label == "Public transit"]),
+    
+    active_SA = sum(SA_ime[PwMode_label %in% c("Bike", "Walk")]),
+    active_labour = sum(labour_force[PwMode_label %in% c("Bike", "Walk")])) %>%
+  pivot_longer(cols = contains("_"),
+               names_to = "var", values_to = "value") %>%
+  separate(var, into = c("mode", "metric"), sep = "_") %>%
+  pivot_wider(names_from = metric, values_from = value) %>%
+  mutate(PwMode_label = case_when(mode == "car" ~ "Car-motorized",
+                                  mode == "pt"~ "Public transit",
+                                  mode == "active" ~ "Active")) %>%
+  dplyr::select(CTUID, Education, PwMode_label, SA_ime = SA, 
+                labour_force = labour, jobs)
+
+# Checking result
+sum(SA_mode_education_active_match$SA_ime)
+sum(SA_mode_education_match$SA_ime)
+
+sum(SA_mode_education_active_match$labour_force, na.rm = TRUE)
+sum(SA_mode_education_match$labour_force, na.rm = TRUE)
+```
+
+Calculating the spatial availability per capita:
+```{r}
+SA_mode_education_active_match <- SA_mode_education_active_match %>% 
+  mutate(SA_pp_ime = ifelse(labour_force == 0, 0, SA_ime/labour_force))
+
+SA_mode_active_match <- SA_mode_active_match %>% 
+  mutate(SA_pp_im = ifelse(labour_force == 0, 0, SA_im/labour_force))
+```
+
+At this point, the workflow has produced the general Hansen-type accessibility measures, general spatial-availability measures, and the matching multimodal spatial-availability measures. 
+
+The final step is to save the main intermediate and final tables so they can be used for mapping, statistical analysis, validation, or further research.
+
+# Export tables
+
+Creating the directory:
+
+```{r directory-export}
+# Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/output/PCD",
+                           code,"/CT/accessibility-measures/") 
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
+```
+
+Export the original files for future consultations:
+```{r export-original-files}
+# HT tables
+write.csv(HT, paste0(diretorio_export, "HT_general.csv"), row.names=FALSE)
+write.csv(HT_mode, paste0(diretorio_export, "HT_mode.csv"), row.names=FALSE)
+
+# SA tables
+write.csv(SA, paste0(diretorio_export, 
+                     "SA_general.csv"), row.names=FALSE)
+write.csv(SA_mode, paste0(diretorio_export, 
+                          "SA_mode.csv"), row.names=FALSE)
+write.csv(SA_mode_active, paste0(diretorio_export, 
+                                 "SA_mode_active.csv"), row.names=FALSE)
+
+# Matched SA tables
+write.csv(SA_match, 
+          paste0(diretorio_export, "SA_match_general.csv"), row.names=FALSE)
+write.csv(SA_mode_match, 
+          paste0(diretorio_export, "SA_mode_match.csv"), row.names=FALSE)
+write.csv(SA_education_match, 
+          paste0(diretorio_export, "SA_education_match.csv"), row.names=FALSE)
+write.csv(SA_mode_education_match, 
+          paste0(diretorio_export, "SA_mode_education_match.csv"), row.names=FALSE)
+write.csv(SA_mode_active_match, 
+          paste0(diretorio_export, "SA_mode_active_match.csv"), row.names=FALSE)
+write.csv(SA_mode_education_active_match, 
+          paste0(diretorio_export, "SA_mode_education_active_match.csv"), row.names=FALSE)
+```

@@ -8,8 +8,12 @@
 .DS_Store
 .quarto
 /data-ignore-inputs/
+/CommuteCA-data-paper/Map/
+/CommuteCA-data-paper/Originals/
 /data-raw/old-versions/
 /data-raw/aux-files/PCD3520/
 /data-raw/input/
+/data-raw/CT/
+/data-raw/DA/
 /data-raw/output/
 docs

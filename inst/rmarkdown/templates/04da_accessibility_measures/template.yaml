@@ -1,0 +1,4 @@
+name: 04DA_Accessibility_Measures
+description: >
+   This R markdown allows to obtain accessibility measures for any Canadian study area at the Dissemination Area level.
+create_dir: FALSE

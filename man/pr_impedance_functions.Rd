@@ -3,43 +3,43 @@
 \docType{data}
 \name{pr_impedance_functions}
 \alias{pr_impedance_functions}
-\title{Impedance functions for Canadian Provinces and Territories}
+\title{Impedance Functions for Canadian Provinces and Territories}
 \format{
-A data frame containing 675 rows and 12 variables; each row represents a unique function.
+A data frame with rows representing unique parameterized
+impedance functions for each combination of province, CMA category,
+and transportation mode.
 \describe{
-\item{Pr}{Province or Territory.}
-\item{CMA_type}{Type of Census Metropolitan Area or Census Agglomeration (Possible values: 'Territories (outside CAs)','CMA/CA','Strong metropolitan influenced zone', 'Moderate metropolitan influenced zone','Weak metropolitan influenced zone', or 'No metropolitan influenced zone').}
-\item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
-\item{distribution}{Name of the function that best adjusted the duration values considering the specific location and transportation mode (can be 'exponential', 'norm', 'lnorm', 'gamma' or 'unif')}.
-\item{est_1}{Estimate of the first parameter for the function described in 'distribution.'}
-\item{est_2}{Estimate of the second parameter for the function described in 'distribution.'}
-\item{loglike}{Log Likelihood obtained for the function 'distribution.'}
-\item{AIC}{Akaike information criterion obtained for function 'distribution.'}
-\item{BIC}{Bayesian information criterion obtained for function 'distribution.'}
+\item{PR}{Province code (2-digit).}
+\item{PRNAME}{Province or territory name.}
+\item{CMACATEG}{CMA category. One of: 'Census Metropolitan Area or Census Agglomeration', 'Strong metropolitan influenced zone', 'Moderate metropolitan influenced zone', 'No metropolitan influenced zone', or 'Territories (outside CAs)'.}
+\item{PwMode_label}{Transportation mode. One of: 'Bike', 'Car-motorized', 'Public transit', or 'Walk'.}
+\item{Distribution}{Best-fitting probability distribution. One of: 'Exponential', 'Normal', 'Log-normal', 'Gamma', or 'Uniform'.}
+\item{est_1}{First parameter estimate for the specified distribution.}
+\item{est_2}{Second parameter estimate for the specified distribution.}
 }
 }
 \source{
-"2021 Census of Population, informations about the census is available \href{https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E}{here} accessed December 19th 2024.
+Statistics Canada. (2021). Census of Population.
+\url{https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E}
+Reproduced and distributed on an "as is" basis with the permission of Statistics Canada.
+This aggregated dataset was produced from confidential microdata accessed at the
+Research Data Centre (RDC) at McMaster University and was vetted and approved
+for release in accordance with disclosure control requirements.
+Accessed December 19, 2024.
 }
 \usage{
 data(pr_impedance_functions)
 }
 \description{
-This object contains impedance functions for Canadian Provinces and Territories, for job destinations,
-considering different transportation modes ('Bike', 'Car', 'Transit', and 'Walk')
-and types of CMA/CAs ('Territories (outside CAs)','CMA/CA','Strong metropolitan influenced zone',
-'Moderate metropolitan influenced zone','Weak metropolitan influenced zone',
-'No metropolitan influenced zone'). We estimated impedance functions  using the fitdistrplus package, using the 'PwDUR'
-(Commuting duration) of the 2021 Census of Population.
-The best-fit function was defined by selecting the lowest Akaike information criterion.
+Impedance functions fitted to commuting duration distributions for
+Canadian provinces and territories, categorized by CMA category.
+Functions were estimated using the \code{fitdistrplus} package based
+on PwDUR data from the 2021 Census of Population. The best-fit distribution
+was selected using the lowest AIC.
 }
-\keyword{agglomerations}
-\keyword{area}
-\keyword{census}
-\keyword{decay}
-\keyword{distance}
 \keyword{functions}
 \keyword{impedance}
-\keyword{metropolitan}
 \keyword{province}
 \keyword{territory}
+\keyword{time}
+\keyword{travel}

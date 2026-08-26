@@ -2,22 +2,51 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{generate_impedance}
 \alias{generate_impedance}
-\title{Generate impedance values for a given travel cost}
+\title{Generate impedance values from a data frame}
 \usage{
-generate_impedance(impedance_function, travel_cost = 60)
+generate_impedance(
+  df,
+  travel_cost_col = "travel_cost",
+  distribution_col = "distribution",
+  est1_col = "est_1",
+  est2_col = "est_2",
+  output_col = "f"
+)
 }
 \arguments{
-\item{impedance_function}{A list with elements \code{distribution}, \code{est_1}, \code{est_2}.}
+\item{df}{A data frame containing columns for travel cost, distribution name,
+and two parameters.}
 
-\item{travel_cost}{A numeric vector of travel costs.}
+\item{travel_cost_col}{Name of the column with the travel costs (numeric).
+Default \code{"travel_time"}.}
+
+\item{distribution_col}{Name of the column with the distribution name.
+Default \code{"distribution"}.}
+
+\item{est1_col}{Name of the column for the first distribution parameter. Default \code{"est_1"}.}
+
+\item{est2_col}{Name of the column for the second distribution parameter. Default \code{"est_2"}.}
+
+\item{output_col}{Name of the new column to store impedance values.
+Default \code{"f"}.}
 }
 \value{
-A numeric vector of impedance values (same length as \code{travel_cost}).
+The input data frame with an additional column (\code{output_col})
+containing the impedance values.
 }
 \description{
-Generate impedance values for a given travel cost
+This function calculate the impedance (\code{f}) related to a travel cost (usually duration)
+by applying probability density functions (PDF).
 }
 \examples{
-impedance <- list(distribution = "lnorm", est_1 = 0.5, est_2 = 0.8)
-generate_impedance(impedance, 1:10)
+\dontrun{
+df <- data.frame(Distribution = c("lnorm", "lnorm", "gamma"),
+  Est_1 = c(0.5, 0.5, 1.2),
+  Est_2 = c(0.8, 0.8, 0.3),
+  travel_time = c(1, 5, 10))
+
+df_with_impedance <- generate_impedance(df, travel_cost_col = travel_time,
+                                        distribution_col = Distribution,
+                                        est1_col = Est_1, est2_col = Est_2)
+}
 }

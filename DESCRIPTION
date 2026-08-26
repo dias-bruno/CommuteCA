@@ -1,31 +1,34 @@
 Package: CommuteCA
-Title: Standardized Methods for Accessibility Analysis in Canadian Research
-Version: 3.4
+Title: CommuteCA: Datasets and Methods for Job Accessibility in Canada
+Version: 5.0
 Authors@R: 
     c(person("Bruno", "Dos Santos", , "dossanb@mcmaster.ca", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-6748-2038")),
            person("Antonio", "Paez", , "paezha@mcmaster.ca", role = c("aut"),
            comment = c(ORCID = "0000-0001-6912-9919")))
 Description: 
-  The main objective of the *CommuteCA* package is to develop standardized methods for
-  accessibility analysis in research, especially for studies using the 2021 Census of Population of Statistics Canada,
-  which contain valuable variables for transportation research. This package was
-  created with support from the office of the Research Data Center at McMaster University,
-  the Sherman Centre for Digital Scholarship and Mobilizing Justice.
-License: CC BY 4.0
+  Provides datasets and standardized methods for job accessibility analysis using the 
+  2021 Census of Population of Statistics Canada. Includes synthetic test data, 
+  aggregated land-use datasets, and calibrated impedance functions for commuting 
+  by transportation mode. Created with support from the Research Data Centre at 
+  McMaster University, the Sherman Centre for Digital Scholarship, and Mobilizing Justice.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends: 
     R (>= 3.5)
 LazyData: true
+LazyDataCompression: bzip2
 Suggests: 
-    dplyr,
     sf,
-    tmap
+    tmap, 
+    fitdistrplus, 
+    ggplot
 Imports:
     dplyr (>= 1.0.0),
     rlang (>= 0.4.0),
-    magrittr (>= 1.5)
+    magrittr (>= 1.5), 
+    scales (>= 1.0.0)
 URL: https://github.com/dias-bruno/CommuteCA, https://dias-bruno.github.io/CommuteCA/
 BugReports: https://github.com/dias-bruno/CommuteCA/issues
 Config/roxygen2/version: 8.1.0

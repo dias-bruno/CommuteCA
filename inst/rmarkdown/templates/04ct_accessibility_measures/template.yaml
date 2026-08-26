@@ -1,0 +1,4 @@
+name: 04CT_Accessibility_Measures
+description: >
+   This R markdown allows to obtain accessibility measures for cities located within Census Metropolitan Areas or Census Agglomerations at the Census Tract Level.
+create_dir: FALSE

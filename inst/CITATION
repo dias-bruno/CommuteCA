@@ -1,0 +1,25 @@
+citHeader("To cite the CommuteCA package in publications, please use:")
+
+citEntry(
+  entry = "Manual",
+  title = "CommuteCA: Datasets and Methods for Job Accessibility in Canada",
+  author = c(
+    person("Bruno", "Dos Santos", role = c("aut", "cre"),
+           email = "dossanb@mcmaster.ca",
+           comment = c(ORCID = "0000-0002-6748-2028")),
+    person("Antonio", "Paez", role = "aut",
+           email = "paezha@mcmaster.ca",
+           comment = c(ORCID = "0000-0001-6912-9919"))
+  ),
+  year = "2026",
+  note = "R package version 5.0",
+  url = "https://github.com/dias-bruno/CommuteCA",
+  textVersion = paste(
+    "Dos Santos, B., & Paez, A. (2026).",
+    "CommuteCA: Datasets and Methods for Job Accessibility in Canada.",
+    "R package version 5.0.",
+    "Retrieved from https://github.com/dias-bruno/CommuteCA"
+  )
+)
+
+citFooter("Data from Statistics Canada is included under the Statistics Canada Open Licence.")

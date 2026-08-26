@@ -1,5 +1,5 @@
 ---
-title: "CommuteCA: "
+title: "Intoducing CommuteCA: An open data package with datasets and standardized methods for job accessibility analyses in Canada"
 runninghead: Anon1  \& Anon2.
 author:
   - name: "Anon1"
@@ -18,10 +18,11 @@ footnote:
 corrauth: "Anon1 - Address."
 email: Anon1@anon.org
 abstract: 
-  "This paper describes {CommuteCA}, an open data product with Canadian time use data. " 
+  "The Canadian Census provides detailed information on the labour force population and how they commute to work. However, the original Census microdata files are confidential, and even when access is granted, preparing the data for analysis is not straightforward. Based on this, this paper introduces CommuteCA, an open data product in the form of an R package, providing analysis-ready data and standardized methodologies for conducting job accessibility analyses in Canada using data from the 2021 Census of Population. For metropolitan areas and urban agglomerations, the package provides information on the labour force by transportation mode and education level, as well as on the number of jobs by occupation category, at the census tract level. In addition, CommuteCA provides calibrated impedance functions for all municipalities for four transportation modes (walking, cycling, public transit, and car-motorized vehicles), as well as calibrated functions according to education levels. The package also includes standardized methodologies in the form of R Markdown templates for conducting accessibility analyses using either the Census microdata files or the processed datasets, as well as customized functions that facilitate users' analyses."
+  
 link-citations: yes
 linkcolor: blue
-keywords: accessibility; employment; census; decay; ; ;
+keywords: opportunity; employment; impedance; travel; transport;
 classoption:
   - Royal
   - times
@@ -123,13 +124,13 @@ documentation for the 2021 Census of Population [@PUMFCensus2021], these
 files do not include geographic references below the municipal (Census
 Division) level, nor do they contain the workplace location of employed
 respondents. In addition, the original census microdata files are
-confidential and require access to Research Data Centres (RDC), Statistics
-Canada offices, following a lengthy approval process, which makes it
-difficult for urban planners and transportation researchers to make
-data-driven decisions. Even when access is granted, preparing the data
-for analysis is not straightforward, given its size and complexity.
-Moreover, the process of extracting information of interest from the
-source files is time-consuming, technically challenging, and prone to
+confidential and require access to Research Data Centres (RDC),
+Statistics Canada offices, following a lengthy approval process, which
+makes it difficult for urban planners and transportation researchers to
+make data-driven decisions. Even when access is granted, preparing the
+data for analysis is not straightforward, given its size and complexity.
+Moreover, the process of extracting information of interest from surveys
+like the Census is time-consuming, technically challenging, and prone to
 error, particularly for analysts without extensive experience working
 with these files.
 
@@ -146,7 +147,7 @@ travel behaviour when commuting to work, nor do they provide a
 standardized methodology for conducting accessibility analyses.
 
 More than ever, accessibility analyses are sparking the interest of
-planning practitioners in Canada (e.g., [@nicknewstead2024]). Therefore,
+planning practitioners in Canada (e.g., @nicknewstead2024). Therefore,
 reducing barriers to accessing and using rich but difficult-to-access
 and complex datasets, such as the Canadian census, is a valuable effort
 that can contribute to more data-driven decision-making in urban
@@ -167,15 +168,13 @@ ODPs [@dossantos2025; @soukhov2023] and analyses based on them
 
 In the following sections, this paper discusses the 2021 Census of
 Population, our main data source, and the process implemented to
-retrieve and organize into an ODP. Next, we explain how to use the
-package and present some selected examples of analysis to spark the
-interest of potential users. This ODP provides not only data and
-easy-to-use R Markdown templates, but also all the code and
-documentation that make this research project reproducible.
+retrieve and organize into an ODP. Next, we a case study using the datasets and methodological framework to assess the accessibility to employments in the City of Toronto, in order to spark the interest of potential users. This ODP provides not only data and
+easy-to-use `R` Markdown templates, but also all the code and
+documentation that make this research project completely reproducible.
 
 # Canadian Census
 
-The most recent census in Canada was held in 2021, collecting
+The most recently released Census in Canada was held in 2021, collecting
 information on the Canadian population to support planning in diverse
 areas, including public transportation and skills training to improve
 employment outcomes [@statisticscanada2023]. The microdata file for the
@@ -196,8 +195,8 @@ activities of daily living, socio-cultural information, mobility,
 education, and labour market activity. The census data are accompanied
 by reference guides designed to help users better understand the files.
 Among these reference guides, the Commuting Reference Guide
-[@DictCensus2021], along with the Labour Force Reference Guide,
-contains the variables most relevant for transportation analyses.
+[@DictCensus2021], along with the Labour Force Reference Guide, contains
+the variables most relevant for transportation analyses.
 
 ## Commute, Labour Force, and Education Reference Guides
 
@@ -240,7 +239,7 @@ the number of people in the labour force showing a slight decline, from
 
 The number of employed people was approximately 17.3 million. Of that
 total, 4.2 million worked from home, representing 24.3% of the employed
-workforce - a figure three times higher than the proportion observed in
+workforce - a share three times higher than the proportion observed in
 2016. The 2021 Census also revealed that approximately 13 million people
 commuted to work. Among them, the majority (84%) commuted by car, truck,
 or van; 8% used public transportation; 5% walked; and 1% cycled. In
@@ -255,9 +254,9 @@ certificate.
 # Data process
 
 Figure \ref{fig:process-figure} presents a diagram illustrating the
-processes applied to the microdata files to create the {CommuteCA}
+processes applied to the Census microdata files to create the {CommuteCA}
 datasets. These datasets were created with the intention of providing
-all the data required to calculate job accessibility models for any
+all the data required to calculate job accessibility for any
 study area in Canada.
 
 ```{r process-figure, echo=FALSE, out.width="100%", fig.cap=paste0("CommuteCA datasets obtained from the 2021 Canadian Census microdata files."), fig.align="center"}
@@ -267,7 +266,7 @@ knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/CommuteCA_dat
 
 Acessibility refers to the ease of reaching spatially distributed
 opportunities [@hansen1959] and results from the interaction between
-land use and transportation systems [@geurs2004], we grouped the inputs
+land use and transportation systems [@geurs2004]. Based on this, we grouped the inputs
 required for these calculations into three categories: 1) a land use
 table reporting, for each spatial unit, the number of opportunities - in
 this case, employment opportunities -, and the number of people
@@ -291,45 +290,70 @@ are distributed across all Canadian provinces, except Prince Edward
 Island, whose total population was only slightly more than 154,000 in
 2016.
 
-In terms of the labour force, {CommuteCA} contains land use tables with data on the total labour force in each CT, as well as the labour force classified by highest education level and/or transportation mode. First, we summed the weighted population within the labour force in each CT. Then, we identified the main transportation mode used to commute to work, when applicable, and classified it into four categories: "Car/Motorized" (car, truck, van, or motorcycle), "Public Transit" (bus, subway, rail, streetcar, train, or passenger ferry), "Walk", and "Bike". For workers who worked remotely or did not have a fixed workplace, as well as unemployed people, we used the category "Other or non-commuter". Next, we classified members of the labour force based on their highest education level into three categories: "High school or no certificate", "Postsecondary certificate or diploma below bachelor level", and "Bachelor's degree or higher".
+In terms of the labour force, {CommuteCA} contains land use tables with
+data on the total labour force in each CT, as well as the labour force
+classified by highest education level and/or transportation mode. First,
+we summed the weighted population within the labour force in each CT.
+Then, we identified the main transportation mode used to commute to
+work, when applicable, and classified it into four categories:
+"Car/Motorized" (car, truck, van, or motorcycle), "Public Transit" (bus,
+subway, rail, streetcar, train, or passenger ferry), "Walk", and "Bike".
+For workers who worked remotely or did not have a fixed workplace, as
+well as unemployed people, we used the category "Other or non-commuter".
+Next, we classified members of the labour force based on their highest
+education level into three categories: "High school or no certificate",
+"College or apprenticeship certificate" to represent postsecondary certificate or diploma below university level, and "University certificate or higher".
 
-For job opportunities, we summed the number of workers whose reported workplace was located in each CT and used this total as an estimate of the number of employment opportunities within the CT. We also classified these job opportunities according to the 2021 National Occupational Classification (NOC) and its Training, Education, Experience and Responsibilities (TEER) categories. As a result, the tables provide estimates of the number of "Management and professional" jobs, corresponding to management and professional occupations that generally require completion of a university degree or previous experience and expertise in subject-matter knowledge from a related occupation (TEER 0 and 1); "College or training", referring to occupations in TEER 2 and TEER 3, which usually require completion of a postsecondary education program or apprenticeship training program; and "High school or no training", referring to occupations that usually require completion of secondary school or a short work demonstration, with no formal educational requirements.
+For job opportunities, we summed the number of workers whose reported
+workplace was located in each CT and used this total as an estimate of
+the number of employment opportunities within the CT. We also classified
+these job opportunities according to the 2021 National Occupational
+Classification (NOC) and its Training, Education, Experience and
+Responsibilities (TEER) categories. As a result, the tables provide
+estimates of the number of "Management and professional" jobs,
+corresponding to management and professional occupations that generally
+require completion of a university degree or previous experience and
+expertise in subject-matter knowledge from a related occupation (TEER 0
+and 1); "College or apprenticeship", referring to occupations in TEER 2 and
+TEER 3, which usually require completion of a postsecondary education
+program or apprenticeship training program; and "High school or short-term experience", referring to occupations that usually require completion of secondary school or a short work demonstration, with no formal educational requirements.
 
 When generating travel-time matrices using routing engines such as
 {r5r}, analysts must specify a maximum trip duration - that is, the
-longest travel time (in minutes) considered during route calculation - to
-avoid unnecessary computations. For each Census Division (municipality),
-regardless of whether it is located within a CMA or CA, we identified
-the maximum commuting duration reported by Census respondents.
+longest travel time (in minutes) considered during route calculation -
+to avoid unnecessary computations. For each Census Division
+(municipality), regardless of whether it is located within a CMA or CA,
+we identified the maximum commuting duration reported by Census
+respondents.
 
-We also estimated the best impedance functions to represent the
-commuting behaviour of Canadians. We adopted
-Probability Density Functions (PDFs) in which an impedance function can
-be interpreted as the probability density of a trip occurring for each
-value of travel cost duration, following the approach of Soukhov and
-Paez [-@soukhov2024], Verma and Ukkusuri [-@sveda2023], and Dos Santos
-et al. [-@dossantos2026]. We applied the `fitdistrplus` package
+Next, we estimated the best impedance functions to represent the
+commuting behaviour of Canadians. We adopted Probability Density
+Functions (PDFs) in which an impedance function can be interpreted as
+the probability density of a trip occurring for each value of travel
+cost duration, following the approach of @soukhov2024, @sveda2023, and
+@dossantos2026. We applied the {fitdistrplus} package
 [@delignette2015fitdistrplus] to calculate the best-fitting PDF for
-every Census Division (municipality), transportation mode (walking,
-cycling, public transit, and car/motorized) and/or education level, by modelling commuting duration as travel cost and testing uniform, negative exponential, gamma, normal, and lognormal distributions. Then,
+every Census Division (municipality), CMA, and Province, transportation mode (walking,
+cycling, public transit, and car/motorized) and/or education level, by
+modelling commuting duration as travel cost and testing uniform,
+negative exponential, gamma, normal, and lognormal distributions. Then,
 we selected the best impedance function based on the lowest Akaike
 Information Criterion value [@akaike1974].
 
-In addition to these datasets that enable calculating job
-accessibility for CMAs or CAs in Canada, we also created testing
-datasets based on the 2021 Census of Population. These testing datasets
-were synthetically generated and contain variables for accessibility
-analyses to make it possible for analysts to practice coding outside
-Statistics Canada offices or Research Data Centres, since the access to
-the census microdata files is restricted. One of these datasets has
-250,000 observations distributed across Canada and contains 17
-variables, such as respondent identifiers and sample weight,
-geographical information, status in the labour force, and commuting to
-work variables. The second dataset represents respondents living in the
-City of Toronto, contains over 50,000 observations and 32 variables,
-that in addition to the previous set of variables, also includes
-sociodemographic variables that can be used to test regression models,
-such as income, race, and gender.
+In addition to these datasets that enable calculating job accessibility
+for CMAs or CAs in Canada, we also created testing datasets based on the
+2021 Census of Population. These testing datasets were synthetically
+generated and contain variables for accessibility analyses to make it
+possible for analysts to practice coding outside Statistics Canada
+offices or RDCs, since the access to the census
+microdata files is restricted. One of these datasets has 250,000
+observations distributed across Canada and contains 17 variables, such
+as respondent identifiers and sample weight, geographical information,
+status in the labour force, and commuting to work variables. The second
+dataset represents respondents living in the City of Toronto, contains
+over 50,000 observations and 32 variables, that in addition to the
+previous set of variables, also includes sociodemographic variables that
+can be used to test regression models, such as income, race, and gender.
 
 All code used to generate the {CommuteCA} datasets is publicly available
 through the project's GitHub repository, allowing researchers to
@@ -340,23 +364,30 @@ potential errors, and adapt the workflows to their own applications.
 
 All datasets included in {CommuteCA} were subjected to the
 confidentiality rules for the 2021 Census of Population through a
-vetting process conducted at the RDC. To be
-released, {CommuteCA} datasets had to comply with rules related mainly
-to minimum geographic area sizes, statistical outputs, and counts.
-According to the vetting rules, statistics must not be released for
-identifiable geographic areas containing fewer than a minimum number of persons, based on the weighted population. For place-of-work data, which are the source of the data used to produce all our datasets, the population under consideration is the employed labour force.
+vetting process conducted at the RDC. To be released, {CommuteCA}
+datasets had to comply with rules related mainly to minimum geographic
+area sizes, statistical outputs, and counts. According to the vetting
+rules, statistics must not be released for identifiable geographic areas
+containing fewer than a minimum number of persons. For place-of-work data, which are the source of the data
+used to produce all our datasets, the population under consideration is
+the employed labour force.
 
-In addition, all statistics other than counts must be based on weighted data and must be calculated from at least a minimum number of respondents whose combined weights must also exceed a minimum threshold to be releasable. These statistics must also follow a specified rounding system that varies according to sample size. For counts, all values must be weighted and rounded to the nearest multiple of five.
+In addition, all statistics other than counts must be based on weighted
+data and must be calculated from at least a minimum number of
+respondents whose combined weights must also exceed a minimum threshold
+to be releasable. These statistics must also follow a specified rounding
+system that varies according to sample size. For counts, all values must
+be weighted and rounded to the nearest multiple of five.
 
-# Standardized methodologies
+# Standardized methodologies and fuctions
 
 Having provided the datasets required to calculate accessibility models,
 {CommuteCA} also provides a collection of `R` Markdown templates
-containing the code needed to estimate these models, assess the
-relationship between accessibility and employment outcomes, and identify
-accessibility thresholds. Thus, the package provides a transparent and
-standardized methodology for conducting transportation analyses using
-the 2021 Canadian Census.
+containing the code (including personalized functions) needed to
+estimate these models and assess the relationship between accessibility and
+employment outcomes. Therefore, the 
+package provides a transparent and standardized methodology for
+conducting transportation analyses using the 2021 Canadian Census.
 
 Figure \ref{fig:templates-figure} presents a diagram illustrating the R
 Markdown templates available in {CommuteCA}. As shown in the figure,
@@ -367,19 +398,19 @@ job accessibility for any study area in Canada, including areas outside
 metropolitan areas, at the Dissemination Area (DA) level - a spatial
 unit smaller than the CT, with a population between 400 and 700 people,
 which was not included in the package datasets because of the
-confidentiality restrictions imposed by Statistics Canada.
+confidentiality restrictions defined by Statistics Canada.
 
 ```{r templates-figure, echo=FALSE, out.width="100%", fig.cap=paste0("R Markdown templates available in CommuteCA to perfom accessibility analyses."), fig.align="center"}
 
-knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/CommuteCA_rmarkdown_template.png"))
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/CommuteCA_rmarkdown_template.jpeg"))
 ```
 
-In total, {CommuteCA} contains eight `R` Markdown templates that guide
+In total, {CommuteCA} contains a couple of `R` Markdown templates that guide
 analysts through an accessibility analysis, from an introduction to `R`
 to the identification of accessibility thresholds. They are divided into
 three groups: Introduction to `R` (Templates 1 and 2), Accessibility
 Modelling (Templates 3 to 5), and Assessing Accessibility (Templates 6
-to 8). The first template provides an introduction to the R language. It
+to 7). The first template provides an introduction to the `R` language. It
 also introduces literate programming, data objects, basic operations,
 data measurement scales, and data manipulation techniques in `R`. The
 second template introduces Exploratory Data Analysis (EDA),
@@ -388,68 +419,101 @@ appropriate visualizations for different data types.
 
 The accessibility modelling templates begin with the third template,
 which guides analysts in organizing census spatial data and demonstrates
-how to obtain census spatial files using the {cancensus} package. The
-fourth template demonstrates how to generate travel-time matrices using
-the {r5r} routing engine. The fifth template explains how to calculate
+how to obtain census spatial files using the {cancensus} package and how to generate travel-time matrices using
+the {r5r} routing engine. The forth template explains how to calculate
 job accessibility using the traditional Hansen accessibility measure
-(gravity model) and the spatial availability model proposed by Soukhov
-et al. All templates in this group can be applied using either CT or
-DA-level data.
+(gravity model) and the spatial availability model proposed by
+@soukhov2023a. The fifth template explains how to plot maps to visualize job accessibility.
 
 The remaining templates focus on assessing accessibility outcomes using
 the accessibility models generated in the previous stage. The sixth
 template demonstrates how to create spatial filters for accessibility
 indicators so that they can be incorporated into regression models
 estimating the effects of accessibility on the probability of employment
-and labour force participation. The seventh template demonstrates how to
+and labour force participation. Finally, the seventh template demonstrates how to
 estimate these regression models, including the processing of
-socioeconomic, demographic, and environmental variables. Finally, the
-eighth template demonstrates how to identify accessibility thresholds
-based on the previously estimated models.
+socioeconomic, demographic, and environmental variables. 
 
-# {CommuteCA} data sets
+The package also includes customized functions that allow users to
+select the best impedance function for a study area, plot theoretical
+impedance values, calculate accessibility indicators, and create spatial
+filters for the accessibility indicators.
+
+# Results 
+
+## {CommuteCA} data sets
+
+```{r include = FALSE}
+labour_force_CT_general <- CommuteCA::labour_force_CT_general
+labour_force_CT_mode <- CommuteCA::labour_force_CT_mode
+
+total_mode_lf <-  sum(labour_force_CT_mode$labour_force_rounded, na.rm = TRUE)
+
+lf_by_mode_stats <- labour_force_CT_mode %>% 
+  group_by(PwMode_label) %>% 
+  dplyr::summarise(lf = sum(labour_force_rounded), 
+                   lf_perc = round(lf/total_mode_lf * 100, 2)) 
+
+labour_force_CT_mode <- CommuteCA::labour_force_CT_mode
+
+total_mode_lf <-  sum(labour_force_CT_mode$labour_force_rounded, na.rm = TRUE)
+
+lf_by_mode_stats <- labour_force_CT_mode %>% 
+  group_by(PwMode_label) %>% 
+  dplyr::summarise(lf = sum(labour_force_rounded), 
+                   lf_perc = round(lf/total_mode_lf * 100,1)) 
+
+labour_force_CT_education <- CommuteCA::labour_force_CT_education
+total_education_lf <-  sum(labour_force_CT_education$labour_force_rounded, na.rm = TRUE)
+
+lf_by_education_stats <- labour_force_CT_education %>% 
+  group_by(Education) %>% 
+  dplyr::summarise(lf = sum(labour_force_rounded), 
+                   lf_perc = round(lf/total_education_lf * 100, 1))
+```
 
 {CommuteCA} contains labour force and job opportunity estimates for
-6,002 CTs, representing `r round(6002/6247*100)`% of the 6,247 CTs in Canada. CTs that were not included in our dataset
-were excluded during the Statistics Canada vetting process because of
-confidentiality restrictions. Almost 14.7 million people in the labour
-force are represented within the included CTs, representing around 77%
-of the Canadian labour force. The labour force not included in the
-dataset is composed by people who do not live in metropolitan
-areas or who live in CTs excluded during the Statistics Canada vetting
-process. In addition, 11.8 million job opportunities are included in the
-dataset, representing almost 70% of the jobs available in Canada. Again,
-the jobs not included in the dataset are either located in CTs excluded
-during the vetting process or outside metropolitan areas.
+6,002 CTs, representing `r round(6002/6247*100)`% of the 6,247 CTs in
+Canada. Almost 14.7 million people in the labour force are represented
+in the included CTs, representing around 77% of the Canadian labour
+force. The labour force not included in the dataset is composed of
+people who do not live in metropolitan areas or who live in CTs excluded
+during the Statistics Canada vetting process. Around 53% of the labour
+force commuted by car-motorized modes, followed by 6.5% who commuted by
+public transportation. Active commuters (walking or cycling) represented
+less than 4% of the labour force, while commuters who used non-specified
+modes and non-commuters, due to being unemployed or because they were
+working from home, represented 37% of the labour force. Due to this high
+share of the labour force not commuting to work, aggravated by the
+COVID-19 pandemic, we also made available datasets with the non-commuter
+labour force distributed across the other transportation modes,
+according to the share of these modes in each CT. In terms of
+education, the majority of the labour force had a certificate or degree
+above high school, with 40% having a university certificate or higher
+and around 28% having a college or apprenticeship certificate.
 
-by mode
+```{r include = FALSE}
+jobs_CT_general <- CommuteCA::jobs_CT_general
 
-by education
+jobs_CT_occupation <- CommuteCA::jobs_CT_occupation
+total_education_jobs <-  sum(jobs_CT_occupation$jobs_rounded, na.rm = TRUE)
 
-by education mode 
+jobs_by_education_stats <- jobs_CT_occupation %>% 
+  group_by(TEER) %>%
+  dplyr::summarise(jobs = sum(jobs_rounded), 
+                   jobs_perc = round(jobs/total_education_jobs * 100, 1))
+```
 
-{CommuteCA} contains maximum travel times and impedance functions for
-all 293 Census Divisions in Canada. The maximum travel time identified
-was 240 minutes (4 hours) for all four transportation modes:
-car/motorized, public transit, walking, and cycling. The shortest
-maximum travel time identified was 5 minutes for cycling in Les
-Etchemins, Quebec. For the other modes, the shortest maximum travel
-times were 15 minutes for walking (identified in Guysborough, Nova
-Scotia), 30 minutes for public transit (identified in Communauté
-maritime des Îles-de-la-Madeleine, Quebec), and 90 minutes for
-car/motorized travel (identified in Kitikmeot, Nunavut).
-
-In most cases (80%), the municipalities have impedance functions for all
-four transportation modes. In some cases, the package does not include
-an impedance function because there were no minimal labour force respondents who
-reported commuting using a given mode in the sample. For almost 15% of the municipalities,
-only three impedance functions were provided, while for less than 6%
-only two functions were provided. We were able to estimate impedance
-functions for car/motorized travel and walking in all municipalities,
-while functions for public transit and cycling were estimated for 90%
-and 84% of municipalities, respectively. 
-
-present the tables for some specific case. 
+Almost 70% of the job opportunities in Canada are represented in the
+{CommuteCA} datasets (around 11.8 million). Again, the jobs not
+included in the dataset are either located in CTs excluded during the
+vetting process or outside metropolitan areas. According to the TEER
+categories, around 38% of these job opportunities are categorized as
+management or professional positions, which are usually occupied by
+workers with at least a university degree or certificate; around 35%
+refer to positions that require college or apprentice certificates, and
+the remaining 27% are positions for which no certification or only a
+high-school certification is required.
 
 ```{r, include = FALSE}
 impedance_functions <- CommuteCA::pcd_impedance_functions 
@@ -468,27 +532,48 @@ impedance_functions_4 <- impedance_functions_n %>%
   filter(functions == 4)
 ```
 
+In most cases (80%), the municipalities have impedance functions for all
+four transportation modes. In some cases, the package does not include
+an impedance function because there were no minimal labour force
+respondents who reported commuting using a given mode in the sample. For
+almost 15% of the municipalities, only three impedance functions were
+provided, while for less than 6% only two functions were provided. We
+were able to estimate impedance functions for car/motorized travel and
+walking in all municipalities, while functions for public transit and
+cycling were estimated for 90% and 84% of municipalities, respectively.
 
+{CommuteCA} contains maximum travel times and impedance functions for
+all 293 Census Divisions in Canada. The maximum travel time identified
+was 240 minutes (4 hours) for all four transportation modes:
+car/motorized, public transit, walking, and cycling. The shortest
+maximum travel time identified was 5 minutes for cycling in Les
+Etchemins, Quebec. For the other modes, the shortest maximum travel
+times were 15 minutes for walking (identified in Guysborough, Nova
+Scotia), 30 minutes for public transit (identified in Communauté
+maritime des Îles-de-la-Madeleine, Quebec), and 90 minutes for
+car/motorized travel (identified in Kitikmeot, Nunavut).
 
 ## Case study
 
-This section presents an application of the {CommuteCA} R package using
+This section presents an application of the {CommuteCA} `R` package using
 a selected study area. The application demonstrated in this case study
 can be conducted by any user who installs the package, without requiring
 access to the restricted microdata files of the 2021 Canadian Census.
 Installation instructions and examples of applications of the
-{CommuteCA} R package are available in the vignettes in the project's
+{CommuteCA} `R` package are available in the vignettes in the project's
 GitHub repository, and all analyses presented in this section were
-conducted using the R Markdown templates provided with the package.
+conducted using the `R` Markdown templates provided with the package.
 
-The selected study area is the Greater Toronto and Hamilton Area (GTHA),
-in Ontario, Canada. More specifically, the study area includes the
-Census Divisions corresponding to the regional municipalities of
-Hamilton, Halton, Peel, Toronto, York, and the Durham subdivisions
-within the Toronto Census Metropolitan Area (Figure
+For this demonstration, we will realize a multimodal accessibility
+analysis for the City of Toronto, in Ontario, Canada (Figure
 \ref{fig:study-area-map}). According to the 2021 Canadian Census
-[@statisticscanada2023], over 7.2 million residents live in this area,
-which covers approximately 7,300 square kilometres.
+[@statisticscanada2023], almost 2.8 million residents live in this area,
+which covers approximately 631 square kilometres.
+
+```{r study-area-map, echo=FALSE, out.width="80%", fig.cap=paste0("Population density of the City of Toronto (study area).")}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/study_area_map_toronto.png"))
+```
 
 Having defined a study area, we can use one of the {CommuteCA} R
 Markdown templates to download spatial files using {cancensus}. Next,
@@ -500,332 +585,289 @@ Division available in {CommuteCA}. Both the methodology for downloading
 spatial files and the methodology for generating travel-time matrices
 are standardized within the collection of templates.
 
-The {CommuteCA} dataset contains 1,482 of the 1,489 CTs available in the
-study area, with the seven missing CTs excluded because they were
-subject to Statistics Canada vetting rules. According to our dataset,
-the study area has a labour force of around `r labour_force_gtah` people
-and approximately `r labour_jobs_gtah` job opportunities, distributed
-across the study area's municipalities, as shown in Table X.
-
-The majority (almost 78%) of workers who commute to work in the study
-area are car commuters, followed by public transit users (about 15%),
-pedestrians (almost 6%), and cyclists (less than 2%). The City of
-Toronto, the largest Canadian city by population, presents the lowest
-share of car commuters (61%) and the highest shares of transit users
-(26%) and active commuters (almost 13%). Figure X presents a map of the
-estimated labour force by transportation mode, created using the
-{CommuteCA} datasets.
-
-```{r study-area-map, echo=FALSE, out.width="100%", fig.cap=paste0("Map of the study area.")}
-
-#knitr::include_graphics(paste0(figures_diretorio,"/study_area_map.png"))
-```
-
 ```{r, include = FALSE}
-land_use_gtah <- CommuteCA::land_use_CT_general %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525)) 
+labour_force_CT_3520 <-labour_force_CT_general %>% 
+  filter(PCD == "3520")
 
-labour_force_gtah <- sum(land_use_gtah$labour_force_rounded, na.rm = TRUE)
+jobs_CT_3520 <- jobs_CT_general %>% 
+  filter(PCD == "3520")
 
-labour_jobs_gtah <- sum(land_use_gtah$jobs_rounded, na.rm = TRUE)
+labour_force_3520 <- sum(labour_force_CT_3520$labour_force_rounded, na.rm = TRUE)
 
-land_use_gtah_mode <- CommuteCA::land_use_CT_mode %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525)) %>% 
-  group_by(PwMode) %>% 
-  dplyr::summarise(Population = sum(labour_force_est_rounded)) %>% 
+labour_jobs_3520 <- sum(jobs_CT_3520$jobs_rounded, na.rm = TRUE)
+
+labour_force_3520_mode <- CommuteCA::estimated_labour_force_CT_mode %>% 
+  filter(PCD == "3520") %>% 
+  group_by(PwMode_label) %>% 
+  dplyr::summarise(Population = sum(est_labour_force)) %>% 
   mutate(share = Population/sum(Population) * 100)
-
-land_use_gtah_mode_pcd <- CommuteCA::land_use_CT_mode %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525)) %>% 
-  group_by(PCD, PwMode) %>% 
-  dplyr::summarise(Population = sum(labour_force_est_rounded)) %>% 
-  mutate(share = Population/sum(Population) * 100)
-
 ```
 
-In total, there are 24 calibrated impedance functions for the selected
-study area, corresponding to each of the four transportation modes
-across the six municipalities. When calibrated using empirical data,
-impedance functions illustrate the distribution of observed commuting
-travel behaviour across different travel costs. The analysis of these
-functions generally reveals a distance-decay effect, in which greater
-distances between origins and destinations lead to lower movement
-intensity and a lower probability of observing trips. However, the shape
-of this distance-decay effect varies across transportation modes and
-municipalities, showing differences in population behaviour when
-commuting to work.
+The {CommuteCA} dataset contains 582 of the 585 CTs available in the
+study area, with the three missing CTs excluded because they were
+subject to Statistics Canada vetting rules. According to our dataset,
+the study area has a estimated labour force of around
+`r labour_force_3520` people and approximately `r labour_jobs_3520` job
+opportunities. According to our estimates, the majority (61%) of workers who commute to
+work in the study area are car commuters, followed by public transit
+users (about 27%), pedestrians (almost 10%), and cyclists (less than
+3%). Figure \ref{fig:pop-dens-mode} presents a map of the estimated
+labour force population density (per km\textsuperscript{2}) by
+transportation mode, created using the {CommuteCA} datasets. It can be
+seen that the south-central part of the city concentrates a larger
+active population, especially walkers, while public transit users and,
+especially, car commuters are spread throughout the city.
 
-Table X shows the calibrated impedance functions for the study area,
-while Figure X displays their distributions by transportation mode.
-According to these functions, walking trips are better represented by
-exponential distributions, in which the highest trip density occurs at
-the minimum travel cost, close to 1 minute. As travel duration
-increases, the density of observed trips decreases. The function also
-shows that walking commuters from the City of Toronto tend to travel for
-longer durations compared with commuters from other municipalities,
-since the curve has a smaller peak and is more distributed across longer
-durations.
+```{r pop-dens-mode, echo=FALSE, out.width="100%", fig.cap=paste0("Estimated labour force population density by transportation mode.")}
 
-For cycling trips, the gamma and lognormal distributions show that at
-durations close to zero minutes, the trip density is lower (with a
-density of zero for some municipalities). After a few minutes, the
-density achieves a peak, followed by a decline toward zero at very high
-travel durations, indicating a low probability of observing cycling
-trips at these travel times. For cycling trips, the peak generally
-occurs between 8 and 12 minutes. A similar behaviour is observed for car
-commuters, although the peak is lower than that for cycling trips and
-occurs between 12 and 16 minutes, with a greater probability of trips
-continuing to occur after 50 minutes.
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/density_four_mode_land_use.jpg"))
+```
 
-Finally, public transit users show the longest commuting durations, with
-a lower peak density than the other modes and curves that are more
-distributed across longer durations. The peak generally occurs between
-35 and 55 minutes, except for the City of Hamilton, where it occurs at
-around 22 minutes. From a transportation planning perspective, these
+Each transportation mode contains its specific impedance function,
+calibrated using only commuters from the City of Toronto. When
+calibrated using empirical data, impedance functions illustrate the
+distribution of observed commuting travel behaviour across different
+travel costs. The analysis of these functions generally reveals a
+distance-decay effect, in which greater distances between origins and
+destinations lead to lower movement intensity and a lower probability of
+observing trips. However, the shape of this distance-decay effect varies
+across transportation modes and municipalities, showing differences in
+population behaviour when commuting to work.
+
+```{r impedance-table, echo = FALSE}
+impedance_functions_3520 <- CommuteCA::pcd_impedance_functions %>% 
+  filter(PCD == "3520")
+
+impedance_functions_3520_table <- CommuteCA::pcd_impedance_functions %>% 
+  filter(PCD == "3520") %>% 
+  mutate(est_2 = case_when(Distribution == "Exponential" ~ NA,
+                           TRUE ~ est_2)) %>% 
+  dplyr::select(PCD, PCDNAME, PwMode_label, Distribution, est_1, est_2)  %>% 
+  mutate(PwMode_label = factor(PwMode_label, levels = c("Walk", "Bike", "Public transit", "Car-motorized"))) %>%
+  kable(format = "latex",
+        booktabs = TRUE,
+        caption = paste0("\\label{tab:impedance_functions}Calibrated impedance functions for the City of Toronto."), 
+        col.names = c("Census Code", "Municipality", "Mode", "Impedance function","Parameter 1*","Parameter 2*")) %>%
+    kable_styling(full_width = FALSE,  
+                latex_options=c("scale_down"),
+                font_size = 9) %>% 
+  row_spec(0, bold = TRUE, align = "c") %>% 
+  collapse_rows(columns = 1, valign = "top", latex_hline = "major") %>%
+  kableExtra::footnote(general = c("For each probability distribution, Parameter 1 and Parameter 2 correspond to their standard defining parameters: the mean and standard deviation (for lognormal and normal), the rate and shape (for gamma), and the power (for exponential)."), threeparttable = T) %>%
+  kable_styling(latex_options = "HOLD_position")
+
+impedance_functions_3520_table
+```
+
+```{r theoretical_impedance_values, include = FALSE}
+specific_function <- search_impedance_function(code = 3520, 
+                                               type = "PCD")
+
+max_dur <- 90 
+
+expanded_df <- specific_function[rep(seq_len(nrow(specific_function)), 
+                                     each = max_dur), ]
+
+expanded_df$t <- rep(seq_len(max_dur), times = nrow(specific_function))
+
+rownames(expanded_df) <- NULL
+
+tld_theoretical <- generate_impedance(df = expanded_df,
+                                      travel_cost_col = "t",
+                                      distribution_col = "Distribution",
+                                      est1_col = "est_1",
+                                      est2_col = "est_2",
+                                      output_col = "f")
+
+peaks <- tld_theoretical %>% 
+  group_by(PwMode_label) %>% 
+  dplyr::summarize(peak = t[f == max(f)])
+
+priority_order <- c("Walk", 
+                   "Car-motorized", 
+                   "Public transit", 
+                   "Bike")
+my_colors <- c("#99d594","#fc8d59","#91bfdb","#decbe4")
+names(my_colors) <- priority_order
+
+
+impedance_functions_plot <- tld_theoretical %>%
+  ggplot(aes(x=t, y=f, color = as.factor(PwMode_label))) +
+  geom_line(size = 1, alpha = 1) + 
+  theme_minimal() +
+  labs(x = "Trip duration (in minutes)", 
+       y = "Density", 
+       color = "Transportation mode") + 
+  scale_color_manual(values = my_colors) +
+  theme(strip.text = element_text(face = "bold", hjust = 0))
+
+ggsave(paste0(here::here(),"/CommuteCA-data-paper/mode_impedance_functions.jpg"), 
+       impedance_functions_plot, 
+       width = 18, 
+       height = 7, 
+       units = "cm", 
+       dpi = 300)
+```
+
+```{r mode-functions-fig, echo=FALSE, out.width="100%", fig.cap=paste0("Toronto calibrated impedance functions by transportation mode."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/mode_impedance_functions.jpg"))
+```
+
+Table \ref{tab:impedance-table} shows the calibrated impedance functions
+for the study area, while Figure \ref{fig:mode-functions-fig} displays
+their distributions by transportation mode. Almost all trips are better
+represented by gamma distributions, except for bike trips, which are
+better represented by a lognormal distribution. In all cases, the distributions show that at durations close to zero
+minutes, the trip density is lower (with a density of zero for public
+transit and bike trips). After a few minutes, the density reaches a
+peak, followed by a decline toward zero at very high travel durations,
+indicating a low probability of observing trips at these travel times.
+
+For walking trips, the probability density peak occurs at around 4
+minutes. For cycling trips, the peak occurs at 12 minutes, and a similar
+behaviour is observed for car commuters, although the peak occurs at 15
+minutes and there is a greater probability of trips continuing to occur
+beyond 50 minutes. Finally, public transit users show the longest
+commuting durations, with a lower peak density than the other modes and
+curves that are more distributed across longer durations. The peak
+occurs at 33 minutes. From a transportation planning perspective, these
 differences among impedance functions highlight how using a generic
 function in accessibility studies can lead to distorted accessibility
 indicators, as opportunities may be weighted incorrectly according to
 the observed travel behaviour of different populations and
 transportation modes.
 
-```{r}
-impedance_functions_gtah <- CommuteCA::pcd_impedance_functions %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525))
-
-impedance_functions_gtah_table <- CommuteCA::pcd_impedance_functions %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525))  %>% 
-  mutate(pcd_label = case_when(PCD == "3518" ~ "Durham", 
-                               PCD == "3519" ~ "York", 
-                               PCD == "3520" ~ "Toronto", 
-                               PCD == "3521" ~ "Peel", 
-                               PCD == "3524" ~ "Halton", 
-                               PCD == "3525" ~ "Hamilton"), 
-    distribution = case_when(
-    distribution == "lnorm" ~ "Lognormal",
-    distribution == "gamma" ~ "Gamma",
-    distribution == "exp" ~ "Exponential",
-    distribution == "unif" ~ "Uniform",
-    distribution == "norm" ~ "Normal",
-    TRUE ~ distribution), 
-    across(c(est_1,est_2), ~ round(., digits = 2)), 
-  across(c(AIC), ~ round(., digits = 0)), 
-           est_2 = case_when(
-    distribution == "Exponential" ~ NA, 
-    TRUE ~ est_2)) %>% 
-  dplyr::select(pcd_label, PCD, PwMode,distribution, est_1, est_2, AIC)  %>% 
-  mutate(PwMode = case_when(PwMode == "Car/motor" ~ "Car-motorized",
-                            PwMode == "Transit" ~ "Public transit",
-                            TRUE ~ PwMode),
-           PwMode = factor(PwMode, levels = c("Walk", "Bike", "Public transit", "Car-motorized"))) %>%
-  kable(format = "latex",
-        booktabs = TRUE,
-        caption = paste0("\\label{tab:impedance_functions}Impedance functions calibrated for the census subidvisions of the study area."), 
-        col.names = c("Subdivision", "Census Code","Mode", "Impedance function","Parameter 1*","Parameter 2*", "AIC")) %>%
-    kable_styling(full_width = FALSE,  
-                latex_options=c("scale_down"),
-                font_size = 9) %>% 
-  row_spec(0, bold = TRUE, align = "c") %>% 
-  collapse_rows(columns = 1, valign = "top", latex_hline = "major") %>%
-  kableExtra::footnote(general = c("For each probability distribution, Parameter 1 and Parameter 2 correspond to their standard defining parameters: the mean and standard deviation (for lognormal and normal), the rate and shape (for gamma), and the power (for exponential). The AIC represents the Akaike Information Criterion used to assess model fit."), threeparttable = T) %>%
-  kable_styling(latex_options = "HOLD_position")
-```
-
-```{r theoretical_impedance_values, include = FALSE}
-theoretical_impedance <- function(df_functions, travel_cost) {
-  
-  # Initialize the main data frame to store results
-  result <- data.frame()
-  
-  # Create the 't' sequence
-  t_seq <- seq(1, travel_cost, 0.5)
-  
-  for (mode in unique(df_functions$PwMode)){
-    
-    for (pcd in unique(df_functions[df_functions$PwMode == mode, ]$PCD)){ 
-      
-      name_function <- df_functions[df_functions$PCD == pcd & 
-                                      df_functions$PwMode == mode, ]$distribution
-      
-      print(paste0("PCD: ", pcd, " MODE: ", mode))
-      
-      subset <- df_functions %>% 
-        filter(PCD == pcd & PwMode == mode)
-      
-      # Temporary data frame for this iteration
-      temp_df <- data.frame(t = t_seq)
-      
-      # Add the appropriate distribution
-      if (name_function == "lnorm") {
-        temp_df$f <- dlnorm(temp_df$t,
-                            meanlog = subset$est_1[1],
-                            sdlog = subset$est_2[1])
-        
-      } else if (name_function == "gamma") {  
-        temp_df$f <- dgamma(temp_df$t,
-                            shape = subset$est_1[1],
-                            rate = subset$est_2[1])
-        
-      } else if (name_function == "norm") {  
-        temp_df$f <- dnorm(temp_df$t,
-                           mean = subset$est_1[1],
-                           sd = subset$est_2[1])
-        
-      } else if (name_function == "exp") {  
-        temp_df$f <- dexp(temp_df$t,
-                          rate = subset$est_1[1])
-        
-      } else if (name_function == "unif") {  
-        temp_df$f <- dunif(temp_df$t,
-                           min = subset$est_1[1],
-                           max = subset$est_2[1])
-      }
-      
-      # Add mode, pcd and destination columns
-      temp_df$PwMode <- mode
-      temp_df$PCD <- pcd
-
-      # Append to the result data frame
-      result <- rbind(result, temp_df)
-    }
-  }
-
- return(result)
-}
-
-theoretical_values <- theoretical_impedance(CommuteCA::pcd_impedance_functions %>% 
-  filter(PCD %in% c(3518,3519,3521,3520,3524,3525)), travel_cost = 90) %>% 
-  mutate(pcd_label = case_when(PCD == "3518" ~ "Durham", 
-                               PCD == "3519" ~ "York", 
-                               PCD == "3520" ~ "Toronto", 
-                               PCD == "3521" ~ "Peel", 
-                               PCD == "3524" ~ "Halton", 
-                               PCD == "3525" ~ "Hamilton"), 
-         PwMode = case_when(PwMode == "Car/motor" ~ "Car-motorized",
-                            PwMode == "Transit" ~ "Public transit",
-                            TRUE ~ PwMode),
-           PwMode = factor(PwMode, levels = c("Walk", "Bike", "Public transit", "Car-motorized")))
-
-maximos <- theoretical_values %>%
-    group_by(PCD, PwMode) %>%
-    filter(f == max(f)) %>%
-    slice(which.max(t)) %>%
-    ungroup()
-```
-
-```{r, include = FALSE}
-pcd_order <- c("Durham", "York", "Toronto", "Peel", "Halton", "Hamilton")
-
-my_colors_pcd <- c("#66c2a5","#8da0cb","#fc8d62","#e78ac3","#a6d854","#ffd92f")
-
-names(my_colors_pcd) <- pcd_order
-
-mode_functions <- theoretical_values %>%
-  ggplot(aes(x=t, y=f, color = as.factor(pcd_label))) +
-  geom_line(size = 0.75, alpha = 0.9) + 
-  theme_minimal() +
-  facet_wrap(~ PwMode) + 
-  scale_color_manual(values = my_colors_pcd) +
-  labs(x = "Trip duration (in minutes)", y = "Density", color = "Census Division") + 
-  theme(
-    strip.text = element_text(face = "bold", hjust = 0))
-
-ggsave(paste0(here::here(),"/CommuteCA-data-paper/mode_impedance_functions.jpg"), mode_functions, 
-       width = 15, 
-       height = 8, 
-       units = "cm", 
-       dpi = 300)
-```
-
-```{r mode-functions-fig, echo=FALSE, out.width="100%", fig.cap=paste0("Impedance functions by transportation mode and municipality."), fig.align="center"}
-
-knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/mode_impedance_functions.jpg"))
-```
-
 At this point, the analyst has all the data required to calculate job
 accessibility models. Using the {CommuteCA} templates, the analyst can
-generate accessibility maps such as those displayed in Figure X. The map
-on the left of Figure X shows the result of a gravity-based model, as
-proposed by Hansen, while the map on the right shows the spatial
-availability model proposed by Soukhov. These models differ because the
-Hansen (1959) model does not consider competition between people for
-available opportunities. It has the advantage of being simple and well
-established in transportation analyses. However, its output is not
-directly interpretable as a number of accessible jobs, making the
-indicator more difficult to explain. In contrast, the measure proposed
-by @soukhov2024 has the advantage of being constrained, meaning that the
-model output can be interpreted as the number of jobs accessible to
-people in each spatial unit. If we sum the accessibility values across
-all spatial units, we obtain the total number of jobs available in the
-system. In addition, because it considers competition, it prevents a
-single job opportunity from being counted as accessible to more than one
-person. Competitive measures are relevant when considering employment
-outcomes because jobs are exclusive, and their use by one person
-prevents their use by another.
+calculate job accessibility and create maps such as those displayed in Figure
+\ref{fig:access-fig}.
 
-The package templates also enable the calculation of multimodal
-accessibility indicators, as shown in Figure X. The spatial availability
-measure per person shows that, generally, car commuters can access
-substantially more jobs than users of other transportation modes,
-without large variation across locations within the study area. In fact,
-96% of the jobs available in the study area are accessible to people who
-commute by car, although car commuters represent 77% of the study area's
-labour force. The results for cycling, however, show that higher levels
-of accessibility are generally concentrated around downtown areas. For
-public transit users, as expected, higher accessibility is observed
-around areas with more public transit infrastructure, such as subway and
-regional rail lines. The walking mode presents an interesting pattern,
-showing that rural and suburban areas have higher walking accessibility.
-This can be explained either by a higher number of jobs accessible
-within typical walking distances, which is less likely, or, more
-probably, by the very low number of walking commuters in these areas,
-resulting in a higher ratio of jobs per person. In this case, higher
-accessibility values may reflect lower competition rather than a greater
-absolute number of accessible jobs. On average, each car commuter can
-access X jobs, while a public transit user can access X jobs, a
-pedestrian can access X jobs, and a cyclist can access X jobs.
+The maps on the first column show the result of a gravity-based model,
+as proposed by Hansen (1959), while the maps on the second column show
+the absolute spatial availability and the spatial availability per
+person, both proposed by Soukhov et al. [-@soukhov2023a;
+@soukhov2024multimodal]. These models differ because the Hansen (1959)
+model does not consider competition between people for available
+opportunities. It has the advantage of being simple and well established
+in transportation analyses. However, its output is not directly
+interpretable as a number of accessible jobs, making the indicator more
+difficult to explain. In contrast, spatial availability, the measure
+proposed by @soukhov2023a has the advantage of being constrained,
+meaning that the model output can be interpreted as the number of jobs
+accessible to people in each spatial unit. If we sum the accessibility
+values across all spatial units, we obtain the total number of jobs
+available in the system. In addition, because it considers competition,
+it prevents a single job opportunity from being counted as accessible to
+more than one person.
 
-# Processing 2021 Canadian Census microdata files with {CommuteCA}
+```{r access-fig, echo=FALSE, out.width="100%", fig.cap=paste0("Job accessibility indicators by transportation mode for the City of Toronto."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/four_mode_HT_SA_SApp.jpg"))
+```
+
+Lastly, the results shown in the third column of Figure
+\ref{fig:access-fig} refer to the spatial availability per person, which
+refers to the amount of jobs spatially available divided by the number of
+people competing for those jobs. This last model is suitable for
+situations where the spatial unit (e.g., CTs) does not have a
+standardized format, such as regular grids, allowing the comparisons
+between areas with different population sizes. As observed for the other
+measures, the spatial availability per person shows that, generally, car
+commuters can access substantially more jobs than users of other
+transportation modes, without large variation across locations within
+the study area. In fact, 86% of the jobs available in the study area are
+accessible to people who commute by car, although car commuters
+represent 61% of the study area's labour force (see Figure
+\ref{fig:pop-access-shares}). The results for walking and cycling,
+however, show that higher levels of accessibility are generally
+concentrated around downtown areas. For public transit users, as
+expected, higher accessibility is observed in areas with more public
+transit infrastructure, such as subway and regional rail lines (see
+Figure \ref{fig:study-area-map}).
+
+```{r pop-access-shares, echo=FALSE, out.width="50%", fig.cap=paste0("Share of labour force and jobs spatially availables by transporation mode for the City of Toronto."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/four_modes_pop_SA_share.jpg"))
+```
+
+## Processing 2021 Canadian Census Microdata Files with {CommuteCA}
 
 For researchers with access to the restricted microdata files of the
 2021 Census of Population, it is also possible to conduct the analyses
-shown in our case study at the DA level. Figure X shows the spatial
-availability measure at the DA level for the City of Toronto. As shown
-in the figure, the spatial pattern does not differ substantially from
-that observed at the CT level, but for some applications, a more
-geographically detailed indicator may be preferable. In addition, the DA
-level makes it possible to conduct analyses for any study area in
-Canada, which may be relevant for rural and remote areas where CTs are
-not available.
+shown in our case study at the DA level. Figure \ref{fig:SA-DA-level}
+shows the spatial availability measure at the DA level for the City of
+Toronto. As shown in the figure, the spatial pattern does not differ
+substantially from that observed at the CT level, but for some
+applications, a more geographically detailed indicator may be
+preferable. In addition, the DA level makes it possible to conduct
+analyses for any study area in Canada, which may be relevant for rural
+and remote areas where CTs are not available. However, analysis at the
+DA level is more likely to have cases excluded during the RDC vetting
+process, as we can see from the number of DAs without accessibility
+information. This happens because DAs are smaller geographical areas
+with lower population sizes when compared to CTs, and are more prone to
+failing to meet the population size requirements. As a consequence,
+although the high spatial detail of the DA allows for more refined
+analysis, these analyses are more likely to be affected by exclusions
+during the vetting process.
+
+```{r SA-DA-level, echo=FALSE, out.width="100%", fig.cap=paste0("Job spatial availability in Toronto at the Dissemination Area level."), fig.align="center"}
+
+knitr::include_graphics(paste0(here::here(),"/CommuteCA-data-paper/SA_four_mode_DA.jpg"))
+```
 
 In addition, {CommuteCA} enables researchers to extend the accessibility
 analysis by linking accessibility indicators to socioeconomic and
-demographic variables. The collection of R Markdown templates includes
+demographic variables. The collection of `R` Markdown templates includes
 instructions for estimating different regression models to examine how
 job accessibility is associated with two employment outcomes: employment
 status (i.e., the probability of being employed) and, among those who
 are unemployed, the probability of having looked for a job during the
 four weeks preceding the 2021 Census interview.
 
-For all R Markdown templates in which census microdata files are
+For all `R` Markdown templates in which census microdata files are
 processed, the methodologies include a final code section dedicated to
-the Statistics Canada vetting process for Research Data Centres (RDCs).
-This section produces an output formatted according to Statistics Canada
-rules for releasing analyses and data derived from census microdata,
-including comments and colour-coded spreadsheets to facilitate the
-verification process by the RDC analyst while helping protect the
-confidentiality of census respondents.
-
-# Python integration
-
-{CommuteCA} also contains a Jupyter Notebook containing a Python script
-that demonstrates how to read R data files (.rda) and convert them into
-Pandas DataFrames. This process allows users to work with and utilize
-the datasets available in {ActiveCA} within a Python project.
+the Statistics Canada vetting process for RDCs. This section produces an
+output formatted according to Statistics Canada rules for releasing
+analyses and data derived from census microdata, including comments and
+colour-coded spreadsheets to facilitate the verification process by the
+RDC analyst while helping protect the confidentiality of census
+respondents.
 
 # Concluding remarks
 
-In fact, we expect the applications of this package to extend beyond the
-range of uses we initially imagined.
+Our objective with this article was to introduce {CommuteCA}, an ODP
+with analysis-ready data and standardized methodologies for job
+accessibility analyses in Canada using data from the 2021 Census of
+Population. In the form of an `R` data package, {CommuteCA} was developed
+after collecting, cleaning, and processing the confidential microdata
+files of the most recently released Canadian Census, providing
+information on the labour force (classified or not by transportation
+mode and education level) and the number of jobs (classified or not by
+occupation category) for all Census Metropolitan Areas and Census
+Agglomerations in Canada with census tracts. In addition, the package provides standardized
+methodologies describing how to conduct accessibility analyses using the
+Census microdata files or the already processed datasets, in addition to
+customized functions that facilitate users' analyses.
+
+The package allows users to conduct job accessibility analyses for any
+study area in Canada at the Census Dissemination Area level, provided
+that the analyst has been granted access to the Census microdata files,
+and conduct accessibility analyses for any study area within a Census
+Metropolitan Area or Census Agglomeration (where about 84% of the
+Canadian population resides) at the Census Tract level. Similar to other
+ODPs, we believe that the value of {CommuteCA} lies in its transparency,
+accessibility, and ease of use, which facilitates the addition of
+complementary datasets in the future.
+
+With {CommuteCA}, we aim to contribute to the academic community by promoting
+transparent research practices that encourage replication and innovation
+in related fields. We believe that this package will serve as a basis for
+new research on job accessibility and for the integration of additional
+data by authors or the open-source community at large. In fact, we
+expect the applications of this package to extend beyond the range of
+uses we initially imagined.
 
 # Declaration of Conflicting Interests
 
@@ -834,7 +876,11 @@ the research, authorship, and/or publication of this article.
 
 # Acknowledgments
 
-The authors thank the anonymous reviewers for their insightful comments.
+<!-- The authors thank the anonymous reviewers for their insightful comments. -->
+
+We would like to especially thank the Research Data Centre analysts at *to be included* for all their support during the realization of this study. They guided us on how to work with the confidential microdata files and how to prepare our outputs in accordance with the vetting process. This study would not have been possible without their work.
+
+In addition, we would also like to thank some other `R` packages that were essential to the production of {CommuteCA}, namely: {cancensus} [@cancensus], {r5r} [@pereira2021], {fitdistrplus} [@delignette2015fitdistrplus], {tmap} [@tmap], {sf} [@sf], and packages within the {tidyverse} initiative [@tidyverse] - especially {ggplot2} [@ggplot2], {dplyr} [@dplyr], and {tidyr} [@tidyr].
 
 # Funding
 
@@ -848,12 +894,11 @@ funding source after the review process*.
 
 # Data availability statement
 
-The {CommuteCA} R data package can be found and installed on
+The {CommuteCA} `R` data package can be found and installed on
 [Github](https://github.com/).
 
 For review purposes, the package is currently available as a tar.gz file
 that can be installed by R. The file can be obtained from this anonymous
-location:
-<https://user.fm/files/v2-3d261d0b2aa47fcad096cd9e49fd5cf8/ActiveCA.zip>
+location: <*to be included*>
 
 # References {#references .unnumbered}

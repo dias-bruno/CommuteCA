@@ -1,0 +1,1951 @@
+---
+title: "Visualizing accessibility measures (*Census Tract* level)"
+runningheader: "gravity-based and multimodal spatial availability maps" # only for pdf output
+subtitle: "gravity-based and multimodal spatial availability maps" # only for html output
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: skeleton.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+# Introduction
+
+This Rmarkdown file is part of the
+[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
+package was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
+
+[^1]: The Mobilizing Justice project is a multidisciplinary and
+    multi-sector collaboration with the objective of understand and
+    address transportation poverty in Canada and to improve the
+    well-being of Canadians at risk of transport poverty. The Social
+    Sciences and Humanities Research Council (SSRHC) has provided
+    funding for the project, which was created by an unprecedented
+    alliance of academics from various Canadian provinces and
+    institutions, transportation firms, and nonprofit organizations
+
+The [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) R package
+was created to develop standardized methods for transport analysis in
+research, particularly for analysis using the [*2021 Census of
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm)
+from Statistics Canada. We focused our efforts on the [*Commuting
+Reference
+Guide*](https://www12.statcan.gc.ca/census-recensement/2021/ref/98-500/011/98-500-x2021011-eng.cfm),
+which provides valuable variables and information on commuting for the
+Canadian population aged 15 and older living in private households.
+
+After obtaining the accessibility measures for our study area, in this
+`R` Markdown we will visualize the measure in form of maps.
+
+## Suggested Readings
+
+For plotting maps, we will mostly use the [`tmap`](https://r-tmap.github.io/tmap/index.html) Package, which was made specifically for drawing thematic maps with `R`. This library was created based on [`ggplot2`](https://ggplot2.tidyverse.org/), a package that we previously investigated in the exploratory data analysis template.
+
+Although we have created this code to plot the maps, it is possible that the dimensions and positions of the scalebar and compass (north arrow) might need to be updated for your study area, since it is not possible to know the best position considering all possibilities of study area boundaries. Therefore, we strongly suggest that you read the  [`tmap`](https://r-tmap.github.io/tmap/index.html) documentation. More specifically, the functions:
+
+- scalebar: https://r-tmap.github.io/tmap/reference/tm_scalebar.html
+- compass: https://r-tmap.github.io/tmap/reference/tm_compass.html
+
+In addition, if you are interested in learning more about plotting maps with [`tmap`](https://r-tmap.github.io/tmap/index.html), we recommend you to read: 
+
+-   Tennekes M., Nowosad J. (2025) Spatial Data Visualization with tmap: A Practical Guide to Thematic Mapping in R. Available at: https://tmap.geocompx.org
+
+# Let's code!
+
+Load the packages:
+
+```{r load-packages}
+library('CommuteCA') # Access datasets and functions from CommuteCA R package
+library(dplyr)# A Grammar of Data Manipulation 
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(RColorBrewer) # Color schemes for maps (and other graphics) designed
+library(scales) # for scaling data
+library(sf) # Support for simple features, a standardized way to encode spatial vector data
+library(tmap) # Thematic maps
+library(tidyr) # tidying data
+library(readr) # Read csv files setting column data types
+library('here') # enable easy file referencing in project-oriented workflows
+```
+
+## Data
+
+The data used in this R markdown is the output of the previous `R`
+markdown, in which we calculated accessibility and spatial availability
+for our study area. We will use the census tract (`census_tracts`)
+geometry, to plot maps of the study area.
+
+Setting the folder with the accessibility measures:
+
+```{r}
+code <- "PCD3520"
+measures_folder <- paste0(here::here(),"/data-raw/output/", code, "/CT/accessibility-measures/")
+```
+
+```{r reading-tables}
+# General measures
+HT <- read_csv(paste0(measures_folder, "HT_general.csv"),
+                col_types = cols(CTUID = col_character()))
+
+SA <- read_csv(paste0(measures_folder, "SA_general.csv"),
+                col_types = cols(
+                  CTUID = col_character()))
+
+SA_match <- read_csv(paste0(measures_folder, "SA_match_general.csv"),
+                col_types = cols(CTUID = col_character()))
+
+# Measures by mode and or education 
+HT_mode <- read_csv(paste0(measures_folder, "HT_mode.csv"),
+                col_types = cols(CTUID = col_character()))
+
+SA_mode <- read_csv(paste0(measures_folder, "SA_mode.csv"),
+                col_types = cols(CTUID = col_character()))
+
+MMSA_mode <- read_csv(paste0(measures_folder, "SA_mode_match.csv"),
+                col_types = cols(CTUID = col_character()))
+
+MMSA_education <- read_csv(paste0(measures_folder, "SA_education_match.csv"),
+                col_types = cols(
+                  CTUID = col_character()))
+
+MMSA_mode_education <- read_csv(paste0(measures_folder, "SA_mode_education_match.csv"),
+                col_types = cols(CTUID = col_character()))
+
+# Measures by mode and or education considering 'active' instead of bike/walk
+SA_mode_active <- read_csv(paste0(measures_folder, "SA_mode_active.csv"),
+                col_types = cols(CTUID = col_character()))
+
+MMSA_mode_active <- read_csv(paste0(measures_folder, "SA_mode_active_match.csv"),
+                col_types = cols(CTUID = col_character()))
+
+MMSA_mode_education_active <- read_csv(paste0(measures_folder,
+                                          "SA_mode_education_active_match.csv"),
+                col_types = cols(CTUID = col_character()))
+```
+
+Reading the `census_tracts` geometries:
+
+```{r}
+# Update this address if necessary
+directory_spatial_files <- paste0(here(), "/data-raw/output/",code,"/spatial-files/") 
+census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
+```
+
+Reading the census_divisions geometries:
+
+```{r}
+census_divisions <-   st_read(paste0(directory_spatial_files, "census_divisions.gpkg"))
+```
+
+Creating a directory to export the figures:
+
+```{r directory-export}
+# Update the address to export the data, if necessary
+diretorio_export_figures <- paste0(here(),"/data-raw/output/",code,"/CT/accessibility-figures/") 
+
+if(!dir.exists(diretorio_export_figures)){
+  dir.create(diretorio_export_figures, recursive = TRUE)}
+```
+
+# Total labour force
+
+The accessibility tables contain measures by census tract, while the
+mapping functions (from `tmap`) also need the geographic geometry of each census tract.
+
+We therefore combine the attribute tables with the `sf` geometry
+before creating the maps. Building the dataframe to produce the maps: 
+
+```{r}
+# General population
+metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(HT, by = c("CTUID")) %>%
+  left_join(SA, by = c("CTUID")) %>% 
+  rename(HT = HT_i, 
+         SA = SA_i, 
+         SA_pp = SA_pp_i) %>% 
+  pivot_longer(cols = c("HT","SA","SA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "HT" ~ "Gravity-based",
+    Measure == "SA" ~ "Spatial availability",
+    Measure == "SA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"))
+
+metrics_sf <- st_as_sf(metrics,
+                          crs = st_crs(census_tracts))
+```
+
+## Land use maps
+
+We begin with maps of the total labour force and jobs. These are land-use values to provide a useful reference for interpreting the accessibility maps that follow:
+
+```{r}
+total_land_use <- metrics_sf %>% 
+  filter(Measure %in% c("labour_force","jobs")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Total") + 
+  tm_facets_vstack("Measure_labels") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(total_land_use, 
+          paste0(diretorio_export_figures,"total_land_use.jpg"), 
+          width = 12, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_land_use.jpg"))
+```
+
+Raw counts are very influenced by the size of a geographic area.
+Dividing the count by `LANDAREA` converts the measure into a density,
+allowing areas of different sizes to be compared more directly. Considering the geographical density:
+
+```{r}
+density_total_land_use <- metrics_sf %>% 
+  filter(Measure %in% c("labour_force","jobs")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_vstack("Measure_labels") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(density_total_land_use, 
+          paste0(diretorio_export_figures,"density_total_land_use.jpg"), 
+          width = 14, 
+          height = 11, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/density_total_land_use.jpg"))
+```
+
+## Accessibility maps
+
+We now map the three general accessibility measures. Then, we will separate maps to make it easier to understand how the spatial pattern changes depending on the definition of accessibility.
+
+```{r}
+total_HT_SA_SApp <- metrics_sf %>% 
+  filter(Measure %in% c("HT","SA","SA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             fill.free = TRUE,
+             border.col = NULL,
+             palette = "YlOrRd", 
+             title = "Accessibility") + 
+  tm_facets_vstack("Measure_labels") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = c("Right","Bottom"), color.dark = "grey30" )+
+  tm_compass(position = c("left", "top"), size = 0.8)
+
+tmap_save(total_HT_SA_SApp, 
+          paste0(diretorio_export_figures,"total_HT_SA_SApp.jpg"), 
+          width = 14, 
+          height = 16, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_HT_SA_SApp.jpg"))
+```
+
+Hansen type: 
+
+```{r}
+HT_general <- metrics_sf %>% 
+  filter(Measure == "HT") %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+              fill.scale = tm_scale_continuous(value.na = "grey50", n = 5),
+              style = "quantile", 
+              border.col = NULL,
+              palette = "BuPu", 
+              title = "Gravity-based accessibility") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(HT_general, 
+          paste0(diretorio_export_figures,"HT_general.jpg"), 
+          width = 16, 
+          height = 8, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_general.jpg"))
+```
+
+Spatial availability: 
+
+```{r}
+SA_general <- metrics_sf %>% 
+  filter(Measure == "SA") %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+              fill.scale = tm_scale_continuous(value.na = "grey50", n = 5),
+              style = "quantile", 
+              border.col = NULL,
+              palette = "YlOrBr", 
+              title = "Spatial availability") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(SA_general, 
+          paste0(diretorio_export_figures,"SA_general.jpg"), 
+          width = 16, 
+          height = 8, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_general.jpg"))
+```
+
+Spatial availability per capita: 
+
+```{r}
+SA_pp_general <- metrics_sf %>% 
+  filter(Measure == "SA_pp") %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+              fill.scale = tm_scale_continuous(value.na = "grey50", n = 5),
+              style = "quantile", 
+              border.col = NULL,
+              palette = "YlGn", 
+              title = "Spatial availability per capita") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(SA_pp_general, 
+          paste0(diretorio_export_figures,"SA_pp_general.jpg"), 
+          width = 16, 
+          height = 8, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_pp_general.jpg"))
+```
+
+# Labour force by transportaion mode 
+
+Now, we will create maps to help us to visualize how accessibility varies by transportation mode. 
+
+Building the dataframe to produce the maps: 
+
+```{r}
+# 4 transportation modes
+four_mode_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(SA_mode$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(HT_mode, by = c("CTUID", "PwMode_label")) %>%
+  left_join(SA_mode, by = c("CTUID", "PwMode_label")) %>% 
+  rename(HT = HT_im, 
+         SA = SA_im, 
+         SA_pp = SA_pp_im) %>% 
+  pivot_longer(cols = c("HT","SA","SA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "HT" ~ "Gravity-based",
+    Measure == "SA" ~ "Spatial availability",
+    Measure == "SA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Walk","Bike",
+                                  "Public transit", "Car-motorized")))
+
+four_mode_metrics_sf <- st_as_sf(four_mode_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Building the dataframe to produce the maps: 
+
+```{r}
+# 3 transportation modes
+three_mode_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(SA_mode_active$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(SA_mode_active, by = c("CTUID", "PwMode_label")) %>% 
+  rename(SA = SA_im, 
+         SA_pp = SA_pp_im) %>% 
+  pivot_longer(cols = c("SA","SA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "SA" ~ "Spatial availability",
+    Measure == "SA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Active",
+                                  "Public transit", "Car-motorized")))
+
+three_mode_metrics_sf <- st_as_sf(three_mode_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+## Land use maps by modes: walking, cycling, public transit, and car-motorized
+
+```{r}
+four_mode_land_use <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(four_mode_land_use, 
+          paste0(diretorio_export_figures,"four_mode_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/four_mode_land_use.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_four_mode_land_use <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_four_mode_land_use, 
+          paste0(diretorio_export_figures,"density_four_mode_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/density_four_mode_land_use.jpg"))
+```
+
+## Accessibility maps by modes: walking, cycling, public transit, and car-motorized
+
+```{r}
+four_mode_HT_SA_SApp <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("HT","SA","SA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             fill.free = c(FALSE, TRUE),
+             border.col = NULL,
+             palette = "YlOrRd", 
+             title = "Accessibility") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Measure_labels") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scalebar(position = c("Right","Bottom"), breaks = c(0,5,10), color.dark = "grey30" )+
+  tm_compass(position = c("Left", "Top"), size = 1.5, text.size = 0.5, show.labels = FALSE)
+
+tmap_save(four_mode_HT_SA_SApp, 
+          paste0(diretorio_export_figures,"four_mode_HT_SA_SApp.jpg"), 
+          width = 15, 
+          height = 20, 
+          units = "cm", 
+          dpi = 600)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/four_mode_HT_SA_SApp.jpg"))
+```
+
+Hansen type: 
+
+```{r}
+HT_four_mode <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("HT")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "BuPu", 
+             title = "Gravity-based accessibility") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(HT_four_mode, 
+          paste0(diretorio_export_figures,"HT_four_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_four_mode.jpg"))
+```
+
+Spatial availability: 
+
+```{r}
+SA_four_mode <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("SA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(SA_four_mode, 
+          paste0(diretorio_export_figures,"SA_four_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_four_mode.jpg"))
+```
+
+Spatial availability per capita: 
+
+```{r}
+SA_pp_four_mode <- four_mode_metrics_sf %>% 
+  filter(Measure %in% c("SA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(SA_pp_four_mode, 
+          paste0(diretorio_export_figures,"SA_pp_four_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_pp_four_mode.jpg"))
+```
+
+Computing of the labour force by transportation mode:
+
+```{r}
+priority_order <- c("Walk", 
+                   "Car-motorized", 
+                   "Public transit", 
+                   "Bike")
+
+my_colors <- c("#99d594","#fc8d59","#91bfdb","#decbe4")
+
+names(my_colors) <- priority_order
+
+total_pop <- four_mode_metrics %>% 
+  filter(Measure == "labour_force") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+total_SA <- four_mode_metrics %>% 
+  filter(Measure == "SA") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+modal_SA_percents <- four_mode_metrics %>%
+  mutate(PwMode_label = factor(PwMode_label, levels = priority_order)) %>%
+  group_by(PwMode_label, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure, values_from = total) %>%
+  mutate(perc_SA = SA/total_SA,
+         perc_pop = labour_force/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop),
+               names_to = "perc",
+               values_to = "measure")
+
+four_modes_pop_SA_share <- ggplot(modal_SA_long,
+                            aes(x = perc, y = measure, 
+                                fill = PwMode_label,
+                                label = measure %>% percent(accuracy = 0.1)))+
+  scale_x_discrete(
+    labels= c("perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", 
+                                round(total_SA), ")"),
+              "perc_pop" = paste("Population\n by Mode\n(Total: ", 
+                                 round(total_pop), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust = 0.5), color = "black") +
+  scale_fill_manual(values = my_colors) +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures, "four_modes_pop_SA_share.jpg"), 
+       plot = four_modes_pop_SA_share,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/four_modes_pop_SA_share.jpg"))
+```
+
+
+
+## Land use maps by modes: active, public transit, and car-motorized
+
+```{r}
+three_mode_land_use <- three_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Total labour force") + 
+  tm_facets_wrap("PwMode_label", ncol = 3) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(three_mode_land_use, 
+          paste0(diretorio_export_figures,"three_mode_land_use.jpg"), 
+          width = 18, 
+          height = 6, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/three_mode_land_use.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_three_mode_land_use <- three_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_wrap("PwMode_label", ncol = 3) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+tmap_save(density_three_mode_land_use, 
+          paste0(diretorio_export_figures,"density_three_mode_land_use.jpg"), 
+          width = 18, 
+          height = 6, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/density_three_mode_land_use.jpg"))
+```
+
+## Accessibility maps by modes: active, public transit, and car-motorized
+
+```{r}
+three_mode_SA_SApp <- three_mode_metrics_sf %>% 
+  filter(Measure %in% c("SA","SA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             fill.free = c(FALSE, TRUE),
+             border.col = NULL,
+             palette = "YlOrRd", 
+             title = "Accessibility") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Measure_labels") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scalebar(position = c("Right","Bottom"), color.dark = "grey30" )+
+  tm_compass(position = c("Left", "Top"), size = 1.5, text.size = 0.5, show.labels = FALSE)
+
+tmap_save(three_mode_SA_SApp, 
+          paste0(diretorio_export_figures,"three_mode_SA_SApp.jpg"), 
+          width = 15, 
+          height = 20, 
+          units = "cm", 
+          dpi = 600)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/three_mode_SA_SApp.jpg"))
+```
+
+Spatial availability: 
+
+```{r}
+SA_three_mode <- three_mode_metrics_sf %>% 
+  filter(Measure %in% c("SA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(SA_three_mode, 
+          paste0(diretorio_export_figures,"SA_three_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_three_mode.jpg"))
+```
+
+Spatial availability per capita: 
+
+```{r}
+SA_pp_three_mode <- three_mode_metrics_sf %>% 
+  filter(Measure %in% c("SA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_wrap("PwMode_label", ncol = 2) + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(SA_pp_three_mode, 
+          paste0(diretorio_export_figures,"SA_pp_three_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_pp_three_mode.jpg"))
+```
+
+Computing of the labour force by transportation mode:
+
+```{r}
+priority_order <- c("Active", 
+                   "Car-motorized", 
+                   "Public transit")
+
+my_colors <- c("#99d594","#fc8d59","#91bfdb")
+
+names(my_colors) <- priority_order
+
+total_pop <- three_mode_metrics %>% 
+  filter(Measure == "labour_force") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+total_SA <- three_mode_metrics %>% 
+  filter(Measure == "SA") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+modal_SA_percents <- three_mode_metrics %>%
+  group_by(PwMode_label, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure, values_from = total) %>%
+  mutate(perc_SA = SA/total_SA,
+         perc_pop = labour_force/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop),
+               names_to = "perc",
+               values_to = "measure")
+
+three_modes_pop_SA_share <- ggplot(modal_SA_long,
+                            aes(x = perc, y = measure, 
+                                fill = PwMode_label,
+                                label = measure %>% percent(accuracy = 0.1)))+
+  scale_x_discrete(
+    labels= c("perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", 
+                                round(total_SA), ")"),
+              "perc_pop" = paste("Population\n by Mode\n(Total: ", 
+                                 round(total_pop), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust = 0.5), color = "black") +
+  scale_fill_manual(values = my_colors) +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures, "three_modes_pop_SA_share.jpg"), 
+       plot = three_modes_pop_SA_share,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/three_modes_pop_SA_share.jpg"))
+```
+
+
+# Matching Multimodal Spatial Availability
+
+We will create new maps similar to the created previously for Hansen and Spatial Availaiblity, but now we will use as input data the results and obtained with the Matching Multimodal Spatial Availability. 
+
+## Land use maps by education and by modes: walking, cycling, public transit, and car-motorized
+
+Building the dataframe to produce the maps: 
+
+```{r}
+# 4 transportation modes
+four_mode_education_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              Education = unique(MMSA_mode_education$Education),
+              PwMode_label = unique(MMSA_mode_education$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(MMSA_mode_education, by = c("CTUID", 
+                                        "Education", "PwMode_label")) %>% 
+  rename(MMSA = SA_ime, 
+         MMSA_pp = SA_pp_ime) %>% 
+  pivot_longer(cols = c("MMSA","MMSA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "MMSA" ~ "Spatial availability",
+    Measure == "MMSA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    Education = factor(Education, 
+                       levels = c("High school or no certificate",
+                                  "College or apprenticeship certificate",
+                                  "University certificate or higher")), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Walk","Bike",
+                                  "Public transit", "Car-motorized"))) 
+
+four_mode_education_metrics_sf <- st_as_sf(four_mode_education_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Total labour force: 
+
+```{r}
+total_four_mode_education_land_use <- four_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(total_four_mode_education_land_use, 
+          paste0(diretorio_export_figures,
+                 "total_four_mode_education_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_four_mode_education_land_use.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_four_mode_education_land_use <- four_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_four_mode_education_land_use, 
+          paste0(diretorio_export_figures,
+                 "density_four_mode_education_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/density_four_mode_education_land_use.jpg"))
+```
+
+Spatial availability by education and by mode: 
+
+```{r}
+MMSA_four_mode_education <- four_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_four_mode_education, 
+          paste0(diretorio_export_figures,"MMSA_four_mode_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_four_mode_education.jpg"))
+```
+Spatial availability per capita by education and by mode: 
+
+```{r}
+MMSA_pp_four_mode_education <- four_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_pp_four_mode_education, 
+          paste0(diretorio_export_figures,"MMSA_pp_four_mode_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_pp_four_mode_education.jpg"))
+```
+
+```{r}
+total_pop <- four_mode_education_metrics_sf %>% 
+  filter(Measure == "labour_force") %>% 
+  summarise(total = sum(Value, na.rm = TRUE)) %>% 
+  pull(total)
+
+total_SA <- four_mode_education_metrics_sf %>% 
+  filter(Measure == "MMSA") %>% 
+  summarise(total = sum(Value, na.rm = TRUE)) %>% 
+  pull(total)
+
+mode_education_shares <- four_mode_education_metrics_sf %>%
+  group_by(PwMode_label, Education, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure,
+    values_from = total,
+    values_fill = 0) %>%
+  mutate(perc_pop = labour_force/total_pop,
+    perc_SA = MMSA/total_SA)
+
+mode_education_long <- mode_education_shares %>%
+  pivot_longer(cols = c(perc_pop, perc_SA),
+    names_to = "measure",
+    values_to = "share") %>%
+  mutate(measure = recode(measure,
+      perc_pop = "Labour force",
+      perc_SA = "Spatial availability"))
+
+MMSA_four_mode_education_heatmap <- mode_education_long %>% 
+  ggplot(aes(x = PwMode_label,  y = Education, fill = share)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = scales::percent(share, accuracy = 0.1)),
+            color = "black", size = 2) +
+  facet_wrap(~ measure) +
+  scale_fill_gradient(low = "#edf8fb",high = "#8c96c6",
+                      labels = scales::percent_format(accuracy = 1)) +
+  labs(x = NULL, y = NULL, fill = "Share") +
+  theme_bw() +
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 7, color = 'black'),
+        axis.text.y = element_text(size = 7, color = 'black'),
+    legend.position = "none")
+
+ggsave(MMSA_four_mode_education_heatmap, 
+       file = paste0(diretorio_export_figures,"MMSA_four_mode_education_heatmap.jpg"), 
+       width = 14, 
+       height = 6, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_four_mode_education_heatmap.jpg"))
+```
+
+
+## Land use maps by by modes: walking, cycling, public transit, and car-motorized
+
+```{r}
+MMSA_four_mode_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(MMSA_mode$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(MMSA_mode, by = c("CTUID", "PwMode_label")) %>% 
+  rename(MMSA = SA_im, 
+         MMSA_pp = SA_pp_im) %>% 
+  pivot_longer(cols = c("MMSA","MMSA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "MMSA" ~ "Spatial availability",
+    Measure == "MMSA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Walk","Bike",
+                                  "Public transit", "Car-motorized")))
+
+MMSA_four_mode_metrics_sf <- st_as_sf(MMSA_four_mode_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Total labour force: 
+
+```{r}
+total_four_mode_land_use_MMSA <- MMSA_four_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(total_four_mode_land_use_MMSA, 
+          paste0(diretorio_export_figures,
+                 "total_four_mode_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_four_mode_land_use_MMSA.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_four_mode_land_use_MMSA <- MMSA_four_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_four_mode_land_use_MMSA, 
+          paste0(diretorio_export_figures,
+                 "density_four_mode_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/density_four_mode_land_use_MMSA.jpg"))
+```
+
+Spatial availability by mode: 
+
+```{r}
+MMSA_four_mode <- MMSA_four_mode_metrics_sf %>% 
+  filter(Measure %in% c("MMSA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_four_mode, 
+          paste0(diretorio_export_figures,"MMSA_four_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_four_mode.jpg"))
+```
+
+Spatial availability per capita by mode: 
+
+```{r}
+MMSA_pp_four_mode <- MMSA_four_mode_metrics_sf %>% 
+  filter(Measure %in% c("MMSA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_pp_four_mode, 
+          paste0(diretorio_export_figures,"MMSA_pp_four_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_pp_four_mode.jpg"))
+```
+
+Computing of the labour force by transportation mode:
+
+```{r}
+priority_order <- c("Walk", 
+                   "Car-motorized", 
+                   "Public transit", 
+                   "Bike")
+
+my_colors <- c("#99d594","#fc8d59","#91bfdb","#e6f5c9")
+
+names(my_colors) <- priority_order
+
+total_pop <- MMSA_four_mode_metrics %>% 
+  filter(Measure == "labour_force") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+total_SA <- MMSA_four_mode_metrics %>% 
+  filter(Measure == "MMSA") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+modal_SA_percents <- MMSA_four_mode_metrics %>% 
+  mutate(PwMode_label = factor(PwMode_label, levels = priority_order)) %>%
+  group_by(PwMode_label, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure, values_from = total) %>%
+  mutate(perc_SA = MMSA/total_SA,
+         perc_pop = labour_force/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop),
+               names_to = "perc",
+               values_to = "measure")
+
+MMSA_four_modes_pop_SA_share <- ggplot(modal_SA_long,
+                            aes(x = perc, y = measure, 
+                                fill = PwMode_label,
+                                label = measure %>% percent(accuracy = 0.1)))+
+  scale_x_discrete(
+    labels= c("perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", 
+                                round(total_SA), ")"),
+              "perc_pop" = paste("Population\n by Mode\n(Total: ", 
+                                 round(total_pop), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust = 0.5), color = "black") +
+  scale_fill_manual(values = my_colors) +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures, "MMSA_four_modes_pop_SA_share.jpg"), 
+       plot = MMSA_four_modes_pop_SA_share,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/MMSA_four_modes_pop_SA_share.jpg"))
+```
+
+## Land use maps by education
+
+```{r}
+MMSA_four_education_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              Education = unique(MMSA_education$Education)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(MMSA_education, by = c("CTUID", "Education")) %>% 
+  rename(MMSA = SA_ie, 
+         MMSA_pp = SA_pp_ie) %>% 
+  pivot_longer(cols = c("MMSA","MMSA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "MMSA" ~ "Spatial availability",
+    Measure == "MMSA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    Education = factor(Education, 
+                       levels = c("High school or no certificate",
+                                  "College or apprenticeship certificate",
+                                  "University certificate or higher")))  
+
+MMSA_four_education_metrics_sf <- st_as_sf(MMSA_four_education_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Total labour force: 
+
+```{r}
+total_four_education_land_use_MMSA <- MMSA_four_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_wrap("Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(total_four_education_land_use_MMSA, 
+          paste0(diretorio_export_figures,
+                 "total_four_education_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_four_education_land_use_MMSA.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_four_education_land_use_MMSA <- MMSA_four_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_wrap("Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_four_education_land_use_MMSA, 
+          paste0(diretorio_export_figures,
+                 "density_four_education_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/density_four_education_land_use_MMSA.jpg"))
+```
+
+Spatial availability by education: 
+
+```{r}
+MMSA_four_education <- MMSA_four_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_wrap("Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_four_education, 
+          paste0(diretorio_export_figures,"MMSA_four_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_four_education.jpg"))
+```
+
+Spatial availability per capita by education: 
+
+```{r}
+MMSA_pp_four_education <- MMSA_four_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_wrap("Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_pp_four_education, 
+          paste0(diretorio_export_figures,"MMSA_pp_four_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_pp_four_education.jpg"))
+```
+
+```{r}
+priority_order <- c("High school or no certificate",
+                    "College or apprenticeship certificate", 
+                   "University certificate or higher")
+
+my_colors <- c("#fdc086","#beaed4","#7fc97f")
+
+names(my_colors) <- priority_order
+
+total_pop <- MMSA_four_education_metrics %>% 
+  filter(Measure == "labour_force") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+total_SA <- MMSA_four_education_metrics %>% 
+  filter(Measure == "MMSA") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+modal_SA_percents <- MMSA_four_education_metrics %>%
+  group_by(Education, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure, values_from = total) %>%
+  mutate(perc_SA = MMSA/total_SA,
+         perc_pop = labour_force/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop),
+               names_to = "perc",
+               values_to = "measure")
+
+MMSA_four_educations_pop_SA_share <- ggplot(modal_SA_long,
+                            aes(x = perc, y = measure, 
+                                fill = Education,
+                                label = measure %>% percent(accuracy = 0.1)))+
+  scale_x_discrete(
+    labels= c("perc_SA" = paste("Spatial Availability\n by Education\n(Total: ", 
+                                round(total_SA), ")"),
+              "perc_pop" = paste("Population\n by Education\n(Total: ", 
+                                 round(total_pop), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust = 0.5), color = "black") +
+  scale_fill_manual(values = my_colors) +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        legend.position = "bottom", legend.direction = "vertical",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures, "MMSA_four_educations_pop_SA_share.jpg"), 
+       plot = MMSA_four_educations_pop_SA_share,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/MMSA_four_educations_pop_SA_share.jpg"))
+```
+
+## Land use maps by education and by modes: active, public transit, and car-motorized
+
+Building the dataframe to produce the maps: 
+
+```{r}
+# 4 transportation modes
+three_mode_education_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              Education = unique(MMSA_mode_education_active$Education),
+              PwMode_label = unique(MMSA_mode_education_active$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(MMSA_mode_education_active, by = c("CTUID", 
+                                        "Education", "PwMode_label")) %>% 
+  rename(MMSA = SA_ime, 
+         MMSA_pp = SA_pp_ime) %>% 
+  pivot_longer(cols = c("MMSA","MMSA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "MMSA" ~ "Spatial availability",
+    Measure == "MMSA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    Education = factor(Education, 
+                       levels = c("High school or no certificate",
+                                  "College or apprenticeship certificate",
+                                  "University certificate or higher")), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Active",
+                                  "Public transit", "Car-motorized"))) 
+
+three_mode_education_metrics_sf <- st_as_sf(three_mode_education_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Total labour force: 
+
+```{r}
+total_three_mode_education_land_use <- three_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(total_three_mode_education_land_use, 
+          paste0(diretorio_export_figures,
+                 "total_three_mode_education_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_three_mode_education_land_use.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_three_mode_education_land_use <- three_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_three_mode_education_land_use, 
+          paste0(diretorio_export_figures,
+                 "density_three_mode_education_land_use.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/density_three_mode_education_land_use.jpg"))
+```
+
+Spatial availability by education and by mode: 
+
+```{r}
+MMSA_three_mode_education <- three_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_three_mode_education, 
+          paste0(diretorio_export_figures,"MMSA_three_mode_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_three_mode_education.jpg"))
+```
+Spatial availability per capita by education and by mode: 
+
+```{r}
+MMSA_pp_three_mode_education <- three_mode_education_metrics_sf %>% 
+  filter(Measure %in% c("MMSA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_grid(rows = "PwMode_label", columns = "Education") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_pp_three_mode_education, 
+          paste0(diretorio_export_figures,"MMSA_pp_three_mode_education.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_pp_three_mode_education.jpg"))
+```
+
+```{r}
+total_pop <- three_mode_education_metrics_sf %>% 
+  filter(Measure == "labour_force") %>% 
+  summarise(total = sum(Value, na.rm = TRUE)) %>% 
+  pull(total)
+
+total_SA <- three_mode_education_metrics_sf %>% 
+  filter(Measure == "MMSA") %>% 
+  summarise(total = sum(Value, na.rm = TRUE)) %>% 
+  pull(total)
+
+mode_education_shares <- three_mode_education_metrics_sf %>%
+  group_by(PwMode_label, Education, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure,
+    values_from = total,
+    values_fill = 0) %>%
+  mutate(perc_pop = labour_force/total_pop,
+    perc_SA = MMSA/total_SA)
+
+mode_education_long <- mode_education_shares %>%
+  pivot_longer(cols = c(perc_pop, perc_SA),
+    names_to = "measure",
+    values_to = "share") %>%
+  mutate(measure = recode(measure,
+      perc_pop = "Labour force",
+      perc_SA = "Spatial availability"))
+
+MMSA_three_mode_education_heatmap <- mode_education_long %>% 
+  ggplot(aes(x = PwMode_label,  y = Education, fill = share)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = scales::percent(share, accuracy = 0.1)),
+            color = "black", size = 2) +
+  facet_wrap(~ measure) +
+  scale_fill_gradient(low = "#edf8fb",high = "#8c96c6",
+                      labels = scales::percent_format(accuracy = 1)) +
+  labs(x = NULL, y = NULL, fill = "Share") +
+  theme_bw() +
+  theme(axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 7, color = 'black'),
+        axis.text.y = element_text(size = 7, color = 'black'),
+    legend.position = "none")
+
+ggsave(MMSA_three_mode_education_heatmap, 
+       file = paste0(diretorio_export_figures,"MMSA_three_mode_education_heatmap.jpg"), 
+       width = 14, 
+       height = 6, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_three_mode_education_heatmap.jpg"))
+```
+
+
+## Land use maps by by modes: active, public transit, and car-motorized
+
+```{r}
+MMSA_three_mode_metrics <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(MMSA_mode_active$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(MMSA_mode_active, by = c("CTUID", "PwMode_label")) %>% 
+  rename(MMSA = SA_im, 
+         MMSA_pp = SA_pp_im) %>% 
+  pivot_longer(cols = c("MMSA","MMSA_pp","labour_force","jobs"), 
+               names_to = "Measure", 
+               values_to = "Value") %>% 
+  mutate(Measure_labels = case_when(
+    Measure == "MMSA" ~ "Spatial availability",
+    Measure == "MMSA_pp" ~ "Spatial availability per person",
+    Measure == "jobs" ~ "Jobs",
+    Measure == "labour_force" ~ "Labour force"), 
+    PwMode_label = factor(PwMode_label, 
+                       levels = c("Active",
+                                  "Public transit", "Car-motorized"))) 
+
+MMSA_three_mode_metrics_sf <- st_as_sf(MMSA_three_mode_metrics,
+                          crs = st_crs(census_tracts))
+```
+
+Total labour force: 
+
+```{r}
+MMSA_mode_education_active <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Labour force") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_mode_education_active, 
+          paste0(diretorio_export_figures,
+                 "total_three_mode_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/total_three_mode_land_use_MMSA.jpg"))
+```
+
+Considering the geographical density:
+
+```{r}
+density_three_mode_land_use_MMSA <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure %in% c("labour_force")) %>% 
+  mutate(Density = Value/LANDAREA) %>%
+  tm_shape() + 
+  tm_polygons(fill = "Density",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "jenks", 
+             border.col = NULL,
+             palette = "Blues", 
+             title = "Population per km²") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(density_three_mode_land_use_MMSA, 
+          paste0(diretorio_export_figures,
+                 "density_three_mode_land_use_MMSA.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/density_three_mode_land_use_MMSA.jpg"))
+```
+
+Spatial availability by mode: 
+
+```{r}
+MMSA_three_mode <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure %in% c("MMSA")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlOrBr", 
+             title = "Spatial availability") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_three_mode, 
+          paste0(diretorio_export_figures,"MMSA_three_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_three_mode.jpg"))
+```
+
+Spatial availability per capita by mode: 
+
+```{r}
+MMSA_pp_three_mode <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure %in% c("MMSA_pp")) %>% 
+  tm_shape() + 
+  tm_polygons(fill = "Value",
+             fill.scale = tm_scale_intervals(value.na = "grey50", n = 5),
+             style = "quantile", 
+             border.col = NULL,
+             palette = "YlGn", 
+             title = "Spatial availability per capita") + 
+  tm_facets_wrap("PwMode_label") + 
+  tm_shape(census_divisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scalebar(position = tm_pos_out(), color.dark = "grey30")+
+  tm_compass(position = c("Left", "Top"), size = 0.8)
+
+
+tmap_save(MMSA_pp_three_mode, 
+          paste0(diretorio_export_figures,"MMSA_pp_three_mode.jpg"), 
+          width = 18, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/MMSA_pp_three_mode.jpg"))
+```
+
+Computing of the labour force by transportation mode:
+
+```{r}
+priority_order <- c("Active", 
+                   "Car-motorized", 
+                   "Public transit")
+
+my_colors <- c("#99d594","#fc8d59","#91bfdb")
+
+names(my_colors) <- priority_order
+
+total_pop <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure == "labour_force") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+total_SA <- MMSA_three_mode_metrics_sf %>% 
+  filter(Measure == "MMSA") %>% 
+  pull(Value) %>% 
+  sum(na.rm = TRUE)
+
+modal_SA_percents <- MMSA_three_mode_metrics_sf %>%
+  group_by(PwMode_label, Measure) %>%
+  summarise(total = sum(Value, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Measure, values_from = total) %>%
+  mutate(perc_SA = MMSA/total_SA,
+         perc_pop = labour_force/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop),
+               names_to = "perc",
+               values_to = "measure")
+
+MMSA_three_modes_pop_SA_share <- ggplot(modal_SA_long,
+                            aes(x = perc, y = measure, 
+                                fill = PwMode_label,
+                                label = measure %>% percent(accuracy = 0.1)))+
+  scale_x_discrete(
+    labels= c("perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", 
+                                round(total_SA), ")"),
+              "perc_pop" = paste("Population\n by Mode\n(Total: ", 
+                                 round(total_pop), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust = 0.5), color = "black") +
+  scale_fill_manual(values = my_colors) +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color = "black"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures, "MMSA_three_modes_pop_SA_share.jpg"), 
+       plot = MMSA_three_modes_pop_SA_share,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,
+                               "/MMSA_three_modes_pop_SA_share.jpg"))
+```
+
