@@ -2,7 +2,7 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{calculate_spatial_filter}
 \alias{calculate_spatial_filter}
-\title{Calculate a spatial filter for a spatial variable based on a set of eigenvectors}
+\title{Calculate a spatial filter}
 \usage{
 calculate_spatial_filter(
   spatial_data_frame,

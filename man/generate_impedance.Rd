@@ -2,7 +2,7 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{generate_impedance}
 \alias{generate_impedance}
-\title{Generate impedance values from a data frame}
+\title{Generate impedance values}
 \usage{
 generate_impedance(
   df,

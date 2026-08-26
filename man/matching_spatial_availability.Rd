@@ -2,7 +2,7 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{matching_spatial_availability}
 \alias{matching_spatial_availability}
-\title{Calculate matching spatial availability (SA_ij) for eligible population segments}
+\title{Calculate matching spatial availability}
 \usage{
 matching_spatial_availability(
   df,

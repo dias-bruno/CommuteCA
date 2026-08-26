@@ -774,7 +774,7 @@ utils::globalVariables(c( "pcd_impedance_functions", "cma_impedance_functions",
 ##              FUNCTIONS                   ##
 ##############################################
 
-#' Obtain impedance function parameters by PCD or CMA with cascading search
+#' Obtain calibrated impedance function
 #'
 #' For a given location (PCD or CMA), this function searches for impedance
 #' parameters, first, at the most detailed level, and then falls back to higher levels:
@@ -1051,7 +1051,7 @@ search_impedance_function <- function(code,
 
 }
 
-#' Generate impedance values from a data frame
+#' Generate impedance values
 #'
 #' This function calculate the impedance (`f`) related to a travel cost (usually duration)
 #' by applying probability density functions (PDF).
@@ -1142,7 +1142,7 @@ generate_impedance <- function(df, travel_cost_col = "travel_cost",
   dplyr::bind_rows(group_results)
 }
 
-#' Calculate spatial availability (SA_ij) for a given mode and impedance
+#' Calculate spatial availability
 #'
 #' This function calculates the spatial availability of opportunities (jobs, services, etc.)
 #' from each origin to each destination (see Soukhov et al 2024, https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0299077.)
@@ -1232,7 +1232,7 @@ calculate_spatial_availability <- function(df, origin, destination, pop, opp, mo
     dplyr::mutate(SA_ij = !!opp * !!rlang::sym("f_t"))
 }
 
-#' Calculate matching spatial availability (SA_ij) for eligible population segments
+#' Calculate matching spatial availability
 #'
 #' This function extends the spatial availability measure by allowing only eligible
 #' population segments to compete for each opportunity type. For each opportunity
@@ -1344,7 +1344,7 @@ matching_spatial_availability <- function(df, origin, destination,
     dplyr::mutate(SA_ij = !!opp*f_t)
 }
 
-#' Calculate a spatial filter for a spatial variable based on a set of eigenvectors
+#' Calculate a spatial filter
 #'
 #' This function builds a spatial filter by iteratively adding
 #' eigenvectors to a linear model. Only eigenvectors with a p-value below a

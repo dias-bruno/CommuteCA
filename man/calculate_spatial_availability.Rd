@@ -2,7 +2,7 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{calculate_spatial_availability}
 \alias{calculate_spatial_availability}
-\title{Calculate spatial availability (SA_ij) for a given mode and impedance}
+\title{Calculate spatial availability}
 \usage{
 calculate_spatial_availability(df, origin, destination, pop, opp, mode, f)
 }

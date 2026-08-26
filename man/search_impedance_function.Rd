@@ -2,7 +2,7 @@
 % Please edit documentation in R/CommuteCA-package.R
 \name{search_impedance_function}
 \alias{search_impedance_function}
-\title{Obtain impedance function parameters by PCD or CMA with cascading search}
+\title{Obtain calibrated impedance function}
 \usage{
 search_impedance_function(
   code,
