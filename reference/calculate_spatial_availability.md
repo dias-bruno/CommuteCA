@@ -1,4 +1,4 @@
-# Calculate spatial availability (SA_ij) for a given mode and impedance
+# Calculate spatial availability
 
 This function calculates the spatial availability of opportunities
 (jobs, services, etc.) from each origin to each destination (see Soukhov

@@ -1,4 +1,4 @@
-# Obtain impedance function parameters by PCD or CMA with cascading search
+# Obtain calibrated impedance function
 
 For a given location (PCD or CMA), this function searches for impedance
 parameters, first, at the most detailed level, and then falls back to

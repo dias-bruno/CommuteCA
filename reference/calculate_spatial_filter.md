@@ -1,4 +1,4 @@
-# Calculate a spatial filter for a spatial variable based on a set of eigenvectors
+# Calculate a spatial filter
 
 This function builds a spatial filter by iteratively adding eigenvectors
 to a linear model. Only eigenvectors with a p-value below a threshold

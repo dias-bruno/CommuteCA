@@ -1,4 +1,4 @@
-# Calculate matching spatial availability (SA_ij) for eligible population segments
+# Calculate matching spatial availability
 
 This function extends the spatial availability measure by allowing only
 eligible population segments to compete for each opportunity type. For

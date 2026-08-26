@@ -308,11 +308,9 @@ pak::pak("dias-bruno/CommuteCA")
   [`CommuteCA-package`](https://dias-bruno.github.io/CommuteCA/reference/CommuteCA-package.md)
   : CommuteCA: Datasets and Methods for Job Accessibility in Canada
 - [`calculate_spatial_availability()`](https://dias-bruno.github.io/CommuteCA/reference/calculate_spatial_availability.md)
-  : Calculate spatial availability (SA_ij) for a given mode and
-  impedance
+  : Calculate spatial availability
 - [`calculate_spatial_filter()`](https://dias-bruno.github.io/CommuteCA/reference/calculate_spatial_filter.md)
-  : Calculate a spatial filter for a spatial variable based on a set of
-  eigenvectors
+  : Calculate a spatial filter
 - [`census_geographical_keys`](https://dias-bruno.github.io/CommuteCA/reference/census_geographical_keys.md)
   : Complete geographic keys for census spatial units
 - [`census_test_data`](https://dias-bruno.github.io/CommuteCA/reference/census_test_data.md)
@@ -333,7 +331,7 @@ pak::pak("dias-bruno/CommuteCA")
 - [`estimated_labour_force_CT_mode`](https://dias-bruno.github.io/CommuteCA/reference/estimated_labour_force_CT_mode.md)
   : Estimated Labour Force by Transportation Mode by Census Tract
 - [`generate_impedance()`](https://dias-bruno.github.io/CommuteCA/reference/generate_impedance.md)
-  : Generate impedance values from a data frame
+  : Generate impedance values
 - [`jobs_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/jobs_CT_general.md)
   : Job Opportunities by Census Tract
 - [`jobs_CT_occupation`](https://dias-bruno.github.io/CommuteCA/reference/jobs_CT_occupation.md)
@@ -348,8 +346,7 @@ pak::pak("dias-bruno/CommuteCA")
 - [`labour_force_CT_mode`](https://dias-bruno.github.io/CommuteCA/reference/labour_force_CT_mode.md)
   : Labour Force by Transportation Mode by Census Tract
 - [`matching_spatial_availability()`](https://dias-bruno.github.io/CommuteCA/reference/matching_spatial_availability.md)
-  : Calculate matching spatial availability (SA_ij) for eligible
-  population segments
+  : Calculate matching spatial availability
 - [`pcd_education_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pcd_education_impedance_functions.md)
   : Impedance Functions by Education Level for Census Divisions
 - [`pcd_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pcd_impedance_functions.md)
@@ -363,6 +360,5 @@ pak::pak("dias-bruno/CommuteCA")
 - [`pr_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pr_impedance_functions.md)
   : Impedance Functions for Canadian Provinces and Territories
 - [`search_impedance_function()`](https://dias-bruno.github.io/CommuteCA/reference/search_impedance_function.md)
-  : Obtain impedance function parameters by PCD or CMA with cascading
-  search
+  : Obtain calibrated impedance function
 

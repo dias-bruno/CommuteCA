@@ -1,4 +1,4 @@
-# Generate impedance values from a data frame
+# Generate impedance values
 
 This function calculate the impedance (`f`) related to a travel cost
 (usually duration) by applying probability density functions (PDF).
