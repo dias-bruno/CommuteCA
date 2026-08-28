@@ -767,12 +767,10 @@ usethis::use_data(cma_max_travel_times,
 #                   overwrite = TRUE)
 ```
 
-## Toronto level
-
 ```{r}
 # reading file
 census_test_toronto <- read_csv(glue::glue(here::here(), 
-                                  "/data-ignore-inputs/census_test_toronto_v4.csv"))
+                                  "/data-ignore-inputs/census_test_toronto_v5.csv"))
 
 census_test_data <- census_test_toronto %>%
   slice_sample(n = 30000) # Reducing due to the large size for CRAN
@@ -804,7 +802,7 @@ devtools::build()
 
 Installing the package:
 ```{r}
-#devtools::uninstall()
+devtools::uninstall()
 devtools::install()
 ```
 
