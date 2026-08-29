@@ -156,7 +156,7 @@ Except for the multinomial regression, for which we will use the
 all other models will be estimated using
 [survey](https://cran.r-project.org/web/packages/survey/index.html).
 
-We will evaluate these variables as covariates:
+We will also use a set of socioecomic, demographic, and dwelling variables as control variables to isolate the effect of accessibility. Some examples of covariates:
 
 -   Respondent's age (`AGE`)
 -   Number of children under age 5 in the household (`CFKID0T5`)
@@ -1437,7 +1437,7 @@ descriptive_analysis_general_pop <- create_descriptive_table_RDC(
            "Visible_minority", "Single_parent", "CFKID0T5",
            "CFCNT_PP", "Weeks", "Pop_centre","Pop_density",
            "LBR_FORC_label", "LOKWK_label", "CfInc_AT", 
-           Tenu_label, DTYPE_label, Built_label, STIR, BEDNEED, Rpair_label, 
+           "Tenu_label", "DTYPE_label", "Built_label", "STIR", "BEDNEED", "Rpair_label" 
            ), 
   weight_col = "CompW1")
 
@@ -1552,7 +1552,7 @@ vif_check <- lm(as.numeric(LBR_FORC_label) ~
     AGE + Gender + Disability + Temporary_or_refugee + Visible_minority +
     Single_parent + CFKID0T5 + CFCNT_PP + Weeks +
     Pop_centre + Pop_density  +
-   Tenu_label + DTYPE_label + Built_label + STIR + BEDNEED + Rpair_label,
+   Tenu_label + DTYPE_label + Built_label + STIR + BEDNEED + Rpair_label + 
     SA_pp_Active_Res_IV + SA_pp_Car_Res_IV + SA_pp_Transit_Res_IV,
   data = labour_force_design$variables)
 

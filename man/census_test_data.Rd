@@ -8,7 +8,7 @@
 A data frame with 30,000 rows and 33 columns.
 Each row represents a unique synthetic respondent.
 \describe{
-\item{Frame_ID}{Unique synthetic identifier for each respondent.}
+\item{Frame_ID}{Household Identifier.}
 \item{PRCDDA}{Dissemination area code of current residence.}
 \item{PR}{Province or territory code of current residence.}
 \item{CMA}{Census metropolitan area code of current residence.}
@@ -45,6 +45,12 @@ Each row represents a unique synthetic respondent.
 \item{Weeks}{Number of weeks worked during reference year.}
 \item{LOKWK}{Looked for paid work in past four weeks (full/part-time).}
 \item{GovtI_SocAssist}{Social assistance benefits received.}
+\item{Tenu}{Tenure (housing ownership).}
+\item{DTYPE}{Structural type of dwelling.}
+\item{Built}{Period of construction (year ranges). Codes: 1: befor 1920, 2: 1921-1945, 3: 1946-1960, 4: 1961-1970, 5: 1971-1980,6: 1981-1990,7: 1991-1995,8: 1996-2000, 9: 2001-2005, 10: 2006-2010, 11: 2011-2015, 12: 2016-2020, 13: 2021.}
+\item{STIR}{Shelter-cost-to-income ratio (percentage).}
+\item{BEDNEED}{Number of bedrooms needed for suitable housing.}
+\item{Rpair}{Dwelling condition.}
 }
 }
 \usage{
