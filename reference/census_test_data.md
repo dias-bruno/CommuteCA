@@ -20,7 +20,7 @@ unique synthetic respondent.
 
 - Frame_ID:
 
-  Unique synthetic identifier for each respondent.
+  Household Identifier.
 
 - PRCDDA:
 
@@ -167,6 +167,33 @@ unique synthetic respondent.
 - GovtI_SocAssist:
 
   Social assistance benefits received.
+
+- Tenu:
+
+  Tenure (housing ownership).
+
+- DTYPE:
+
+  Structural type of dwelling.
+
+- Built:
+
+  Period of construction (year ranges). Codes: 1: befor 1920, 2:
+  1921-1945, 3: 1946-1960, 4: 1961-1970, 5: 1971-1980,6: 1981-1990,7:
+  1991-1995,8: 1996-2000, 9: 2001-2005, 10: 2006-2010, 11: 2011-2015,
+  12: 2016-2020, 13: 2021.
+
+- STIR:
+
+  Shelter-cost-to-income ratio (percentage).
+
+- BEDNEED:
+
+  Number of bedrooms needed for suitable housing.
+
+- Rpair:
+
+  Dwelling condition.
 
 ## Note
 
