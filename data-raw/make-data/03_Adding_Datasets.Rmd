@@ -684,6 +684,26 @@ usethis::use_data(estimated_labour_force_CT_education_mode,
                   overwrite = TRUE)
 ```
 
+## Deprecated
+
+```{r}
+land_use_CT_general <- read_csv(glue::glue(here::here(), 
+                                            "/data-ignore-inputs/land_use_CT_general.csv"))
+
+usethis::use_data(land_use_CT_general,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
+```{r}
+land_use_CT_mode <- read_csv(glue::glue(here::here(), 
+                                            "/data-ignore-inputs/land_use_CT_mode.csv"))
+
+usethis::use_data(land_use_CT_mode,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
 # Maximum Travel Times
 
 ## Census Division Level
@@ -773,7 +793,8 @@ census_test_toronto <- read_csv(glue::glue(here::here(),
                                   "/data-ignore-inputs/census_test_toronto_v6.csv"))
 
 census_test_data <- census_test_toronto %>%
-  slice_sample(n = 30000) # Reducing due to the large size for CRAN
+  slice_sample(n = 30000) %>%  # Reducing due to the large size for CRAN
+  rename(LoLICOA = LOLICOA)
 ```
 
 ```{r}
@@ -783,6 +804,7 @@ usethis::use_data(census_test_data,
                   overwrite = TRUE)
 ```
 
+# Documenting 
 
 Update documentation:
 ```{r}
@@ -792,7 +814,7 @@ devtools::document()
 
 Verifying if the package has any problem:
 ```{r}
-#devtools::check()
+devtools::check()
 ```
 
 Building the package:

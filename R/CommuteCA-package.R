@@ -379,6 +379,96 @@ utils::globalVariables(c( "pcd_impedance_functions", "cma_impedance_functions",
 #' Accessed December 19, 2024.
 "jobs_CT_occupation"
 
+#' Census Tract Land Use (General)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' **This dataset is deprecated.** It has been superseded by
+#' \code{\link{labour_force_CT_general}} and \code{\link{jobs_CT_general}},
+#' which separate labour force and job counts into distinct, more granular
+#' datasets. This dataset is retained for backward compatibility only and
+#' will not be updated in future releases.
+#'
+#' This object contains the census tracts (CT) for all census metropolitan areas and census agglomerations (2021),
+#' with land use information regarding the number of labour force and number of jobs of each CT.
+#' CTs are small, relatively stable geographic areas that usually have a population of fewer than 7,500 persons,
+#' based on data from the previous Census of Population Program. They are located in census metropolitan areas (CMAs)
+#' and in census agglomerations (CAs) that had a core population of 50,000 or more in the previous census.
+#' The labour force and number of jobs in each CT was obtained from the Census of Population. We calculated the labour force
+#' by summing the number of employed people and the number of unemployed individuals who are still part of the workforce.
+#' This is done by summing the weights of the census variable (CompW1). The number of jobs was obtained applying the
+#' weighted sum for cases of respondents mentioning working in the DA.  Only cases of CT in accordance
+#' with the Research Data Centre vetting rules were released. The methodology to obtain this data set is described in the
+#' R markdown 'making-data-v2.Rmd'.
+#'
+#' @format A data frame in which each row represents a unique CT.
+#'   \describe{
+#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven character numeric 'name' (including leading zeros, decimal point and trailing zeros).}
+#'   \item{CTNAME}{Census tract name.}
+#'   \item{CMAUID}{Census Metropolitan Area or Census Agglomeration unique identifier.}
+#'   \item{CMANAME}{Census Metropolitan Area or Census Agglomeration name.}
+#'   \item{PCD}{Uniquely identifies the census division.}
+#'   \item{PRUID}{Uniquely identifies a province or territory.}
+#'   \item{labour_force_rounded}{Number of individuals in labour force (employed or not), rounded to the nearest multiple of 5.}
+#'   \item{jobs_rounded}{Number of jobs in this CT rounded to the nearest multiple of 5.}
+#'}
+#' @section Deprecated:
+#' Deprecated as of the current package version in favour of
+#' \code{\link{labour_force_CT_general}} and \code{\link{jobs_CT_general}}.
+#' @docType data
+#' @keywords land use census tract general deprecated
+#' @name land_use_CT_general
+#' @usage data(land_use_CT_general)
+#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
+"land_use_CT_general"
+
+#' Census Tract Land Use (by Mode)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' **This dataset is deprecated.** It has been superseded by
+#' \code{\link{estimated_labour_force_CT_mode}} and \code{\link{jobs_CT_general}},
+#' which separate estimated labour force by mode and job counts into distinct,
+#' more granular datasets. This dataset is retained for backward compatibility
+#' only and will not be updated in future releases. New analyses should use
+#' the replacement datasets instead.
+#'
+#' This object contains the census tracts (CT) for all census metropolitan areas and census agglomerations (2021),
+#' with land use information regarding the number of labour force (estimated) and number of jobs of each CT.
+#' CTs are small, relatively stable geographic areas that usually have a population of fewer than 7,500 persons,
+#' based on data from the previous Census of Population Program. They are located in census metropolitan areas (CMAs)
+#' and in census agglomerations (CAs) that had a core population of 50,000 or more in the previous census.
+#' The labour force and number of jobs in each CT was obtained from the Census of Population. We estimated the labour force
+#' by calculating the proportion of trips made by each mode of transport in each census tract, then distributing
+#' non-commuters (people who either don't work or work from home) among these transport modes. The number of jobs was obtained
+#' applying the weighted sum for cases of respondents mentioning working in the DA.  Only cases of CT in accordance
+#' with the Research Data Centre vetting rules were released. The methodology to obtain this data set is described in the
+#' R markdown 'making-data-v2.Rmd'.
+#'
+#' @format A data frame in which each row represents a unique CT.
+#'   \describe{
+#'   \item{CTUID}{Uniquely identifies a census tract. Each CT is assigned a seven character numeric 'name' (including leading zeros, decimal point and trailing zeros).}
+#'   \item{CTNAME}{Census tract name.}
+#'   \item{CMAUID}{Census Metropolitan Area or Census Agglomeration unique identifier.}
+#'   \item{CMANAME}{Census Metropolitan Area or Census Agglomeration name.}
+#'   \item{PCD}{Uniquely identifies the census division.}
+#'   \item{PRUID}{Uniquely identifies a province or territory.}
+#'   \item{PwMode}{Transportation mode. Possible values: 'Bike', 'Car', 'Transit', and 'Walk.'}
+#'   \item{labour_force_est_rounded}{Estimated number of individuals in labour force (employed or not), rounded to the nearest multiple of 5.}
+#'   \item{jobs_rounded}{Number of jobs in this CT rounded to the nearest multiple of 5.}
+#'}
+#' @section Deprecated:
+#' Deprecated as of the current package version in favour of
+#' \code{\link{estimated_labour_force_CT_mode}} and \code{\link{jobs_CT_general}}.
+#' @docType data
+#' @keywords land use census tract mode walk bike car transit deprecated
+#' @name land_use_CT_mode
+#' @usage data(land_use_CT_mode)
+#' @source "The 2021 census tracts areas files as created by the Canadian Census available [here](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21) accessed May 6th 2024. All variable definitions are based on the definitions included in the census year 2021 boundary file reference guide (Boundary Files, Reference Guide, Second edition, 2021 Census. Statistics Canada Catalogue no. 92-160-G.).
+"land_use_CT_mode"
+
 ##############################################
 ##  TRAVEL TIMES AND IMPEDANCE FUNCTIONS    ##
 ##############################################
