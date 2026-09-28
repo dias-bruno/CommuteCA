@@ -1,5 +1,15 @@
 # Census Tract Land Use (General)
 
+**\[deprecated\]**
+
+**This dataset is deprecated.** It has been superseded by
+[`labour_force_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/labour_force_CT_general.md)
+and
+[`jobs_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/jobs_CT_general.md),
+which separate labour force and job counts into distinct, more granular
+datasets. This dataset is retained for backward compatibility only and
+will not be updated in future releases.
+
 This object contains the census tracts (CT) for all census metropolitan
 areas and census agglomerations (2021), with land use information
 regarding the number of labour force and number of jobs of each CT. CTs
@@ -26,8 +36,7 @@ data(land_use_CT_general)
 
 ## Format
 
-A data frame containing 6,148 rows and 8 variables; each row represents
-a unique CT.
+A data frame in which each row represents a unique CT.
 
 - CTUID:
 
@@ -73,3 +82,10 @@ accessed May 6th 2024. All variable definitions are based on the
 definitions included in the census year 2021 boundary file reference
 guide (Boundary Files, Reference Guide, Second edition, 2021 Census.
 Statistics Canada Catalogue no. 92-160-G.).
+
+## Deprecated
+
+Deprecated as of the current package version in favour of
+[`labour_force_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/labour_force_CT_general.md)
+and
+[`jobs_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/jobs_CT_general.md).

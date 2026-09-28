@@ -345,6 +345,10 @@ pak::pak("dias-bruno/CommuteCA")
   : Labour Force by Census Tract
 - [`labour_force_CT_mode`](https://dias-bruno.github.io/CommuteCA/reference/labour_force_CT_mode.md)
   : Labour Force by Transportation Mode by Census Tract
+- [`land_use_CT_general`](https://dias-bruno.github.io/CommuteCA/reference/land_use_CT_general.md)
+  **\[deprecated\]** : Census Tract Land Use (General)
+- [`land_use_CT_mode`](https://dias-bruno.github.io/CommuteCA/reference/land_use_CT_mode.md)
+  **\[deprecated\]** : Census Tract Land Use (by Mode)
 - [`matching_spatial_availability()`](https://dias-bruno.github.io/CommuteCA/reference/matching_spatial_availability.md)
   : Calculate matching spatial availability
 - [`pcd_education_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pcd_education_impedance_functions.md)
