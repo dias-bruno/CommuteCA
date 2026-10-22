@@ -232,7 +232,7 @@ $$ F_{ij}^{t} = \frac{F_i^{p} \cdot F_{ij}^{(c_ij)}}{\sum_{i}F_i^{p} \cdot F_{ij
 
 # Let's code!
 
-`CommuteCA` provides a standardized methodology for calculating accessibility to work using datasets at the census tract level. First, we will estimate the models for the two measures presented above: the gravity-based model by Hansen [-@hansen1959] and the multimodal spatial availability measure by Soukhov et al. [-@soukhov2024] - an extension of the spatial availability model [@soukhov2023] to perform a multimodal analysis. Next, we will extend, again, spatial availability to develop a measure of the match between educational background and job occupation, termed "Macthing Multimodal Spatial Availability."
+`CommuteCA` provides a standardized methodology for calculating accessibility to work using datasets at the census tract level. First, we will estimate the models for the two measures presented above: the gravity-based model by Hansen [-@hansen1959] and the multimodal spatial availability measure by Soukhov et al. [-@soukhov2024] - an extension of the spatial availability model [@soukhov2023] to perform a multimodal analysis. Next, we will extend, again, spatial availability to develop a measure of the match between educational background and job occupation, termed "Matching Multimodal Spatial Availability."
 
 The methodology for obtaining the accessibility measures for Census Tract:
 
@@ -760,39 +760,60 @@ SA_mode_active <- SA_mode_active %>%
 ```
 
 
-# Macthing Multimodal Spatial Availability 
+# Matching Multimodal Spatial Availability 
 
-Now, instead of allowing the entire labour force to compete for all jobs, we group the workforce according to their level of education. Similarly, we group job opportunities according to their TEER occupational category, and only the eligible population segments that are eligible for a given opportunity type are allowed to compete for those jobs. 
+# Matching Multimodal Spatial Availability 
 
-The idea is to apply the same proportional-allocation logic used for spatial availability, but separately for each opportunity type $t$, using only population segments that are eligible to compete for that type. Having $m$ as the transportation mode, $q$ as the population segment (e.g., education level), and $t$ the opportunity type (e.g., TEER category), we define $Q_t$ as the set of population segments eligible to compete for opportunity type $t$. 
+Now, instead of allowing the entire labour force to compete for all jobs, we group the labour force according to their level of education, and group job opportunities according to their TEER occupational category. Each population segment then competes for each type of opportunity in proportion to how often that segment is observed to hold that type of job.
 
-Therefore, the population-balancing factor is represented by:
+The idea is to apply the same proportional-allocation logic used for spatial availability, but separately for each opportunity type $t$. Having $m$ as the transportation mode, $q$ as the population segment (e.g., education level), and $t$ the opportunity type (e.g., TEER category), we define $Q_t$ as the set of population segments allowed to compete for opportunity type $t$.
 
-$$ F_{i}^{p,m,q,t} = \frac{P_i^{m,q}}{\sum_{q \in Q_t} \sum_m \sum_i P_i^{m,q}} $$ 
+## Observed education-occupation matching
 
-$F_{i}^{p,m,q,t}$ represents the proportion of the eligible population associated with origin $i$, population segment $q$, and transportation mode $m$, relative to the total population eligible for opportunity type $t$.
+The match between workers and jobs is not determined by formal education alone. TEER categories describe the training, education, experience and responsibilities an occupation requires[^17], so workers can hold occupations above (or below) their formal education level. In the 2021 Census, for example, some workers with a high school diploma or no certificate hold management positions, and many university graduates work in occupations that require only high school or short-term experience.
+
+[^17]: See Statistics Canada's National Occupational Classification (NOC) 2021 for the definition of TEER categories [here](https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/find-national-occupation-code.html).
+
+For this reason, all education levels are allowed to compete for all TEER categories ($Q_t$ includes every segment). However, each segment's population is weighted by the share of its workers observed to hold each type of job. Let $E^{m,q,t}$ be the number of employed workers in the Census Division with education $q$, using mode $m$, and working in an occupation of type $t$. The matching share is:
+
+$$ s^{t \mid m,q} = \frac{E^{m,q,t}}{\sum_{t} E^{m,q,t}} $$
+
+The population of segment $q$ and mode $m$ at origin $i$ that competes for opportunity type $t$ is then:
+
+$$ P_i^{m,q,t} = P_i^{m,q} \cdot s^{t \mid m,q} $$
+
+Because $\sum_t s^{t \mid m,q} = 1$, each worker is split across opportunity types and counted exactly once in the system: $\sum_t P_i^{m,q,t} = P_i^{m,q}$. This prevents any segment from being counted in full in the competing population of several opportunity types, which would inflate its spatial availability.
+
+The population-balancing factor becomes:
+
+$$ F_{i}^{p,m,q,t} = \frac{P_i^{m,q,t}}{\sum_{q \in Q_t} \sum_m \sum_i P_i^{m,q,t}} $$
+
+$F_{i}^{p,m,q,t}$ represents the proportion of the population competing for opportunity type $t$ that comes from origin $i$, segment $q$, and mode $m$.
 
 The impedance-balancing factor is represented by:
 
 $$F_{ij}^{c,m,q,t} = \frac{f^{m,q}(c_{ij})}{\sum_{q \in Q_t} \sum_m \sum_i f^{m,q}(c_{ij})} $$
 
-$F_{ij}^{c,m,q,t}$ represents the relative contribution of the impedance between origin $i$ and destination $j$, for transportation mode $m$, among all eligible population segments $q$ and transportation modes competing for opportunity type $t$. 
+$F_{ij}^{c,m,q,t}$ represents the relative contribution of the impedance between origin $i$ and destination $j$ for mode $m$ and segment $q$, among all segments and modes competing for opportunity type $t$.
 
-Note that each population group has its own impedance function, which means that access to an opportunity depends not only on the worker's eligibility for that opportunity, but also on the travel behaviour associated with their population segment. For example, consider two eligible groups competing for the same TEER category:
+Note that each population group has its own impedance function, which means that access to an opportunity depends not only on the worker's matching share, but also on the travel behaviour associated with their population segment. For example, consider two groups competing for the same TEER category:
 
 | Population | Mode    | Travel time |                 Impedance |
 | ---------- | ------- | ----------: | ------------------------: |
 | University | Walk    |      30 min | ($f^{Walk,University}(30)$) |
 | College    | Walk    |      30 min |    ($f^{Walk,College}(30)$) |
  
-Although the travel time and transportation mode are identical, the two observations will potentially result in different impedance values because they use different calibrated functions.
+Although the travel time and transportation mode are identical, the two observations may result in different impedance values because they use different calibrated functions.
  
-Continuing, the balancing factor is now represented by: 
-$$F_{ij}^{t,m,q,t} = \frac{F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}}{{\sum_{q \in Q_t} \sum_m \sum_i F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}}} $$
+The balancing factor is now represented by: 
+
+$$F_{ij}^{t,m,q,t} = \frac{F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}}{\sum_{q \in Q_t} \sum_m \sum_i F_i^{p,m,q,t} \cdot F_{ij}^{c,m,q,t}} $$
+
 Therefore, the Matching Multimodal Spatial Availability is: 
 
-$$SA_i^{m,q,t} = \sum_j O_j^{t} \cdot F_{ij}^{t,mq,t}, \quad \text{defined only for }q \in Q_t$$
-This approach preserves the main fundamental of spatial availability: every job of type $t$ is allocated exactly once, only among the population that's actually eligible for it. In addition, the output continues to be the number of jobs available to the population, making the matching extension directly comparable in interpretability to the original spatial availability measure.  
+$$MMSA_i^{m,q,t} = \sum_j O_j^{t} \cdot F_{ij}^{t,m,q,t}$$
+
+This approach keeps the main property of spatial availability: every job of type $t$ is allocated exactly once. The output is still a number of jobs, so the matching measure is directly comparable with the original spatial availability measure. In addition, the competing population is consistent with the total labour force, because each worker is counted only once.
 
 ## Preparing the data
 
@@ -916,16 +937,54 @@ skill_match <- data.frame(Education = c("University certificate or higher",
                                         "University certificate or higher",
                                         "College or apprenticeship certificate",
                                         "College or apprenticeship certificate",
-                                        "High school or no certificate"),
+                                        "College or apprenticeship certificate",
+                                        "High school or no certificate",
+                                        "High school or no certificate",
+                                        "High school or no certificate"
+                                        ),
   TEER = c("Management or professional (0 - 1)",
-                      "College or apprenticeship (2 - 3)",
-                      "High school or short-term experience (4 - 5)",
-                      "College or apprenticeship (2 - 3)",
-                      "High school or short-term experience (4 - 5)",
-                      "High school or short-term experience (4 - 5)"))
+           "College or apprenticeship (2 - 3)",
+           "High school or short-term experience (4 - 5)",
+           "Management or professional (0 - 1)",
+           "College or apprenticeship (2 - 3)",
+           "High school or short-term experience (4 - 5)",
+           "Management or professional (0 - 1)",
+           "College or apprenticeship (2 - 3)",
+           "High school or short-term experience (4 - 5)"
+           ))
 ```
 
-As we did before, we create an accessibility table that contains all information required to calculate accessibility: origin, destination, population segment, opportunity type, travel time, and impedance value: 
+## Observed matching shares
+
+The dataset `pcd_employed_categories` from `CommuteCA` contains the employed population of each Census Division by TEER category, education level of the worker, and transportation mode (see `?pcd_employed_categories`). We use it to compute $s^{t \mid m,q}$: for each combination of education and mode, the share of workers holding jobs in each TEER category. Non-commuters ("Other or non-commuter") are excluded, consistent with the estimated labour force, in which they were redistributed across the four modes.
+
+```{r}
+data("pcd_employed_categories")
+
+pcd_total <- pcd_employed_categories %>% 
+  filter(PwMode_label != "Other or non-commuter", 
+         PCD %in% code) %>% 
+  group_by(PCD) %>%  
+  dplyr::summarize(total_employed_pop = sum(employed_pop, na.rm = TRUE)) 
+
+pcd_categories_share <- pcd_employed_categories %>% 
+  filter(PwMode_label != "Other or non-commuter", 
+         PCD %in% code) %>% 
+  group_by(PCD, Education, PwMode_label) %>% 
+  mutate(total_employed_pop = sum(employed_pop, na.rm = TRUE),
+         share_employed = employed_pop / total_employed_pop) %>% 
+  ungroup()
+```
+
+The shares of each education-mode combination sum to one across TEER categories:
+
+```{r}
+pcd_categories_share %>% 
+  group_by(Education, PwMode_label) %>% 
+  summarise(total_share = sum(share_employed))
+```
+
+As we did before, we create an accessibility table that contains all information required to calculate accessibility: origin, destination, population segment, opportunity type, travel time, and impedance value, and the matching share of each segment for each opportunity type: 
 
 ```{r}
 # The subsequent join uses the skill_match to remove origin-destination 
@@ -937,16 +996,21 @@ accessibility_table_education <- ttm_edu_f %>%
             by = c("CTUID", "Education", "PwMode_label")) %>%
   inner_join(skill_match, by = "Education") %>%
   inner_join(jobs_TEER, by = c("to_id" = "CTUID", "TEER")) %>%
-  dplyr::select(CTUID, to_id, PwMode_label, 
+  left_join(pcd_categories_share, 
+            by = c("PCD", "Education", "TEER", "PwMode_label")) %>% 
+    dplyr::select(CTUID, to_id, PCD, PwMode_label, 
                 Education, TEER, 
-                labour_force, jobs, f)
+                labour_force, share_employed, jobs, f)
 ```
 
 
 ```{r accessibility-table}
 accessibility_table_education <- accessibility_table_education %>% 
   mutate(labour_force = case_when(is.na(labour_force) ~ 0, 
-                                  TRUE ~ labour_force)) 
+                                  TRUE ~ labour_force), 
+         share_employed = case_when(is.na(share_employed) ~ 0, 
+                                  TRUE ~ share_employed))  %>% 
+  mutate(ef_labour_force = labour_force * share_employed)
 
 accessibility_table_education <- accessibility_table_education %>%
    group_by(to_id) %>%
@@ -962,6 +1026,16 @@ accessibility_table_education <- accessibility_table_education %>%
 # To fix this, we replace all -Inf values with 0. 
 ```
 
+The column `ef_labour_force` is the effective labour force, $P_i^{m,q,t}$: the labour force of each origin, education level, and mode, multiplied by the share of that group observed in each TEER category. This is the population used in the population-balancing factor.
+
+Because the shares sum to one, the effective labour force summed across TEER categories must equal the original labour force:
+
+```{r}
+accessibility_table_education %>%
+  dplyr::distinct(CTUID, Education, PwMode_label, TEER, .keep_all = TRUE) %>%
+  summarise(ef_pop = sum(ef_labour_force)) %>%
+  pull(ef_pop)
+```
 Confirming the total number of jobs: 
 
 ```{r}
@@ -983,13 +1057,13 @@ accessibility_table_education %>%
   sum()
 ```
 
-To calculate Matching Multimodal Spatial Availability, we use the `matching_spatial_availability()` function from `CommuteCA`. This function implements the spatial-availability balancing procedure while adding two segmentation variables: `pop_segment` for the population segment and `opp_type` for the opportunity type. In our application, these variables correspond to education level and TEER category, respectively.
+To calculate Matching Multimodal Spatial Availability, we use the `matching_spatial_availability()` function from `CommuteCA`. This function implements the spatial-availability balancing procedure while adding two segmentation variables: `pop_segment` for the population segment and `opp_type` for the opportunity type. In our application, these variables correspond to education level and TEER category, respectively, and the population argument (`pop`) receives the effective labour force (`ef_labour_force`).
 
 ```{r }
 SA_ij_mode_match <- matching_spatial_availability(df = accessibility_table_education,
                                                   origin = CTUID, 
                                                   destination = to_id, 
-                                                  pop = labour_force, 
+                                                  pop = ef_labour_force, 
                                                   opp = jobs, 
                                                   mode = PwMode_label,
                                                   pop_segment = Education,

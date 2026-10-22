@@ -1,15 +1,51 @@
-\documentclass[Royal,times,sageh]{sagej}
+%Version 2.1 April 2023
+% See section 11 of the User Manual for version history
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                                 %%
+%% Please do not use \input{...} to include other tex files.       %%
+%% Submit your LaTeX manuscript as one .tex document.              %%
+%%                                                                 %%
+%% All additional figures and files should be attached             %%
+%% separately and not embedded in the \TeX\ document itself.       %%
+%%                                                                 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\usepackage{moreverb,url,natbib, multirow, tabularx}
-\usepackage[colorlinks,bookmarksopen,bookmarksnumbered,citecolor=red,urlcolor=red]{hyperref}
+\documentclass[sn-basic,lineno,pdflatex]{sn-jnl}
 
+%%%% Standard Packages
+%%<additional latex packages if required can be included here>
 
+\usepackage{graphicx}%
+\usepackage{multirow}%
+\usepackage{amsmath,amssymb,amsfonts}%
+\usepackage{amsthm}%
+\usepackage{mathrsfs}%
+\usepackage[title]{appendix}%
+\usepackage{xcolor}%
+\usepackage{textcomp}%
+\usepackage{manyfoot}%
+\usepackage{booktabs}%
+\usepackage{algorithm}%
+\usepackage{algorithmicx}%
+\usepackage{algpseudocode}%
+\usepackage{listings}%
+%%%%
 
-% tightlist command for lists without linebreak
-\providecommand{\tightlist}{%
-  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+%%%%%=============================================================================%%%%
+%%%%  Remarks: This template is provided to aid authors with the preparation
+%%%%  of original research articles intended for submission to journals published
+%%%%  by Springer Nature. The guidance has been prepared in partnership with
+%%%%  production teams to conform to Springer Nature technical requirements.
+%%%%  Editorial and presentation requirements differ among journal portfolios and
+%%%%  research disciplines. You may find sections in this template are irrelevant
+%%%%  to your work and are empowered to omit any such section if allowed by the
+%%%%  journal you intend to submit to. The submission guidelines and policies
+%%%%  of the journal take precedence. A detailed User Manual is available in the
+%%%%  template package for technical guidance.
+%%%%%=============================================================================%%%%
 
-
+\usepackage{float}
 
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -28,35 +64,59 @@
 \usepackage{xcolor}
 
 
+\raggedbottom
+
+
+
+
+% tightlist command for lists without linebreak
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+
+
 \begin{document}
 
 
-\setcitestyle{aysep={,}}
+\title[CommuteCA]{CommuteCA: An \texttt{R} package with datasets and
+standardized methods for job accessibility analysis using Canadian
+Census microdata}
 
-\title{CommuteCA: An \texttt{R} package with datasets and standardized
-methods for job accessibility analysis using Canada Census microdata
-files}
+%%=============================================================%%
+%% Prefix	-> \pfx{Dr}
+%% GivenName	-> \fnm{Joergen W.}
+%% Particle	-> \spfx{van der} -> surname prefix
+%% FamilyName	-> \sur{Ploeg}
+%% Suffix	-> \sfx{IV}
+%% NatureName	-> \tanm{Poet Laureate} -> Title after name
+%% Degrees	-> \dgr{MSc, PhD}
+%% \author*[1,2]{\pfx{Dr} \fnm{Joergen W.} \spfx{van der} \sur{Ploeg} \sfx{IV} \tanm{Poet Laureate}
+%%                 \dgr{MSc, PhD}}\email{iauthor@gmail.com}
+%%=============================================================%%
 
-\runninghead{Anon1 \& Anon2.}
+\author*[1]{\fnm{Bruno} \spfx{Dias} \sur{Dos
+Santos} }\email{\href{mailto:dossanb@mcmaster.ca}{\nolinkurl{dossanb@mcmaster.ca}}}
 
-\author{Anon1\affilnum{}, Anon2\affilnum{}}
+\author[1]{\fnm{Antonio} \sur{Páez} }
 
-\affiliation{\affilnum{}{}}
 
-\corrauth{Anon1 - Address.}
 
-\email{\href{mailto:Anon1@anon.org}{\nolinkurl{Anon1@anon.org}}}
+  \affil[1]{\orgdiv{School of Earth, Environment \&
+Society}, \orgname{McMaster
+University}, \orgaddress{\city{Hamilton}, \country{Canada}, \postcode{L8S
+4K1}, \state{Ontario}, \street{1280 Main Street West}}}
 
-\begin{abstract}
-The Canadian Census provides detailed information on the labour force
-population and how they commute to work. However, the original Census
-microdata files are confidential and can be accessed only at specially
-designated Statistics Canada facilities, known as Research Data Centres
-(RDC). This protocol poses challenges for research reproducibility,
-since disclosure of at least \emph{some of the data} in any given
-analysis will be limited. The objective of this paper is to introduce
-\{CommuteCA\}, an \texttt{R} package with analysis ready-data retrieved
-at a permissible level of aggregation from a RDC, as well as
+\abstract{The Canadian Census provides detailed information on the
+labour force population and how they commute to work. However, the
+original Census microdata files are confidential and can be accessed
+only at specially designated Statistics Canada facilities, known as
+Research Data Centres (RDC). This protocol poses challenges for research
+reproducibility, since disclosure of at least some of the data in any
+given analysis will be limited. The objective of this paper is to
+introduce \{CommuteCA\}, an \texttt{R} package with analysis ready-data
+retrieved at a permissible level of aggregation from a RDC, as well as
 standardized methods for increasing the reproducibility of research
 conducted at RDCs in Canada. The package combines the characteristics of
 an open data product and a template for standardized workflows when
@@ -70,10 +130,11 @@ terms of standardized workflows, the package includes a collection of R
 Markdown templates for conducting accessibility analyses using the
 Census microdata files (at an RDC) or the processed datasets
 (elsewhere), as well as customized functions that facilitate users'
-analyses.
-\end{abstract}
+analyses.}
 
-\keywords{opportunity; employment; impedance; travel; transport;}
+\keywords{opportunity, employment, impedance, travel, transport}
+
+
 
 \maketitle
 
@@ -527,11 +588,10 @@ This section presents an application of the \{CommuteCA\} \texttt{R}
 package using a selected study area. The application demonstrated in
 this case study can be conducted by any user who installs the package,
 without requiring access to the restricted microdata files of the 2021
-Canadian Census. Installation instructions and examples of applications
-of the \{CommuteCA\} \texttt{R} package are available in the vignettes
-in the project's GitHub repository, and all analyses presented in this
-section were conducted using the \texttt{R} Markdown templates provided
-with the package.
+Canadian Census. Installation instructions of the \{CommuteCA\}
+\texttt{R} package are available in the project's GitHub repository, and
+all analyses presented in this section were conducted using the
+\texttt{R} Markdown templates provided with the package.
 
 For this demonstration, we will realize a multimodal accessibility
 analysis for the City of Toronto, in Ontario, Canada (Figure
@@ -583,31 +643,22 @@ observing trips. However, the shape of this distance-decay effect varies
 across transportation modes and municipalities, showing differences in
 population behaviour when commuting to work.
 
-\begin{table}[H]
-\centering\centering
-\caption{\label{tab:impedance-table}\textbackslash{}label\{tab:impedance\_functions\}Calibrated impedance functions for the City of Toronto.}
+\begin{table}[!h]
 \centering
-\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\caption{\label{tab:impedance-table}\label{tab:impedance_functions}Calibrated impedance functions for the City of Toronto (Census code 3520).}
+\centering
 \fontsize{9}{11}\selectfont
-\begin{threeparttable}
-\begin{tabular}[t]{llllrr}
+\begin{tabular}[t]{llrr}
 \toprule
-\multicolumn{1}{c}{\textbf{Census Code}} & \multicolumn{1}{c}{\textbf{Municipality}} & \multicolumn{1}{c}{\textbf{Mode}} & \multicolumn{1}{c}{\textbf{Impedance function}} & \multicolumn{1}{c}{\textbf{Parameter 1*}} & \multicolumn{1}{c}{\textbf{Parameter 2*}}\\
+\textbf{Mode} & \textbf{Impedance function} & \textbf{Parameter 1\footnotemark[1]} & \textbf{Parameter 2\footnotemark[1]}\\
 \midrule
- & Toronto & Public transit & Gamma & 3.60068 & 0.07877\\
-
- & Toronto & Car-motorized & Gamma & 2.32897 & 0.08613\\
-
- & Toronto & Walk & Gamma & 1.33045 & 0.08492\\
-
-\multirow[t]{-3}{*}[\normalbaselineskip]{\raggedright\arraybackslash 3520} & Toronto & Bike & Log-normal & 2.93888 & 0.64825\\
+Walk & Gamma & 1.330 & 0.085\\
+Bike & Log-normal & 2.939 & 0.648\\
+Public transit & Gamma & 3.601 & 0.079\\
+Car-motorized & Gamma & 2.329 & 0.086\\
 \bottomrule
 \end{tabular}
-\begin{tablenotes}
-\item \textit{Note: } 
-\item For each probability distribution, Parameter 1 and Parameter 2 correspond to their standard defining parameters: the mean and standard deviation (for lognormal and normal), the rate and shape (for gamma), and the power (for exponential).
-\end{tablenotes}
-\end{threeparttable}}
+\footnotetext[1]{For each probability distribution, Parameter 1 and Parameter 2 correspond to their standard defining parameters: the mean and standard deviation (for lognormal) and the rate and shape (for gamma).}
 \end{table}
 
 \begin{figure}
@@ -668,7 +719,7 @@ available in the system. In addition, because it considers competition,
 it prevents a single job opportunity from being counted as accessible to
 more than one person.
 
-\begin{figure}
+\begin{figure}[H]
 
 {\centering \includegraphics[width=1\linewidth]{four_mode_HT_SA_SApp} 
 
@@ -697,7 +748,7 @@ expected, higher accessibility is observed in areas with more public
 transit infrastructure, such as subway and regional rail lines (see
 Figure \ref{fig:study-area-map}).
 
-\begin{figure}
+\begin{figure}[H]
 
 {\centering \includegraphics[width=0.5\linewidth]{four_modes_pop_SA_share} 
 
@@ -728,7 +779,7 @@ although the high spatial detail of the DA allows for more refined
 analysis, these analyses are more likely to be affected by exclusions
 during the vetting process.
 
-\begin{figure}
+\begin{figure}[H]
 
 {\centering \includegraphics[width=1\linewidth]{SA_four_mode_DA} 
 
@@ -773,17 +824,17 @@ these files.
 To reduce the friction in terms of using this invaluable data source, we
 created \{CommuteCA\}, an ODP with analysis-ready data and standardized
 methodologies for job accessibility analyses in Canada using data from
-the 2021 Census of Population. In the form of an \texttt{R} data
-package, \{CommuteCA\} was developed after collecting, cleaning, and
-processing the confidential microdata files of the most recently
-released Canadian Census, providing information on the labour force
-(classified or not by transportation mode and education level) and the
-number of jobs (classified or not by occupation category) for all Census
-Metropolitan Areas and Census Agglomerations in Canada with census
-tracts. In addition, the package provides standardized methodologies
-describing how to conduct accessibility analyses using the Census
-microdata files or the already processed datasets, in addition to
-customized functions that facilitate users' analyses.
+the 2021 Census of Population. In the form of an \texttt{R} package,
+\{CommuteCA\} was developed after collecting, cleaning, and processing
+the confidential microdata files of the most recently released Canadian
+Census, providing information on the labour force (classified or not by
+transportation mode and education level) and the number of jobs
+(classified or not by occupation category) for all Census Metropolitan
+Areas and Census Agglomerations in Canada with census tracts. In
+addition, the package provides standardized methodologies describing how
+to conduct accessibility analyses using the Census microdata files or
+the already processed datasets, in addition to customized functions that
+facilitate users' analyses.
 
 This package comes to join other initiatives, such as package
 \{cancensus\} \citep{cancensus}, which can be used to retrieve
@@ -816,20 +867,21 @@ to inspire similar standardized approaches to work with other datasets
 among the trove of information that is currently available only at RDC
 facilities.
 
-\section{Declaration of Conflicting
-Interests}\label{declaration-of-conflicting-interests}
+\section*{Declaration of Competing
+Interests}\label{declaration-of-competing-interests}
+\addcontentsline{toc}{section}{Declaration of Competing Interests}
 
 The authors declared no potential conflicts of interest with respect to
 the research, authorship, and/or publication of this article.
 
-\section{Acknowledgments}\label{acknowledgments}
+\section*{Acknowledgments}\label{acknowledgments}
+\addcontentsline{toc}{section}{Acknowledgments}
 
 We would like to especially thank the Research Data Centre analysts at
-\emph{to be included} for all their support during the realization of
-this study. They guided us on how to work with the confidential
-microdata files and how to prepare our outputs in accordance with the
-vetting process. This study would not have been possible without their
-work.
+McMaster University for all their support during the realization of this
+study. They guided us on how to work with the confidential microdata
+files and how to prepare our outputs in accordance with the vetting
+process. This study would not have been possible without their work.
 
 In addition, we would also like to thank some other \texttt{R} packages
 that were essential to the production of \{CommuteCA\}, namely:
@@ -839,31 +891,44 @@ that were essential to the production of \{CommuteCA\}, namely:
 initiative \citep{tidyverse} - especially \{ggplot2\} \citep{ggplot2},
 \{dplyr\} \citep{dplyr}, and \{tidyr\} \citep{tidyr}.
 
-\section{Funding}\label{funding}
+\section*{Funding}\label{funding}
+\addcontentsline{toc}{section}{Funding}
 
-The work has been supported by funding from the \emph{description about
-the funding source after the review process}.
+This research was funded through the Mobilizing Justice Partnership,
+supported by the Social Sciences and Humanities Research Council of
+Canada, and through funding from the Canadian Research Data Centre
+Network via the Emerging Scholars Award.
 
-\section{ORCID}\label{orcid}
+\section*{ORCID}\label{orcid}
+\addcontentsline{toc}{section}{ORCID}
 
 \begin{itemize}
 \tightlist
 \item
-  Anon1 - \url{https://orcid.org/}
+  Bruno Dias dos Santos - \url{https://orcid.org/0000-0002-6748-2038}
 \item
-  Anon2 - \url{https://orcid.org/}
+  Antonio Páez - \url{https://orcid.org/0000-0001-6912-9919}
 \end{itemize}
 
-\section{Data availability statement}\label{data-availability-statement}
+\section*{Data availability
+statement}\label{data-availability-statement}
+\addcontentsline{toc}{section}{Data availability statement}
 
-The \{CommuteCA\} \texttt{R} data package can be found and installed on
-\href{https://github.com/}{Github}.
+The \{CommuteCA\} \texttt{R} package can be found and installed on
+\href{https://github.com/dias-bruno/CommuteCA}{Github}.
 
-For review purposes, the package is currently available as a tar.gz file
-that can be installed by R. The file can be obtained from this anonymous
-location: \textless{}\emph{to be included}\textgreater{}
+\section*{Open science statement}\label{open-science-statement}
+\addcontentsline{toc}{section}{Open science statement}
 
-\bibliographystyle{sageh}
+We used literate programming to develop this paper, making the data
+analysis code available in the same
+\href{https://github.com/dias-bruno/CommuteCA}{Github}. repository.
+Together, these practices help ensure the transparency and
+reproducibility of our study, facilitate collaboration and further
+analysis, and align with best practices in open spatial data science
+\citep{paez_open_2021, arribas-bel2021}.
+
+\renewcommand\refname{References}
 \bibliography{bibfile.bib}
 
 

@@ -761,6 +761,41 @@ usethis::use_data(cma_max_travel_times,
                   overwrite = TRUE)
 ```
 
+# Job shares
+
+```{r}
+pcd_job_share <- read_excel(paste0(here::here(),"/data-ignore-inputs/jobs_PCD_release.xlsx"))
+
+pcd_job_share <- pcd_job_share %>% 
+  left_join(pcd_keys, by = c("PCD", "PR"))
+
+pcd_employed_categories <- pcd_job_share %>% 
+  dplyr::select(PCD, PCDNAME, PR, PRNAME, "Job requirement", 
+                "Education of the worker", "PwMode_label",
+                "jobs_rounded") %>% 
+  rename(TEER = "Job requirement",
+         Education = "Education of the worker",
+        "employed_pop" = "jobs_rounded") %>% 
+  mutate(PCD = factor(PCD), 
+         PCDNAME = factor(PCDNAME), 
+         PR = factor(PR), 
+         PRNAME = factor(PRNAME), 
+         TEER = case_when(TEER == "College or training" ~ "College or apprenticeship (2 - 3)", 
+                               TEER == "High school or no training" ~ "High school or short-term experience (4 - 5)",
+                               TEER == "Management or professional" ~ "Management or professional (0 - 1)"),
+         TEER = factor(TEER), 
+         Education = case_when(Education == "College or certificate" ~ "College or apprenticeship certificate", 
+                               Education == "High school or no certificate" ~ "High school or no certificate",
+                               Education == "University certificate or higher" ~ "University certificate or higher"),
+         Education = factor(Education, levels = c("High school or no certificate","College or apprenticeship certificate","University certificate or higher")), 
+         PwMode_label = factor(PwMode_label, levels = c("Walk","Bike","Public transit","Car-motorized","Other or non-commuter")))
+
+# adding file to the package
+usethis::use_data(pcd_employed_categories,
+                  compress = "bzip2",
+                  overwrite = TRUE)
+```
+
 
 # Census Testing Datasets
 
@@ -830,6 +865,6 @@ devtools::install()
 
 Updating github webpage:
 ```{r}
-#usethis::use_pkgdown_github_pages()
+usethis::use_pkgdown_github_pages()
 ```
 
