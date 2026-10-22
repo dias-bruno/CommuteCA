@@ -51,6 +51,9 @@
   : Calculate matching spatial availability
 - [`pcd_education_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pcd_education_impedance_functions.md)
   : Impedance Functions by Education Level for Census Divisions
+- [`pcd_employed_categories`](https://dias-bruno.github.io/CommuteCA/reference/pcd_employed_categories.md)
+  : Employed Population by Occupation, Education, and Transportation
+  Mode by Census Division
 - [`pcd_impedance_functions`](https://dias-bruno.github.io/CommuteCA/reference/pcd_impedance_functions.md)
   : Impedance Functions for Canadian Census Divisions
 - [`pcd_keys`](https://dias-bruno.github.io/CommuteCA/reference/pcd_keys.md)
